@@ -1,0 +1,27 @@
+---
+import { formatMonth, journal, months } from '../data/journal';
+import '../styles/global.css';
+const currentPath = Astro.url.pathname;
+const base = import.meta.env.BASE_URL;
+---
+
+<div class="site-shell">
+  <aside class="sidebar">
+    <a class="wordmark" href={`${base}/`}>Extrapolation<br />Capital</a>
+    <p class="sidebar-intro">A paper-traded options research journal built around bounded risk and replayable decisions.</p>
+    <nav aria-label="Primary navigation">
+      <a class:list={{ active: currentPath === `${base}/` || currentPath === `${base}` }} href={`${base}/`}>Overview</a>
+      <p class="nav-heading">Journal</p>
+      {Object.entries(months).map(([month, entries], index) => (
+        <details open={index === 0} class="month-folder">
+          <summary><span>{formatMonth(month)}</span><span class="count">{entries.length}</span></summary>
+          <div class="date-list">
+            {entries.map((entry) => <a class:list={{ active: currentPath.includes(`/journal/${entry.date}`) }} href={`${base}/journal/${entry.date}/`}>{entry.date.slice(8)}</a>)}
+          </div>
+        </details>
+      ))}
+    </nav>
+    <div class="sidebar-footer"><span class="status-dot"></span> Paper only · updated Jul 22, 2026</div>
+  </aside>
+  <main class="main-content"><slot /></main>
+</div>

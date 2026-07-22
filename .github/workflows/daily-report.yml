@@ -1,0 +1,28 @@
+name: Generate daily report
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '45 21 * * 1-5'
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.11'}
+      - run: pip install -e .
+      - name: Render replayable report
+        env:
+          EXTRAPCAP_DAILY_LLM: 'true'
+          NEBIUS_API_KEY: \${{ secrets.NEBIUS_API_KEY }}
+          NEBIUS_MODEL: \${{ vars.NEBIUS_MODEL }}
+        run: python -m extrapcap.reporting.daily_cli --date "$(date -u +%F)" --output "reports/daily-$(date -u +%F).json"
+      - name: Commit report
+        run: |
+          git config user.name extrapcap-bot
+          git config user.email extrapcap-bot@users.noreply.github.com
+          git add reports/daily-*.json
+          git diff --cached --quiet || git commit -m "report: daily operations $(date -u +%F)"
+          git push

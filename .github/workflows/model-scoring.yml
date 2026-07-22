@@ -1,0 +1,26 @@
+name: Score Sniper model
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '45 4 * * 1-5'
+jobs:
+  score:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.11'}
+      - run: pip install -e '.[research]'
+      - name: Ensure features are current
+        run: python -m extrapcap.data.features_cli --input data/normalized/bars.csv --output data/features/features.csv
+      - name: Score latest features
+        run: python -m extrapcap.models.score_cli --input data/features/features.csv --model models/sniper.cbm --output data/features/scored.csv
+      - name: Commit scored artifact
+        run: |
+          git config user.name extrapcap-bot
+          git config user.email extrapcap-bot@users.noreply.github.com
+          git add data/features/scored.csv
+          git diff --cached --quiet || git commit -m "model: score Sniper features"
+          git push

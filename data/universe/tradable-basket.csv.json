@@ -1,0 +1,69 @@
+{
+  "kind": "relative_streak_screen",
+  "source_paper": "SSRN 3626770",
+  "source_bars": "data/normalized/bars.csv",
+  "formation_rule": "latest completed bar; eligible for next session",
+  "policy": {
+    "min_length": 2,
+    "max_length": 5,
+    "directions": [
+      "negative",
+      "positive"
+    ]
+  },
+  "accepted_rows": 4,
+  "decisions": [
+    {
+      "ticker": "AAPL",
+      "as_of": "2026-07-22T04:00:00+00:00",
+      "signed_streak": -3,
+      "streak_length": 3,
+      "streak_direction": "negative",
+      "relative_return": -0.00605510369768314,
+      "accepted": true,
+      "reasons": []
+    },
+    {
+      "ticker": "AMZN",
+      "as_of": "2026-07-22T04:00:00+00:00",
+      "signed_streak": -2,
+      "streak_length": 2,
+      "streak_direction": "negative",
+      "relative_return": -0.008229936479243971,
+      "accepted": true,
+      "reasons": []
+    },
+    {
+      "ticker": "GOOGL",
+      "as_of": "2026-07-22T04:00:00+00:00",
+      "signed_streak": 1,
+      "streak_length": 1,
+      "streak_direction": "positive",
+      "relative_return": 0.0024657603962752184,
+      "accepted": false,
+      "reasons": [
+        "streak_too_short"
+      ]
+    },
+    {
+      "ticker": "MSFT",
+      "as_of": "2026-07-22T04:00:00+00:00",
+      "signed_streak": -2,
+      "streak_length": 2,
+      "streak_direction": "negative",
+      "relative_return": -0.01550202153526048,
+      "accepted": true,
+      "reasons": []
+    },
+    {
+      "ticker": "NVDA",
+      "as_of": "2026-07-22T04:00:00+00:00",
+      "signed_streak": 3,
+      "streak_length": 3,
+      "streak_direction": "positive",
+      "relative_return": 0.0018304341554185033,
+      "accepted": true,
+      "reasons": []
+    }
+  ]
+}

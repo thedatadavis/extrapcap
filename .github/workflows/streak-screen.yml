@@ -1,0 +1,32 @@
+name: Screen tradable basket by streak
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '45 5 * * 1-5'
+jobs:
+  screen:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.11'}
+      - run: pip install -e .
+      - name: Refresh source Greenlist
+        run: python -m extrapcap.universe.cli --output-dir data/universe
+      - name: Apply completed relative-streak screen
+        run: |
+          greenlist=$(find data/universe -name 'greenlist-*.csv' | sort | tail -1)
+          python -m extrapcap.universe.streak_cli \
+            --bars data/normalized/bars.csv \
+            --greenlist "$greenlist" \
+            --directions negative,positive \
+            --output data/universe/tradable-basket.csv
+      - name: Commit basket and decisions
+        run: |
+          git config user.name extrapcap-bot
+          git config user.email extrapcap-bot@users.noreply.github.com
+          git add data/universe
+          git diff --cached --quiet || git commit -m "data: screen tradable basket by streak"
+          git push

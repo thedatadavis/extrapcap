@@ -1,0 +1,29 @@
+name: Reconcile paper account
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '30 21 * * 1-5'
+jobs:
+  reconcile:
+    runs-on: ubuntu-latest
+    environment: paper
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.11'}
+      - run: pip install -e .
+      - name: Write paper reconciliation
+        env:
+          ALPACA_PAPER: 'true'
+          ALPACA_API_KEY: ${{ secrets.ALPACA_API_KEY }}
+          ALPACA_SECRET_KEY: ${{ secrets.ALPACA_SECRET_KEY }}
+        run: python -m extrapcap.execution.reconcile_cli --date "$(date -u +%F)"
+      - name: Commit reconciliation
+        run: |
+          git config user.name extrapcap-bot
+          git config user.email extrapcap-bot@users.noreply.github.com
+          git add logs/reports
+          git diff --cached --quiet || git commit -m "ledger: reconcile paper account $(date -u +%F)"
+          git push

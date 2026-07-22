@@ -1,0 +1,39 @@
+name: Manage paper positions
+on:
+  workflow_dispatch:
+    inputs:
+      execution_mode:
+        description: dry-run or paper-submit; paper-submit requires the paper environment approval gate
+        required: true
+        default: dry-run
+        type: choice
+        options: [dry-run, paper-submit]
+  schedule:
+    - cron: '*/15 14-20 * * 1-5'
+jobs:
+  manage:
+    runs-on: ubuntu-latest
+    environment: paper
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.11'}
+      - run: pip install -e .
+      - name: Evaluate and manage held verticals
+        env:
+          ALPACA_PAPER: 'true'
+          ALPACA_API_KEY: ${{ secrets.ALPACA_API_KEY }}
+          ALPACA_SECRET_KEY: ${{ secrets.ALPACA_SECRET_KEY }}
+        run: >-
+          python -m extrapcap.execution.manage_live_cli
+          --execution-mode "${{ inputs.execution_mode || 'dry-run' }}"
+          --as-of "$(date -u +%F)"
+      - name: Commit management ledger
+        run: |
+          git config user.name extrapcap-bot
+          git config user.email extrapcap-bot@users.noreply.github.com
+          git add -A logs
+          git diff --cached --quiet || git commit -m "ledger: manage paper positions $(date -u +%F)"
+          git push

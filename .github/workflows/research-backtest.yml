@@ -1,0 +1,26 @@
+name: Research backtest
+on:
+  workflow_dispatch:
+    inputs:
+      input:
+        description: CSV bars input
+        required: true
+        default: examples/sample_bars.csv
+jobs:
+  compare:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.11'}
+      - run: pip install -e '.[research]'
+      - run: >-
+          python -m extrapcap.research.matrix_cli
+          --input "${{ inputs.input }}"
+          --model models/sniper.cbm
+          --basket data/universe/tradable-basket.csv
+          --output reports/research-matrix.md
+      - uses: actions/upload-artifact@v4
+        with:
+          name: extrapcap-research-report
+          path: reports/research-matrix.md

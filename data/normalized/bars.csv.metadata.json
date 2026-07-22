@@ -1,0 +1,23 @@
+{
+  "source": "alpaca.market_data.stock_bars",
+  "feed": "iex",
+  "timeframe": "1Day",
+  "adjustment": "all",
+  "symbols": ["SPY", "AAPL", "MSFT", "NVDA", "AMZN", "GOOGL"],
+  "requested_days": 730,
+  "requested_start": null,
+  "requested_end": null,
+  "retrieved_at": "2026-07-22T14:00:32Z",
+  "provenance_status": "backfilled_for_existing_artifact; exact_request_timestamps_unavailable",
+  "row_count": 3006,
+  "date_min": "2024-07-23T04:00:00+00:00",
+  "date_max": "2026-07-22T04:00:00+00:00",
+  "symbol_counts": {
+    "AAPL": 501,
+    "AMZN": 501,
+    "GOOGL": 501,
+    "MSFT": 501,
+    "NVDA": 501,
+    "SPY": 501
+  }
+}

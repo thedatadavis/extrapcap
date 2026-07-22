@@ -1,0 +1,79 @@
+{
+  "categories": {
+    "orders": 1,
+    "rationales": 2,
+    "signals": 2
+  },
+  "event_count": 5,
+  "events": [
+    {
+      "category": "orders",
+      "client_order_id": "xpc-8f8dd3f1025fef93b32cc130",
+      "response": {
+        "order": {
+          "client_order_id": "xpc-8f8dd3f1025fef93b32cc130",
+          "legs": [
+            {
+              "asset_class": "us_option",
+              "position_intent": "sell_to_open",
+              "ratio_qty": 1,
+              "side": "sell",
+              "symbol": "SPY260724P00739000"
+            },
+            {
+              "asset_class": "us_option",
+              "position_intent": "buy_to_open",
+              "ratio_qty": 1,
+              "side": "buy",
+              "symbol": "SPY260724P00734000"
+            }
+          ],
+          "limit_price": 0.35,
+          "order_class": "mleg",
+          "qty": 1,
+          "time_in_force": "day",
+          "type": "limit"
+        },
+        "status": "dry_run"
+      },
+      "status": "dry_run"
+    },
+    {
+      "category": "rationales",
+      "client_order_id": "xpc-102708949deee5e621d390a7",
+      "judgment": {
+        "decision": "escalate",
+        "provider": "nebius",
+        "reason": "NEBIUS_API_KEY is not configured"
+      }
+    },
+    {
+      "category": "rationales",
+      "client_order_id": "xpc-8f8dd3f1025fef93b32cc130",
+      "judgment": {
+        "decision": "go",
+        "reason": "The candidate exhibits a high model probability (0.72) indicating a strong likelihood of success. The spread is a core sleeve with a narrow width (5 points: 739.0 - 734.0), which reduces directional risk. The credit received (0.35) is reasonable for the risk profile, and the position is structured with a defined risk (short call and long put at different strikes). No red flags in the context provided.",
+        "structural_risk": "Low"
+      }
+    },
+    {
+      "category": "signals",
+      "client_order_id": "xpc-c5f53b9d629688f6d4c650fe",
+      "reason": "crash_protocol",
+      "status": "vetoed"
+    },
+    {
+      "category": "signals",
+      "client_order_id": "xpc-5aa5d754909e6a65cfe3438d",
+      "reason": "crash_protocol",
+      "status": "vetoed"
+    }
+  ],
+  "kind": "daily_operations_report",
+  "statuses": {
+    "dry_run": 1,
+    "unknown": 2,
+    "vetoed": 2
+  },
+  "trading_day": "2026-07-22"
+}

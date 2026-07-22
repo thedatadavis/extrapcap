@@ -1,0 +1,22 @@
+---
+import Shell from '../../layouts/Shell.astro';
+import { formatDate, journal } from '../../data/journal';
+export function getStaticPaths() {
+  return journal.map((entry) => ({ params: { date: entry.date }, props: { entry } }));
+}
+const { entry } = Astro.props;
+const base = import.meta.env.BASE_URL;
+---
+
+<Shell>
+  <header class="topbar"><a class="back-link" href={`${base}/`}>← Overview</a><span>Daily journal</span></header>
+  <article class="journal-page">
+    <p class="kicker">Paper loop / {entry.date.slice(0, 7)}</p>
+    <h1>{formatDate(entry.date)}</h1>
+    <p class="lede">Decision records captured during the paper-trading cycle.</p>
+    <div class="entry-stack">
+      {entry.entries.map((item, index) => <section class="entry-card"><div class="entry-meta"><span>Record {String(index + 1).padStart(2, '0')}</span><span class={`decision ${item.decision}`}>{item.decision}</span></div><h2>{item.id}</h2><dl><div><dt>Provider</dt><dd>{item.provider}</dd></div><div><dt>Reason</dt><dd>{item.reason}</dd></div></dl></section>)}
+    </div>
+    <p class="journal-footnote">No execution is implied by an escalated judgment. See the source log for the raw record.</p>
+  </article>
+</Shell>

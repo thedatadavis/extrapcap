@@ -1,0 +1,24 @@
+name: Intraday paper loop
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '*/15 14-20 * * 1-5'
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    environment: paper
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.11'}
+      - run: pip install -e '.[research]'
+      - name: Run one provider-backed 1-minute dry-run scan
+        env:
+          ALPACA_PAPER: 'true'
+          ALPACA_API_KEY: ${{ secrets.ALPACA_API_KEY }}
+          ALPACA_SECRET_KEY: ${{ secrets.ALPACA_SECRET_KEY }}
+          NEBIUS_API_KEY: ${{ secrets.NEBIUS_API_KEY }}
+          SNIPER_MODEL_PATH: models/sniper.cbm
+          EXTRAPCAP_NEWS_EVENTS: data/events/news.csv
+          EXTRAPCAP_NEWS_LLM: 'true'
+        run: python -m extrapcap.orchestration.intraday_cli --symbol SPY --model "$SNIPER_MODEL_PATH" --execution-mode dry-run

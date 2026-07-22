@@ -1,0 +1,39 @@
+---
+import Shell from '../layouts/Shell.astro';
+import { formatDate, journal, performance, totalJournalEvents } from '../data/journal';
+const base = import.meta.env.BASE_URL;
+const recent = journal.slice(0, 7);
+const scale = (value: number) => Math.max(8, Math.min(100, 18 + value * 220));
+---
+
+<Shell>
+  <header class="topbar"><span>Research journal</span><a href="https://github.com/thedatadavis/extrapcap" aria-label="View source on GitHub">Source ↗</a></header>
+  <section class="hero">
+    <p class="kicker">Extrapolation Capital</p>
+    <h1>Bounded risk.<br /><em>Replayable decisions.</em></h1>
+    <p class="hero-copy">A living record of a paper-traded options system testing whether liquid markets periodically overprice fear.</p>
+  </section>
+
+  <section class="dashboard-section" aria-labelledby="performance-title">
+    <div class="section-heading"><div><h2 id="performance-title">Historical performance</h2><p>Current evidence snapshot · {performance.variant} variant</p></div><span class="data-note">Smoke test · not a live result</span></div>
+    <div class="metric-grid">
+      <div class="metric"><span>Return on capital</span><strong>{(performance.totalPnl * 100).toFixed(1)}%</strong><small>single fixture trade</small></div>
+      <div class="metric"><span>Expectancy</span><strong>{(performance.expectancy * 100).toFixed(1)}%</strong><small>per trade</small></div>
+      <div class="metric"><span>Max drawdown</span><strong>{(performance.maxDrawdown * 100).toFixed(1)}%</strong><small>fixture period</small></div>
+      <div class="metric"><span>Trades</span><strong>{performance.trades}</strong><small>{performance.wins} win · 0 loss</small></div>
+    </div>
+    <div class="chart-panel">
+      <div class="chart-label"><span>Equity path</span><span>Evidence is intentionally sparse</span></div>
+      <div class="bar-chart" aria-label="One-trade sample equity path"><i style={`height:${scale(0.08)}%`}></i><i style={`height:${scale(0.13)}%`}></i><i style={`height:${scale(0.18)}%`}></i><i style={`height:${scale(0.28)}%`}></i><i style={`height:${scale(0.22)}%`}></i><i style={`height:${scale(0.28)}%`}></i></div>
+      <div class="chart-axis"><span>Fixture start</span><span>Fixture end</span></div>
+    </div>
+  </section>
+
+  <section class="lower-grid">
+    <div class="journal-section"><div class="section-heading"><div><h2>Daily journal</h2><p>Decision records from the paper loop</p></div><a class="text-link" href={`${base}/journal/${recent[0]?.date}/`}>Read latest →</a></div>
+      <div class="journal-list">{recent.map((entry) => <a class="journal-row" href={`${base}/journal/${entry.date}/`}><span class="journal-date">{formatDate(entry.date)}</span><span class="journal-title">{entry.entries.length} decision{entry.entries.length === 1 ? '' : 's'} recorded</span><span class="arrow">→</span></a>)}</div>
+    </div>
+    <aside class="context-panel"><h2>What this is</h2><p>Research infrastructure for defined-risk put spreads and a separately budgeted asymmetric sleeve.</p><dl><div><dt>Journal events</dt><dd>{totalJournalEvents}</dd></div><div><dt>Operating mode</dt><dd>Paper only</dd></div><div><dt>Source report</dt><dd>{performance.source}</dd></div></dl><a class="text-link" href="https://github.com/thedatadavis/extrapcap">Read the repository ↗</a></aside>
+  </section>
+  <footer class="page-footer">The sample fixture is a smoke test, not evidence of strategy performance. Historical option-chain reconstruction remains a research dependency.</footer>
+</Shell>

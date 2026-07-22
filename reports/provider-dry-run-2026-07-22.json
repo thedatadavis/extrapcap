@@ -1,0 +1,28 @@
+{
+  "kind": "provider_backed_dry_run",
+  "trading_day": "2026-07-22",
+  "symbol": "SPY",
+  "data_tier": "indicative",
+  "snapshot_pages": 5,
+  "snapshot_count": 4092,
+  "contract_count": 2046,
+  "underlying_price": 748.2,
+  "model": "sniper-v1",
+  "model_probability": 0.72,
+  "nebius_review": "go",
+  "order_status": "dry_run",
+  "client_order_id": "xpc-8f8dd3f1025fef93b32cc130",
+  "order": {
+    "order_class": "mleg",
+    "limit_price": 0.35,
+    "legs": [
+      {"symbol": "SPY260724P00739000", "side": "sell", "position_intent": "sell_to_open"},
+      {"symbol": "SPY260724P00734000", "side": "buy", "position_intent": "buy_to_open"}
+    ]
+  },
+  "notes": [
+    "No order was submitted.",
+    "The snapshot is indicative data and must not be treated as OPRA-quality evidence.",
+    "The model artifact was a fixture-trained artifact; retrain on the versioned normalized bar dataset before paper-submit."
+  ]
+}

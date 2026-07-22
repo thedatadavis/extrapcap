@@ -1,0 +1,6 @@
+{
+  "snapshots": {
+    "ABC-short": {"latestQuote": {"bp": 2.0, "ap": 2.2}, "greeks": {"delta": -0.18}},
+    "ABC-long": {"latestQuote": {"bp": 0.8, "ap": 1.0}, "greeks": {"delta": -0.08}}
+  }
+}

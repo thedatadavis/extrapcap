@@ -1,0 +1,37 @@
+name: Provider-backed paper cycle
+on:
+  workflow_dispatch:
+    inputs:
+      symbol:
+        description: Underlying symbol
+        required: true
+        default: SPY
+      expiration_gte:
+        description: Minimum option expiration YYYY-MM-DD
+        required: true
+      expiration_lte:
+        description: Maximum option expiration YYYY-MM-DD
+        required: false
+      execution_mode:
+        description: dry-run or paper-submit
+        required: true
+        default: dry-run
+jobs:
+  cycle:
+    runs-on: ubuntu-latest
+    environment: paper
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.11'}
+      - run: pip install -e '.[research]'
+      - name: Provider-backed cycle
+        env:
+          ALPACA_PAPER: 'true'
+          ALPACA_API_KEY: ${{ secrets.ALPACA_API_KEY }}
+          ALPACA_SECRET_KEY: ${{ secrets.ALPACA_SECRET_KEY }}
+          NEBIUS_API_KEY: ${{ secrets.NEBIUS_API_KEY }}
+          SNIPER_MODEL_PATH: models/sniper.cbm
+          EXTRAPCAP_NEWS_EVENTS: data/events/news.csv
+          EXTRAPCAP_NEWS_LLM: 'true'
+        run: python -m extrapcap.orchestration.live_cycle --symbol "${{ inputs.symbol }}" --model "$SNIPER_MODEL_PATH" --expiration-gte "${{ inputs.expiration_gte }}" --expiration-lte "${{ inputs.expiration_lte }}" --execution-mode "${{ inputs.execution_mode }}"

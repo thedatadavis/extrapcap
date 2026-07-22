@@ -1,0 +1,23 @@
+name: Paper cycle
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '15 21 * * 1-5'
+jobs:
+  paper-cycle:
+    runs-on: ubuntu-latest
+    environment: paper
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.11'}
+      - run: pip install -e .
+      - name: Run dry-run chain-backed cycle
+        env:
+          ALPACA_PAPER: 'true'
+          ALPACA_API_KEY: ${{ secrets.ALPACA_API_KEY }}
+          ALPACA_SECRET_KEY: ${{ secrets.ALPACA_SECRET_KEY }}
+          NEBIUS_API_KEY: ${{ secrets.NEBIUS_API_KEY }}
+        run: python -m extrapcap.orchestration.paper_run_cli --symbol ABC --price 100 --contracts examples/sample_contracts.json --snapshot examples/sample_snapshot.json --probability 0.72 --trading-day "$(date -u +%F)" --execution-mode dry-run
+      - name: Commit audit ledger
+        run: python -m extrapcap.ledger_cli --date "$(date -u +%F)"

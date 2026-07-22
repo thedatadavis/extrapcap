@@ -1,0 +1,23 @@
+name: Refresh Greenlist
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '30 5 * * 1'
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.11'}
+      - run: pip install -e .
+      - run: python -m extrapcap.universe.cli --output-dir data/universe
+      - name: Commit pinned snapshot
+        run: |
+          git config user.name extrapcap-bot
+          git config user.email extrapcap-bot@users.noreply.github.com
+          git add data/universe
+          git diff --cached --quiet || git commit -m "data: refresh Greenlist snapshot"
+          git push

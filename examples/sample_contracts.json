@@ -1,0 +1,6 @@
+{
+  "option_contracts": [
+    {"symbol": "ABC-short", "underlying_symbol": "ABC", "expiration_date": "2026-08-21", "strike_price": 95, "type": "put"},
+    {"symbol": "ABC-long", "underlying_symbol": "ABC", "expiration_date": "2026-08-21", "strike_price": 90, "type": "put"}
+  ]
+}

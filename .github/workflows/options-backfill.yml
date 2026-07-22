@@ -1,0 +1,44 @@
+name: Historical options backfill
+on:
+  workflow_dispatch:
+    inputs:
+      symbols:
+        description: Comma-separated OCC option symbols
+        required: true
+      start:
+        description: RFC-3339 or YYYY-MM-DD start
+        required: true
+      end:
+        description: RFC-3339 or YYYY-MM-DD end
+        required: true
+      requested_feed:
+        description: Entitlement to test; provider selects the actual feed
+        required: true
+        default: indicative
+jobs:
+  backfill:
+    runs-on: ubuntu-latest
+    environment: research
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.11'}
+      - run: pip install -e .
+      - name: Backfill historical option trades
+        env:
+          ALPACA_API_KEY: ${{ secrets.ALPACA_API_KEY }}
+          ALPACA_SECRET_KEY: ${{ secrets.ALPACA_SECRET_KEY }}
+        run: >-
+          python -m extrapcap.historical_options_cli
+          --symbols "${{ inputs.symbols }}"
+          --start "${{ inputs.start }}"
+          --end "${{ inputs.end }}"
+          --requested-feed "${{ inputs.requested_feed }}"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: historical-options-backfill
+          path: |
+            data/options/historical-trades.json
+            reports/historical-options-access.json
+          if-no-files-found: ignore
