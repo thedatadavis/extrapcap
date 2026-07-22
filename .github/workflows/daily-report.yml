@@ -3,6 +3,9 @@ on:
   workflow_dispatch:
   schedule:
     - cron: '45 21 * * 1-5'
+concurrency:
+  group: extrapcap-main-writer
+  cancel-in-progress: false
 jobs:
   report:
     runs-on: ubuntu-latest

@@ -3,10 +3,15 @@ on:
   workflow_dispatch:
   schedule:
     - cron: '*/15 14-20 * * 1-5'
+concurrency:
+  group: extrapcap-main-writer
+  cancel-in-progress: false
 jobs:
   scan:
     runs-on: ubuntu-latest
     environment: paper
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -22,3 +27,10 @@ jobs:
           EXTRAPCAP_NEWS_EVENTS: data/events/news.csv
           EXTRAPCAP_NEWS_LLM: 'true'
         run: python -m extrapcap.orchestration.intraday_cli --symbol SPY --model "$SNIPER_MODEL_PATH" --execution-mode dry-run
+      - name: Commit intraday ledger
+        run: |
+          git config user.name extrapcap-bot
+          git config user.email extrapcap-bot@users.noreply.github.com
+          git add -A logs
+          git diff --cached --quiet || git commit -m "ledger: intraday paper scan $(date -u +%F)"
+          git push

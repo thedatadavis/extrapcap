@@ -1,5 +1,5 @@
 ---
-import { formatMonth, journal, months } from '../data/journal';
+import { formatDate, formatMonth, latestJournalDate, journal, months } from '../data/journal';
 import '../styles/global.css';
 const currentPath = Astro.url.pathname;
 const base = import.meta.env.BASE_URL;
@@ -21,7 +21,7 @@ const base = import.meta.env.BASE_URL;
         </details>
       ))}
     </nav>
-    <div class="sidebar-footer"><span class="status-dot"></span> Paper only · updated Jul 22, 2026</div>
+    <div class="sidebar-footer"><span class="status-dot"></span> Paper only · {latestJournalDate ? 'updated ' + formatDate(latestJournalDate) : 'awaiting first event'}</div>
   </aside>
   <main class="main-content"><slot /></main>
 </div>

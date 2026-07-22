@@ -9,13 +9,13 @@ from pathlib import Path
 
 from ..llm.nebius import NebiusReviewer
 from ..playback import replay_day
-from .daily_note import build_daily_note
+from .daily_note import build_daily_note, event_status
 
 
 def render_daily_report(root: str | Path, trading_day: str, output: str | Path) -> Path:
     events = replay_day(root, trading_day)
     categories = Counter(event["category"] for event in events)
-    statuses = Counter(str(event.get("status", "unknown")) for event in events)
+    statuses = Counter(event_status(event) for event in events)
     report = {
         "kind": "daily_operations_report",
         "trading_day": trading_day,

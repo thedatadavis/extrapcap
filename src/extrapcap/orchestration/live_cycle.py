@@ -10,6 +10,7 @@ from ..data.alpaca_market import AlpacaMarketData
 from ..data.normalize import normalize_stock_bars
 from ..events import EventDecision, decision_from_csv
 from ..execution.alpaca import AlpacaPaperClient
+from ..ledger import AuditLedger
 from ..fills import FillAssumptions
 from ..llm.nebius import NebiusReviewer
 from ..models.sniper import SniperModel
@@ -26,6 +27,7 @@ def run_live_cycle(
     expiration_lte: str | None = None,
     execution_mode: str = "dry-run",
     timeframe: str = "1Day",
+    selection_context: dict | None = None,
 ) -> dict:
     config = AppConfig.from_env()
     os.environ["EXTRAPCAP_EXECUTION_MODE"] = execution_mode
@@ -38,12 +40,16 @@ def run_live_cycle(
     if timeframe != "1Day":
         intraday_gate = approve_intraday_order(IntradayRiskState(symbol=symbol, now=end), config.risk)
         if not intraday_gate.allowed:
-            return {
-                "symbol": symbol,
+            result = {
+                "ticker": symbol.upper(),
+                "symbol": symbol.upper(),
                 "timeframe": timeframe,
                 "status": "vetoed",
                 "reason": intraday_gate.reason,
+                "selection_context": selection_context or {},
             }
+            AuditLedger().append("risk", result, end.date())
+            return result
     lookback_days = max(45, config.strategy.z_window * 3)
     if timeframe != "1Day":
         lookback_days = min(lookback_days, 5)
@@ -64,9 +70,21 @@ def run_live_cycle(
     event_path = os.getenv("EXTRAPCAP_NEWS_EVENTS")
     event_reviewer = reviewer if os.getenv("EXTRAPCAP_NEWS_LLM", "false").lower() == "true" else None
     event_decision = decision_from_csv(event_path, symbol, end.date(), event_reviewer) if event_path else EventDecision("noise_or_opinion", True, "news adapter not configured")
-    candidate = build_candidate(underlying=symbol, trading_day=end.date(), underlying_price=float(latest.iloc[0]["close"]), contracts_payload=contracts_payload, snapshot_payload=snapshot_payload, model_probability=probability, risk_state=PortfolioRiskState(nav=equity), risk_config=config.risk, event_decision=event_decision, fill_assumptions=FillAssumptions())
+    candidate = build_candidate(
+        underlying=symbol,
+        trading_day=end.date(),
+        underlying_price=float(latest.iloc[0]["close"]),
+        contracts_payload=contracts_payload,
+        snapshot_payload=snapshot_payload,
+        model_probability=probability,
+        risk_state=PortfolioRiskState(nav=equity),
+        risk_config=config.risk,
+        event_decision=event_decision,
+        fill_assumptions=FillAssumptions(),
+        selection_context=selection_context,
+    )
     result = PaperRunCoordinator(client, reviewer).execute(candidate)
-    return {"symbol": symbol, "timeframe": timeframe, "probability": probability, "model": model.version, "result": result}
+    return {"ticker": symbol.upper(), "symbol": symbol.upper(), "timeframe": timeframe, "probability": probability, "model": model.version, "result": result}
 
 
 def main() -> None:

@@ -40,6 +40,9 @@ This is a living handoff, not a claim that the platform is ready for live capita
 - The repository now includes guarded manual replay and paper-account-reset workflows, a versioned default configuration, and the required playback/ledger directory boundaries. Reset execution is dry-run by default and requires the exact confirmation token plus paper-submit mode.
 - The institutional report now has a dependency-free SVG comparison visual, formation-date streak case studies, and P05/P50/P95 trade-return quantiles.
 - Terminal paper-order observations now trigger optional bounded Nebius post-trade commentary, with the structured fill observation and model output appended to the rationale ledger.
+- All new ledger events now include journal-ready ticker and OCC contract metadata, and the existing provider-backed SPY records were migrated to the same schema.
+- The Astro site now generates from every dated ledger category and the latest modeled comparison report; hardcoded fixture performance and test-era journal pages were removed.
+- Scheduled candidate review now scans the streak-screened basket, preserves formation context, commits its ledger, and serializes repository writes with the other operational workflows.
 
 - Alpaca/Nebius paper-submit remains intentionally unexecuted; dry-run and read-only provider paths are verified.
 - A real SPY indicative snapshot is now persisted under `data/options`; paid OPRA history is intentionally out of scope, and free multi-period historical option quotes remain unavailable.

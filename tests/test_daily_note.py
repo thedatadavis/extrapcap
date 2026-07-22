@@ -1,4 +1,4 @@
-from extrapcap.reporting.daily_note import build_daily_note, deterministic_summary
+from extrapcap.reporting.daily_note import build_daily_note, deterministic_summary, event_status
 
 
 def test_daily_note_is_deterministic_without_reviewer():
@@ -26,3 +26,8 @@ def test_daily_note_reviewer_output_is_recorded():
     assert note["provider"] == "nebius"
     assert note["llm_input"]["event_count"] == 0
     assert note["llm_output"]["risk_posture"] == "escalate"
+
+
+def test_event_status_reads_journal_and_judgment_envelopes():
+    assert event_status({"journal": {"status": "dry_run"}}) == "dry_run"
+    assert event_status({"judgment": {"decision": "go"}}) == "go"

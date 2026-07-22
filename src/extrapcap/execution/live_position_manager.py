@@ -61,6 +61,32 @@ def manage_live_positions(
                 continue
         except (KeyError, StopIteration, ValueError):
             continue
+        metadata = record.get("metadata", {})
+        position_metadata = {
+            "ticker": parsed[0].underlying,
+            "underlying": parsed[0].underlying,
+            "contract_ids": [short.symbol, long.symbol],
+            "contracts": [
+                {
+                    "contract_id": short.symbol,
+                    "ticker": short.underlying,
+                    "expiration": short.expiration.isoformat(),
+                    "strike": short.strike,
+                    "option_type": "put",
+                    "role": "short",
+                },
+                {
+                    "contract_id": long.symbol,
+                    "ticker": long.underlying,
+                    "expiration": long.expiration.isoformat(),
+                    "strike": long.strike,
+                    "option_type": "put",
+                    "role": "long",
+                },
+            ],
+            "sleeve": payload.get("sleeve", "core"),
+            "strategy_variant": metadata.get("strategy_variant"),
+        }
         snapshot_payload, tier = options.chain_all(
             parsed[0].underlying,
             expiration_gte=parsed[0].expiration.isoformat(),
@@ -71,14 +97,25 @@ def manage_live_positions(
         quotes = {quote.symbol: quote for quote in normalize_chain(snapshot_payload)}
         short_quote, long_quote = quotes.get(short.symbol), quotes.get(long.symbol)
         if not short_quote or not long_quote or short_quote.ask is None or long_quote.bid is None:
-            result = {"client_order_id": record.get("client_order_id"), "status": "skipped", "reason": "incomplete_indicative_quote", "data_tier": tier.value}
+            result = {
+                "client_order_id": record.get("client_order_id"),
+                **position_metadata,
+                "status": "skipped",
+                "reason": "incomplete_indicative_quote",
+                "data_tier": tier.value,
+            }
             results.append(result)
             ledger.append("risk", result, as_of)
             continue
         current_debit = short_quote.ask - long_quote.bid
-        metadata = record.get("metadata", {})
         if not metadata.get("opened_at") or metadata.get("entry_credit") is None:
-            result = {"client_order_id": record.get("client_order_id"), "status": "skipped", "reason": "missing_entry_metadata", "data_tier": tier.value}
+            result = {
+                "client_order_id": record.get("client_order_id"),
+                **position_metadata,
+                "status": "skipped",
+                "reason": "missing_entry_metadata",
+                "data_tier": tier.value,
+            }
             results.append(result)
             ledger.append("risk", result, as_of)
             continue
@@ -102,7 +139,7 @@ def manage_live_positions(
         decision = evaluate_credit_exit(position, cfg)
         result = {
             "client_order_id": record.get("client_order_id"),
-            "symbol": parsed[0].underlying,
+            **position_metadata,
             "status": decision.action,
             "reason": decision.reason,
             "current_debit": current_debit,

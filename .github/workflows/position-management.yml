@@ -10,6 +10,9 @@ on:
         options: [dry-run, paper-submit]
   schedule:
     - cron: '*/15 14-20 * * 1-5'
+concurrency:
+  group: extrapcap-main-writer
+  cancel-in-progress: false
 jobs:
   manage:
     runs-on: ubuntu-latest

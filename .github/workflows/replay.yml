@@ -11,6 +11,9 @@ on:
         required: true
         default: false
         type: boolean
+concurrency:
+  group: extrapcap-main-writer
+  cancel-in-progress: false
 jobs:
   replay:
     runs-on: ubuntu-latest

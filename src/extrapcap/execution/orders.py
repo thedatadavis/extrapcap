@@ -59,6 +59,18 @@ class OrderRegistry:
             record = {
                 "client_order_id": envelope.client_order_id,
                 "execution_status": execution_status,
+                "trading_day": envelope.trading_day,
+                "ticker": envelope.symbol.upper(),
+                "underlying": envelope.symbol.upper(),
+                "sleeve": envelope.sleeve,
+                "side": envelope.side,
+                "quantity": envelope.quantity,
+                "limit_price": envelope.limit_price,
+                "contract_ids": [
+                    str(leg.get("symbol")).upper()
+                    for leg in envelope.legs
+                    if leg.get("symbol")
+                ],
                 "payload": envelope.alpaca_payload(),
             }
             if metadata:

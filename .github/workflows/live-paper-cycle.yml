@@ -16,10 +16,15 @@ on:
         description: dry-run or paper-submit
         required: true
         default: dry-run
+concurrency:
+  group: extrapcap-main-writer
+  cancel-in-progress: false
 jobs:
   cycle:
     runs-on: ubuntu-latest
     environment: paper
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -35,3 +40,10 @@ jobs:
           EXTRAPCAP_NEWS_EVENTS: data/events/news.csv
           EXTRAPCAP_NEWS_LLM: 'true'
         run: python -m extrapcap.orchestration.live_cycle --symbol "${{ inputs.symbol }}" --model "$SNIPER_MODEL_PATH" --expiration-gte "${{ inputs.expiration_gte }}" --expiration-lte "${{ inputs.expiration_lte }}" --execution-mode "${{ inputs.execution_mode }}"
+      - name: Commit paper-cycle ledger
+        run: |
+          git config user.name extrapcap-bot
+          git config user.email extrapcap-bot@users.noreply.github.com
+          git add -A logs
+          git diff --cached --quiet || git commit -m "ledger: paper cycle $(date -u +%F)"
+          git push

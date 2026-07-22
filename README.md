@@ -33,6 +33,7 @@ python -m extrapcap.reporting.daily_cli --date 2026-07-22
 python -m extrapcap.execution.position_manager_cli --help
 python -m extrapcap.execution.manage_live_cli --help
 python -m extrapcap.historical_options_cli --help
+python -m extrapcap.orchestration.basket_cycle_cli --help
 ```
 
 The sample run writes a JSON report under `reports/`. Real API keys are not needed for the offline path.
@@ -41,7 +42,7 @@ Provider refreshes write `bars.csv` plus a `bars.csv.metadata.json` provenance s
 
 The scheduled intraday path uses `python -m extrapcap.orchestration.intraday_cli` for one provider-backed 1-minute scan per burst. It defaults to dry-run and requires a versioned Sniper artifact for either execution mode.
 
-The scheduled operating chain is split into idempotent GitHub Actions for universe refresh, bar refresh, feature generation, model scoring, provider-backed candidate review, paper execution, reconciliation, and daily reporting. Each write job commits only its own artifact paths with a deterministic message.
+The scheduled operating chain is split into idempotent GitHub Actions for universe refresh, bar refresh, feature generation, model scoring, provider-backed basket review, paper execution, reconciliation, and daily reporting. Repository-writing jobs share one concurrency group, commit deterministic artifact paths, and trigger an Astro rebuild from the resulting logs and reports.
 
 ## Operating modes
 
@@ -50,6 +51,12 @@ The scheduled operating chain is split into idempotent GitHub Actions for univer
 Research results must distinguish reconstructed/approximated option data from historical chain data. Do not treat a high win rate as proof of quality; inspect expectancy, drawdown, tail loss, fill assumptions, and sleeve contribution together. Production matrix runs accept `--basket data/universe/tradable-basket.csv` to keep the streak-screened universe aligned with research.
 
 The tradable-basket screen also uses the completed relative-return streak. A streak is a signed run of stock outperformance or underperformance versus SPY; the default screen retains lengths 2 through 5, records every decision, and is eligible for the next session only after the close. Negative streaks feed the mean-reversion/core research path; positive streaks remain available to continuation and Crash Protocol research.
+
+Every dated ledger event carries a stable journal envelope with ticker, OCC
+contract IDs, parsed expiration/type/strike details, strategy and sleeve,
+model bucket, data tier, status, and readable title. The Astro site reads every
+ledger category plus the latest real-bar comparison report at build time, so a
+workflow commit updates the journal without a hand-maintained frontend fixture.
 
 See `docs/charter.md`, `docs/architecture.md`, `docs/strategy/variants.md`, and `docs/roadmap.md` for the current scope and explicit TODOs.
 

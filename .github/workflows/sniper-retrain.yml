@@ -1,6 +1,9 @@
 name: Sniper retrain
 on:
   workflow_dispatch:
+concurrency:
+  group: extrapcap-main-writer
+  cancel-in-progress: false
 jobs:
   train:
     runs-on: ubuntu-latest
@@ -9,15 +12,17 @@ jobs:
       - uses: actions/setup-python@v5
         with: {python-version: '3.11'}
       - run: pip install -e '.[research]'
-      - run: python -m extrapcap.models.train_cli --input data/normalized/bars.csv --output reports/sniper
+      - run: python -m extrapcap.models.train_cli --input data/normalized/bars.csv --output /tmp/sniper
       - name: Publish versioned model artifact
         run: |
           mkdir -p models
-          cp reports/sniper/sniper.cbm models/sniper.cbm
-          cp reports/sniper/sniper.cbm.json models/sniper.cbm.json
+          mkdir -p reports/sniper
+          cp /tmp/sniper/sniper.cbm models/sniper.cbm
+          cp /tmp/sniper/sniper.cbm.json models/sniper.cbm.json
+          cp /tmp/sniper/evaluation.json reports/sniper/evaluation.json
           git config user.name extrapcap-bot
           git config user.email extrapcap-bot@users.noreply.github.com
-          git add models reports/sniper
+          git add models reports/sniper/evaluation.json
           git diff --cached --quiet || git commit -m "model: retrain Sniper"
           git push
       - uses: actions/upload-artifact@v4

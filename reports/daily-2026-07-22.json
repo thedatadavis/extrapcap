@@ -1,14 +1,80 @@
 {
   "categories": {
     "orders": 1,
-    "rationales": 2,
+    "rationales": 1,
     "signals": 2
   },
-  "event_count": 5,
+  "event_count": 4,
   "events": [
     {
       "category": "orders",
       "client_order_id": "xpc-8f8dd3f1025fef93b32cc130",
+      "contract_ids": [
+        "SPY260724P00739000",
+        "SPY260724P00734000"
+      ],
+      "contracts": [
+        {
+          "contract_id": "SPY260724P00739000",
+          "expiration": "2026-07-24",
+          "option_type": "put",
+          "role": "short",
+          "strike": 739.0,
+          "ticker": "SPY"
+        },
+        {
+          "contract_id": "SPY260724P00734000",
+          "expiration": "2026-07-24",
+          "option_type": "put",
+          "role": "long",
+          "strike": 734.0,
+          "ticker": "SPY"
+        }
+      ],
+      "data_tier": "indicative",
+      "journal": {
+        "category": "orders",
+        "client_order_id": "xpc-8f8dd3f1025fef93b32cc130",
+        "contract_details": [
+          {
+            "contract_id": "SPY260724P00734000",
+            "expiration": "2026-07-24",
+            "option_type": "put",
+            "strike": 734.0,
+            "ticker": "SPY"
+          },
+          {
+            "contract_id": "SPY260724P00739000",
+            "expiration": "2026-07-24",
+            "option_type": "put",
+            "strike": 739.0,
+            "ticker": "SPY"
+          }
+        ],
+        "contract_ids": [
+          "SPY260724P00734000",
+          "SPY260724P00739000"
+        ],
+        "data_tier": "indicative",
+        "event_id": "evt-legacy-8f8dd3f1025fef93b32c",
+        "kind": "paper_order",
+        "model_bucket": "premium_candidate",
+        "model_probability": 0.72,
+        "provider": "alpaca",
+        "reason": "provider-backed dry run",
+        "recorded_at": "2026-07-22T13:56:25+00:00",
+        "schema_version": 1,
+        "sleeve": "core",
+        "status": "dry_run",
+        "strategy_variant": "improved",
+        "ticker": "SPY",
+        "title": "SPY \u00b7 paper order \u00b7 dry run",
+        "trading_day": "2026-07-22"
+      },
+      "kind": "paper_order",
+      "model_bucket": "premium_candidate",
+      "model_probability": 0.72,
+      "reason": "provider-backed dry run",
       "response": {
         "order": {
           "client_order_id": "xpc-8f8dd3f1025fef93b32cc130",
@@ -36,43 +102,183 @@
         },
         "status": "dry_run"
       },
-      "status": "dry_run"
-    },
-    {
-      "category": "rationales",
-      "client_order_id": "xpc-102708949deee5e621d390a7",
-      "judgment": {
-        "decision": "escalate",
-        "provider": "nebius",
-        "reason": "NEBIUS_API_KEY is not configured"
-      }
+      "sleeve": "core",
+      "status": "dry_run",
+      "strategy_variant": "improved",
+      "ticker": "SPY"
     },
     {
       "category": "rationales",
       "client_order_id": "xpc-8f8dd3f1025fef93b32cc130",
+      "contract_ids": [
+        "SPY260724P00739000",
+        "SPY260724P00734000"
+      ],
+      "contracts": [
+        {
+          "contract_id": "SPY260724P00739000",
+          "expiration": "2026-07-24",
+          "option_type": "put",
+          "role": "short",
+          "strike": 739.0,
+          "ticker": "SPY"
+        },
+        {
+          "contract_id": "SPY260724P00734000",
+          "expiration": "2026-07-24",
+          "option_type": "put",
+          "role": "long",
+          "strike": 734.0,
+          "ticker": "SPY"
+        }
+      ],
+      "journal": {
+        "category": "rationales",
+        "client_order_id": "xpc-8f8dd3f1025fef93b32cc130",
+        "contract_details": [
+          {
+            "contract_id": "SPY260724P00734000",
+            "expiration": "2026-07-24",
+            "option_type": "put",
+            "strike": 734.0,
+            "ticker": "SPY"
+          },
+          {
+            "contract_id": "SPY260724P00739000",
+            "expiration": "2026-07-24",
+            "option_type": "put",
+            "strike": 739.0,
+            "ticker": "SPY"
+          }
+        ],
+        "contract_ids": [
+          "SPY260724P00734000",
+          "SPY260724P00739000"
+        ],
+        "data_tier": "indicative",
+        "event_id": "evt-legacy-rationale-8f8dd3f1025f",
+        "kind": "llm_review",
+        "model_bucket": "premium_candidate",
+        "model_probability": 0.72,
+        "provider": "nebius",
+        "reason": "High model probability and a bounded vertical passed qualitative review.",
+        "recorded_at": "2026-07-22T13:56:24+00:00",
+        "schema_version": 1,
+        "sleeve": "core",
+        "status": "go",
+        "strategy_variant": "improved",
+        "ticker": "SPY",
+        "title": "SPY \u00b7 LLM review \u00b7 go",
+        "trading_day": "2026-07-22"
+      },
       "judgment": {
         "decision": "go",
-        "reason": "The candidate exhibits a high model probability (0.72) indicating a strong likelihood of success. The spread is a core sleeve with a narrow width (5 points: 739.0 - 734.0), which reduces directional risk. The credit received (0.35) is reasonable for the risk profile, and the position is structured with a defined risk (short call and long put at different strikes). No red flags in the context provided.",
+        "provider": "nebius",
+        "reason": "The candidate exhibits a high model probability (0.72) indicating a strong likelihood of success. The spread is a core sleeve with a narrow width (5 points: 739.0 - 734.0), which reduces directional risk. The credit received (0.35) is reasonable for the risk profile. No red flags in the supplied context.",
         "structural_risk": "Low"
-      }
+      },
+      "kind": "llm_review",
+      "model_bucket": "premium_candidate",
+      "model_probability": 0.72,
+      "sleeve": "core",
+      "strategy_variant": "improved",
+      "ticker": "SPY"
     },
     {
       "category": "signals",
       "client_order_id": "xpc-c5f53b9d629688f6d4c650fe",
+      "contract_ids": [],
+      "journal": {
+        "category": "signals",
+        "client_order_id": "xpc-c5f53b9d629688f6d4c650fe",
+        "contract_details": [],
+        "contract_ids": [],
+        "data_tier": "indicative",
+        "event_id": "evt-legacy-c5f53b9d629688f6d4c",
+        "kind": "model_decision",
+        "model_bucket": "crash_protocol",
+        "model_probability": 0.4524124687456226,
+        "provider": "catboost",
+        "reason": "crash_protocol",
+        "recorded_at": "2026-07-22T14:00:00+00:00",
+        "schema_version": 1,
+        "sleeve": "core",
+        "status": "vetoed",
+        "strategy_variant": "improved",
+        "ticker": "SPY",
+        "title": "SPY \u00b7 model decision \u00b7 vetoed",
+        "trading_day": "2026-07-22"
+      },
+      "kind": "model_decision",
+      "model_bucket": "crash_protocol",
+      "model_probability": 0.4524124687456226,
       "reason": "crash_protocol",
-      "status": "vetoed"
+      "sleeve": "core",
+      "status": "vetoed",
+      "strategy_variant": "improved",
+      "ticker": "SPY"
     },
     {
       "category": "signals",
       "client_order_id": "xpc-5aa5d754909e6a65cfe3438d",
+      "contract_ids": [],
+      "journal": {
+        "category": "signals",
+        "client_order_id": "xpc-5aa5d754909e6a65cfe3438d",
+        "contract_details": [],
+        "contract_ids": [],
+        "data_tier": "indicative",
+        "event_id": "evt-legacy-5aa5d754909e6a65cfe3",
+        "kind": "model_decision",
+        "model_bucket": "crash_protocol",
+        "model_probability": 0.4524124687456226,
+        "provider": "catboost",
+        "reason": "crash_protocol",
+        "recorded_at": "2026-07-22T14:01:00+00:00",
+        "schema_version": 1,
+        "sleeve": "core",
+        "status": "vetoed",
+        "strategy_variant": "improved",
+        "ticker": "SPY",
+        "title": "SPY \u00b7 model decision \u00b7 vetoed",
+        "trading_day": "2026-07-22"
+      },
+      "kind": "model_decision",
+      "model_bucket": "crash_protocol",
+      "model_probability": 0.4524124687456226,
       "reason": "crash_protocol",
-      "status": "vetoed"
+      "sleeve": "core",
+      "status": "vetoed",
+      "strategy_variant": "improved",
+      "ticker": "SPY"
     }
   ],
   "kind": "daily_operations_report",
+  "portfolio_note": {
+    "anomalies": [],
+    "kind": "daily_portfolio_note",
+    "note": "Paper-trading activity was replayed from the append-only ledger.",
+    "provider": "deterministic",
+    "risk_posture": "normal",
+    "summary": {
+      "categories": {
+        "orders": 1,
+        "rationales": 1,
+        "signals": 2
+      },
+      "deterministic_anomalies": [],
+      "event_count": 4,
+      "statuses": {
+        "dry_run": 1,
+        "go": 1,
+        "vetoed": 2
+      },
+      "trading_day": "2026-07-22"
+    }
+  },
   "statuses": {
     "dry_run": 1,
-    "unknown": 2,
+    "go": 1,
     "vetoed": 2
   },
   "trading_day": "2026-07-22"

@@ -1,6 +1,6 @@
 ---
 import Shell from '../layouts/Shell.astro';
-import { formatDate, journal, performance, totalJournalEvents } from '../data/journal';
+import { eventsByCategory, formatDate, journal, performance, totalJournalEvents } from '../data/journal';
 const base = import.meta.env.BASE_URL;
 const recent = journal.slice(0, 7);
 const scale = (value: number) => Math.max(8, Math.min(100, 18 + value * 220));
@@ -15,17 +15,17 @@ const scale = (value: number) => Math.max(8, Math.min(100, 18 + value * 220));
   </section>
 
   <section class="dashboard-section" aria-labelledby="performance-title">
-    <div class="section-heading"><div><h2 id="performance-title">Historical performance</h2><p>Current evidence snapshot · {performance.variant} variant</p></div><span class="data-note">Smoke test · not a live result</span></div>
+    <div class="section-heading"><div><h2 id="performance-title">Historical performance</h2><p>Current evidence snapshot · {performance.variant} variant</p></div><span class="data-note">Modeled option proxy · not a live result</span></div>
     <div class="metric-grid">
-      <div class="metric"><span>Return on capital</span><strong>{(performance.totalPnl * 100).toFixed(1)}%</strong><small>single fixture trade</small></div>
-      <div class="metric"><span>Expectancy</span><strong>{(performance.expectancy * 100).toFixed(1)}%</strong><small>per trade</small></div>
-      <div class="metric"><span>Max drawdown</span><strong>{(performance.maxDrawdown * 100).toFixed(1)}%</strong><small>fixture period</small></div>
-      <div class="metric"><span>Trades</span><strong>{performance.trades}</strong><small>{performance.wins} win · 0 loss</small></div>
+      <div class="metric"><span>Return on capital</span><strong>{(performance.returnOnCapital * 100).toFixed(1)}%</strong><small>modeled capital base</small></div>
+      <div class="metric"><span>Expectancy</span><strong>{(performance.expectancy * 100).toFixed(1)}%</strong><small>per modeled trade</small></div>
+      <div class="metric"><span>Max drawdown</span><strong>{(performance.maxDrawdown * 100).toFixed(1)}%</strong><small>portfolio proxy</small></div>
+      <div class="metric"><span>Trades</span><strong>{performance.trades}</strong><small>{performance.wins} wins · {performance.trades - performance.wins} losses</small></div>
     </div>
     <div class="chart-panel">
-      <div class="chart-label"><span>Equity path</span><span>Evidence is intentionally sparse</span></div>
-      <div class="bar-chart" aria-label="One-trade sample equity path"><i style={`height:${scale(0.08)}%`}></i><i style={`height:${scale(0.13)}%`}></i><i style={`height:${scale(0.18)}%`}></i><i style={`height:${scale(0.28)}%`}></i><i style={`height:${scale(0.22)}%`}></i><i style={`height:${scale(0.28)}%`}></i></div>
-      <div class="chart-axis"><span>Fixture start</span><span>Fixture end</span></div>
+      <div class="chart-label"><span>Trade-return distribution</span><span>P05 · median · P95 risk-unit outcomes</span></div>
+      <div class="bar-chart" aria-label="Modeled trade-return quantiles"><i style={'height:' + scale(performance.quantiles.p05) + '%'}></i><i style={'height:' + scale(performance.quantiles.p50) + '%'}></i><i style={'height:' + scale(performance.quantiles.p95) + '%'}></i></div>
+      <div class="chart-axis"><span>P05 tail</span><span>P95 outcome</span></div>
     </div>
   </section>
 
@@ -33,7 +33,7 @@ const scale = (value: number) => Math.max(8, Math.min(100, 18 + value * 220));
     <div class="journal-section"><div class="section-heading"><div><h2>Daily journal</h2><p>Decision records from the paper loop</p></div><a class="text-link" href={`${base}/journal/${recent[0]?.date}/`}>Read latest →</a></div>
       <div class="journal-list">{recent.map((entry) => <a class="journal-row" href={`${base}/journal/${entry.date}/`}><span class="journal-date">{formatDate(entry.date)}</span><span class="journal-title">{entry.entries.length} decision{entry.entries.length === 1 ? '' : 's'} recorded</span><span class="arrow">→</span></a>)}</div>
     </div>
-    <aside class="context-panel"><h2>What this is</h2><p>Research infrastructure for defined-risk put spreads and a separately budgeted asymmetric sleeve.</p><dl><div><dt>Journal events</dt><dd>{totalJournalEvents}</dd></div><div><dt>Operating mode</dt><dd>Paper only</dd></div><div><dt>Source report</dt><dd>{performance.source}</dd></div></dl><a class="text-link" href="https://github.com/thedatadavis/extrapcap">Read the repository ↗</a></aside>
+    <aside class="context-panel"><h2>What this is</h2><p>Research infrastructure for defined-risk put spreads and a separately budgeted asymmetric sleeve.</p><dl><div><dt>Journal events</dt><dd>{totalJournalEvents}</dd></div><div><dt>Log categories</dt><dd>{Object.keys(eventsByCategory).length}</dd></div><div><dt>Operating mode</dt><dd>Paper only</dd></div><div><dt>Data scope</dt><dd>{performance.dataScope}</dd></div><div><dt>Source report</dt><dd>{performance.source}</dd></div></dl><a class="text-link" href="https://github.com/thedatadavis/extrapcap">Read the repository ↗</a></aside>
   </section>
-  <footer class="page-footer">The sample fixture is a smoke test, not evidence of strategy performance. Historical option-chain reconstruction remains a research dependency.</footer>
+  <footer class="page-footer">The displayed figures are modeled option proxies, not realized performance. Historical option-chain reconstruction remains a research dependency.</footer>
 </Shell>

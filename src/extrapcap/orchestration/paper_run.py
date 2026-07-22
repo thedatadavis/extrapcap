@@ -23,6 +23,8 @@ class PaperCandidate:
     model_bucket: str
     risk_decision: RiskDecision
     event_decision: EventDecision
+    strategy_variant: str = "improved"
+    selection_context: dict | None = None
 
 
 def build_candidate(
@@ -40,6 +42,8 @@ def build_candidate(
     delta_min: float = 0.15,
     delta_max: float = 0.20,
     width: float = 5.0,
+    strategy_variant: str = "improved",
+    selection_context: dict | None = None,
 ) -> PaperCandidate:
     assumptions = fill_assumptions or FillAssumptions()
     contracts = contracts_from_payload(contracts_payload)
@@ -51,7 +55,17 @@ def build_candidate(
     risk_decision = approve_candidate(spread, risk_state, risk_config)
     bucket = "crash_protocol" if model_probability < 0.50 else "trap" if model_probability < 0.65 else "premium_candidate"
     envelope = OrderEnvelope(str(trading_day), underlying, "sell_to_open", selected.order_legs(), "core", limit_price=spread.credit)
-    return PaperCandidate(envelope, spread, selected, model_probability, bucket, risk_decision, event_decision)
+    return PaperCandidate(
+        envelope,
+        spread,
+        selected,
+        model_probability,
+        bucket,
+        risk_decision,
+        event_decision,
+        strategy_variant,
+        selection_context,
+    )
 
 
 class PaperRunCoordinator:
@@ -66,14 +80,35 @@ class PaperRunCoordinator:
     def execute(self, candidate: PaperCandidate) -> dict:
         cid = candidate.envelope.client_order_id
         trading_day = date.fromisoformat(candidate.envelope.trading_day)
+        contracts = [
+            {
+                "contract_id": contract.symbol,
+                "ticker": contract.underlying,
+                "expiration": contract.expiration,
+                "strike": contract.strike,
+                "option_type": contract.option_type,
+                "role": role,
+            }
+            for role, contract in (("short", candidate.selected.short), ("long", candidate.selected.long))
+        ]
+        contract_ids = [contract["contract_id"] for contract in contracts]
+        common = {
+            "ticker": candidate.envelope.symbol.upper(),
+            "underlying": candidate.envelope.symbol.upper(),
+            "contract_ids": contract_ids,
+            "contracts": contracts,
+            "sleeve": candidate.envelope.sleeve,
+            "strategy_variant": candidate.strategy_variant,
+            "selection_context": candidate.selection_context or {},
+        }
         if self.registry.contains(cid):
-            return {"client_order_id": cid, "status": "duplicate_skipped"}
+            return {"client_order_id": cid, "status": "duplicate_skipped", **common}
         self.ledger.append(
             "signals",
             {
                 "kind": "candidate",
                 "client_order_id": cid,
-                "symbol": candidate.envelope.symbol,
+                **common,
                 "model_probability": candidate.model_probability,
                 "model_bucket": candidate.model_bucket,
                 "spread": candidate.spread.__dict__,
@@ -83,25 +118,31 @@ class PaperRunCoordinator:
             trading_day,
         )
         if not candidate.event_decision.allowed:
-            result = {"client_order_id": cid, "status": "vetoed", "reason": candidate.event_decision.reason}
+            result = {"client_order_id": cid, "status": "vetoed", "reason": candidate.event_decision.reason, **common}
             self.ledger.append("signals", result, trading_day)
             return result
         if not candidate.risk_decision.allowed:
-            result = {"client_order_id": cid, "status": "vetoed", "reason": candidate.risk_decision.reason}
+            result = {"client_order_id": cid, "status": "vetoed", "reason": candidate.risk_decision.reason, **common}
             self.ledger.append("risk", result, trading_day)
             return result
         if candidate.model_bucket != "premium_candidate":
-            result = {"client_order_id": cid, "status": "vetoed", "reason": candidate.model_bucket}
+            result = {"client_order_id": cid, "status": "vetoed", "reason": candidate.model_bucket, **common}
             self.ledger.append("signals", result, trading_day)
             return result
-        review_input = {"candidate": cid, "spread": candidate.spread.__dict__, "model_probability": candidate.model_probability}
+        review_input = {
+            "candidate": cid,
+            **common,
+            "spread": candidate.spread.__dict__,
+            "model_probability": candidate.model_probability,
+            "model_bucket": candidate.model_bucket,
+        }
         try:
             judgment = self.reviewer.review(review_input)
         except Exception as exc:
             judgment = {"decision": "escalate", "reason": f"reviewer failure: {type(exc).__name__}", "provider": "nebius"}
         self.ledger.append(
             "rationales",
-            {"client_order_id": cid, "input": review_input, "judgment": judgment},
+            {"client_order_id": cid, **common, "input": review_input, "judgment": judgment},
             trading_day,
         )
         if judgment.get("decision") != "go":
@@ -113,10 +154,17 @@ class PaperRunCoordinator:
                 "entry_credit": candidate.spread.credit,
                 "spread_width": candidate.spread.width,
                 "opened_at": candidate.envelope.trading_day,
+                "strategy_variant": candidate.strategy_variant,
+                "contracts": contracts,
             },
             execution_status="dry_run" if getattr(self.client, "dry_run", True) else "submitted",
         )
-        result = {"client_order_id": cid, "status": response.get("status", "submitted"), "response": response}
+        result = {
+            "client_order_id": cid,
+            "status": response.get("status", "submitted"),
+            "response": response,
+            **common,
+        }
         self.ledger.append("orders", result, trading_day)
         if not getattr(self.client, "dry_run", True):
             snapshot = reconcile(self.client, self.ledger, date.fromisoformat(candidate.envelope.trading_day))

@@ -78,4 +78,6 @@ def test_live_position_manager_marks_held_legs_and_dry_runs_close(tmp_path):
         ledger=AuditLedger(tmp_path / "logs"),
     )
     assert result[0]["status"] == "close"
+    assert result[0]["ticker"] == "SPY"
+    assert result[0]["contract_ids"] == ["SPY260724P00739000", "SPY260724P00734000"]
     assert client.submitted[0]["legs"][0]["position_intent"] == "buy_to_close"

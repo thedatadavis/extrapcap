@@ -3,9 +3,23 @@ from __future__ import annotations
 from collections import Counter
 
 
+def event_status(event: dict) -> str:
+    journal = event.get("journal") if isinstance(event.get("journal"), dict) else {}
+    judgment = event.get("judgment") if isinstance(event.get("judgment"), dict) else {}
+    output = event.get("output") if isinstance(event.get("output"), dict) else {}
+    return str(
+        event.get("status")
+        or event.get("decision")
+        or journal.get("status")
+        or judgment.get("decision")
+        or output.get("decision")
+        or "unknown"
+    )
+
+
 def deterministic_summary(events: list[dict], trading_day: str) -> dict:
     """Create the facts supplied to an optional LLM; no external facts are inferred."""
-    statuses = Counter(str(event.get("status", event.get("decision", "unknown"))) for event in events)
+    statuses = Counter(event_status(event) for event in events)
     categories = Counter(str(event.get("category", "unknown")) for event in events)
     anomalies = []
     if not events:
