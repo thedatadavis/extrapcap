@@ -2,10 +2,10 @@
 
 > This is an automated research artifact. It is not a performance claim. Confirm the data tier, option-chain source, slippage, and out-of-sample period before using any result.
 
-| Variant | Trades | Win rate | Premium | Expectancy | Return on capital | Utilization | Avg duration | Skew | Portfolio return | Portfolio Sharpe | Portfolio Sortino | Portfolio drawdown | P05 tail | Profit factor |
+| Variant | Trades | Win rate | Premium | Expectancy | Return on capital | Utilization | Avg duration | Skew | P05/P50/P95 | Portfolio return | Portfolio Sharpe | Portfolio Sortino | Portfolio drawdown | Profit factor |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| baseline | 810 | 91.7% | 121500.00 | 0.3342 | 76.54% | 0.24% | 1.5 | -3.383 | 114.52% | 6.65 | 17.73 | -1.41% | -0.4809 | 7.659426402361873 |
-| improved | 810 | 99.0% | 89100.00 | 0.2721 | 72.65% | 0.26% | 1.5 | -11.454 | 106.52% | 8.66 | 28.81 | -0.47% | 0.2821 | 41.579792256846034 |
+| baseline | 810 | 91.7% | 121500.00 | 0.3342 | 76.54% | 0.24% | 1.5 | -3.383 | -0.481/0.429/0.429 | 114.52% | 6.65 | 17.73 | -1.41% | 7.659426402361873 |
+| improved | 810 | 99.0% | 89100.00 | 0.2721 | 72.65% | 0.26% | 1.5 | -11.454 | 0.282/0.282/0.282 | 106.52% | 8.66 | 28.81 | -0.47% | 41.579792256846034 |
 
 ## Machine-readable results
 
@@ -51,6 +51,13 @@
     "average_trade_duration_days": 1.4790123456790123,
     "average_open_risk_utilization": 0.0024077844311377245,
     "trade_skewness": -3.382886260910919,
+    "trade_return_quantiles": {
+      "p05": -0.4808571428571411,
+      "p25": 0.42857142857142855,
+      "p50": 0.42857142857142855,
+      "p75": 0.42857142857142855,
+      "p95": 0.42857142857142855
+    },
     "regime_decomposition": {
       "positive": {
         "trades": 500.0,
@@ -64,7 +71,14 @@
         "cagr": null,
         "tail_loss_p05": -0.4318571428571403,
         "worst_return": -1.0,
-        "skewness": -3.5118587799091827
+        "skewness": -3.5118587799091827,
+        "quantiles": {
+          "p05": -0.4318571428571403,
+          "p25": 0.42857142857142855,
+          "p50": 0.42857142857142855,
+          "p75": 0.42857142857142855,
+          "p95": 0.42857142857142855
+        }
       },
       "negative": {
         "trades": 310.0,
@@ -78,7 +92,14 @@
         "cagr": null,
         "tail_loss_p05": -0.5707142857142863,
         "worst_return": -1.0,
-        "skewness": -3.193276841249661
+        "skewness": -3.193276841249661,
+        "quantiles": {
+          "p05": -0.5707142857142863,
+          "p25": 0.42857142857142855,
+          "p50": 0.42857142857142855,
+          "p75": 0.42857142857142855,
+          "p95": 0.42857142857142855
+        }
       },
       "neutral": {
         "trades": 0.0,
@@ -92,7 +113,14 @@
         "cagr": null,
         "tail_loss_p05": 0.0,
         "worst_return": 0.0,
-        "skewness": 0.0
+        "skewness": 0.0,
+        "quantiles": {
+          "p05": 0.0,
+          "p25": 0.0,
+          "p50": 0.0,
+          "p75": 0.0,
+          "p95": 0.0
+        }
       }
     },
     "sector_concentration": "unavailable_without_sector_metadata",
@@ -138,6 +166,13 @@
     "average_trade_duration_days": 1.4790123456790123,
     "average_open_risk_utilization": 0.002626626746506986,
     "trade_skewness": -11.453551457293882,
+    "trade_return_quantiles": {
+      "p05": 0.2820512820512821,
+      "p25": 0.2820512820512821,
+      "p50": 0.2820512820512821,
+      "p75": 0.2820512820512821,
+      "p95": 0.2820512820512821
+    },
     "regime_decomposition": {
       "positive": {
         "trades": 500.0,
@@ -151,7 +186,14 @@
         "cagr": null,
         "tail_loss_p05": 0.2820512820512821,
         "worst_return": -1.0,
-        "skewness": -11.956904569163267
+        "skewness": -11.956904569163267,
+        "quantiles": {
+          "p05": 0.2820512820512821,
+          "p25": 0.2820512820512821,
+          "p50": 0.2820512820512821,
+          "p75": 0.2820512820512821,
+          "p95": 0.2820512820512821
+        }
       },
       "negative": {
         "trades": 310.0,
@@ -165,7 +207,14 @@
         "cagr": null,
         "tail_loss_p05": 0.2820512820512821,
         "worst_return": -1.0,
-        "skewness": -10.73488982585015
+        "skewness": -10.73488982585015,
+        "quantiles": {
+          "p05": 0.2820512820512821,
+          "p25": 0.2820512820512821,
+          "p50": 0.2820512820512821,
+          "p75": 0.2820512820512821,
+          "p95": 0.2820512820512821
+        }
       },
       "neutral": {
         "trades": 0.0,
@@ -179,7 +228,14 @@
         "cagr": null,
         "tail_loss_p05": 0.0,
         "worst_return": 0.0,
-        "skewness": 0.0
+        "skewness": 0.0,
+        "quantiles": {
+          "p05": 0.0,
+          "p25": 0.0,
+          "p50": 0.0,
+          "p75": 0.0,
+          "p95": 0.0
+        }
       }
     },
     "sector_concentration": "unavailable_without_sector_metadata",

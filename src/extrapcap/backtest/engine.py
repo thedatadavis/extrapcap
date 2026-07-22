@@ -52,6 +52,7 @@ class BacktestResult:
     average_trade_duration_days: float = 0.0
     average_open_risk_utilization: float = 0.0
     trade_skewness: float = 0.0
+    trade_return_quantiles: dict = field(default_factory=dict)
     regime_decomposition: dict = field(default_factory=dict)
     sector_concentration: dict | str = "unavailable_without_sector_metadata"
     intraday_vetoes: int = 0
@@ -318,6 +319,7 @@ def run_backtest(
         average_trade_duration_days=float(sum(trade_durations) / len(trade_durations)) if trade_durations else 0.0,
         average_open_risk_utilization=float(sum(utilization_samples) / len(utilization_samples)) if utilization_samples else 0.0,
         trade_skewness=float(metrics["skewness"]),
+        trade_return_quantiles=metrics["quantiles"],
         regime_decomposition={regime: summarize_returns(values) for regime, values in regime_returns.items()},
         sector_concentration=(
             {

@@ -26,6 +26,7 @@ def summarize_returns(returns, *, periods_per_year: int = 252, elapsed_years: fl
             "tail_loss_p05": 0.0,
             "worst_return": 0.0,
             "skewness": 0.0,
+            "quantiles": {"p05": 0.0, "p25": 0.0, "p50": 0.0, "p75": 0.0, "p95": 0.0},
         }
     equity = np.cumprod(1 + values)
     drawdown = equity / np.maximum.accumulate(equity) - 1
@@ -51,4 +52,11 @@ def summarize_returns(returns, *, periods_per_year: int = 252, elapsed_years: fl
         "tail_loss_p05": float(np.quantile(values, 0.05)),
         "worst_return": float(values.min()),
         "skewness": skewness,
+        "quantiles": {
+            "p05": float(np.quantile(values, 0.05)),
+            "p25": float(np.quantile(values, 0.25)),
+            "p50": float(np.quantile(values, 0.50)),
+            "p75": float(np.quantile(values, 0.75)),
+            "p95": float(np.quantile(values, 0.95)),
+        },
     }
