@@ -95,6 +95,27 @@ performance, or external news. Treat missing data as an anomaly.""",
         judgment.setdefault("reason", "No daily-note rationale supplied")
         return judgment
 
+    def post_trade_commentary(self, observation: dict) -> dict:
+        """Summarize an observed paper-order outcome without changing state."""
+        judgment = self._request_json(
+            """Return JSON with commentary (string), anomalies (array of strings), and reason.
+Describe only the supplied order/account/position observation. Do not invent fills,
+prices, performance, or external news. Treat missing fields as an anomaly.""",
+            {"observation": observation},
+        )
+        if not isinstance(judgment.get("commentary"), str) or not isinstance(judgment.get("anomalies"), list):
+            return {
+                "commentary": "Post-trade commentary unavailable; inspect the structured fill observation.",
+                "anomalies": ["invalid_or_missing_post_trade_commentary"],
+                "reason": "Nebius returned an invalid post-trade payload",
+                "provider": "nebius",
+                "model": self.model,
+            }
+        judgment.setdefault("reason", "No post-trade rationale supplied")
+        judgment.setdefault("provider", "nebius")
+        judgment.setdefault("model", self.model)
+        return judgment
+
     def list_models(self) -> dict:
         if not self.api_key:
             raise RuntimeError("NEBIUS_API_KEY is not configured")

@@ -18,13 +18,29 @@ class OrderObservation:
 
 
 class ExecutionMonitor:
-    def __init__(self, client, ledger: AuditLedger | None = None):
+    def __init__(self, client, ledger: AuditLedger | None = None, reviewer=None):
         self.client = client
         self.ledger = ledger or AuditLedger()
+        self.reviewer = reviewer
 
     def observe(self, order_id: str, trading_day: date | None = None) -> OrderObservation:
         observation = OrderObservation(self.client.order(order_id), self.client.account(), self.client.positions())
-        self.ledger.append("fills", {"order": observation.order, "account": observation.account, "positions": observation.positions}, trading_day)
+        payload = {"order": observation.order, "account": observation.account, "positions": observation.positions}
+        self.ledger.append("fills", payload, trading_day)
+        if self.reviewer is not None and observation.order.get("status") in TERMINAL_STATUSES:
+            try:
+                commentary = self.reviewer.post_trade_commentary(payload)
+            except Exception as exc:
+                commentary = {
+                    "commentary": "Post-trade reviewer failed; inspect the structured fill observation.",
+                    "anomalies": [f"reviewer_failure:{type(exc).__name__}"],
+                    "reason": "reviewer failure",
+                }
+            self.ledger.append(
+                "rationales",
+                {"kind": "post_trade_commentary", "order_id": order_id, "input": payload, "output": commentary},
+                trading_day,
+            )
         return observation
 
     def wait_for_terminal(self, order_id: str, timeout_seconds: int = 60, poll_seconds: int = 5, trading_day: date | None = None) -> OrderObservation:

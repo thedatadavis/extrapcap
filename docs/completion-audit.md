@@ -39,6 +39,7 @@ This is a living handoff, not a claim that the platform is ready for live capita
 - The backtest now enforces daily-loss, drawdown, ticker, and optional sector concentration gates while positions overlap; release records track risk by symbol and sector, and sector decomposition is explicitly marked unavailable when metadata is absent.
 - The repository now includes guarded manual replay and paper-account-reset workflows, a versioned default configuration, and the required playback/ledger directory boundaries. Reset execution is dry-run by default and requires the exact confirmation token plus paper-submit mode.
 - The institutional report now has a dependency-free SVG comparison visual, formation-date streak case studies, and P05/P50/P95 trade-return quantiles.
+- Terminal paper-order observations now trigger optional bounded Nebius post-trade commentary, with the structured fill observation and model output appended to the rationale ledger.
 
 - Alpaca/Nebius paper-submit remains intentionally unexecuted; dry-run and read-only provider paths are verified.
 - A real SPY indicative snapshot is now persisted under `data/options`; paid OPRA history is intentionally out of scope, and free multi-period historical option quotes remain unavailable.
