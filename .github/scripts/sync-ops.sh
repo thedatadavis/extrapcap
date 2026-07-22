@@ -7,6 +7,8 @@ set -euo pipefail
 # intentionally does not contain generated files, restore the current ops tree
 # after the merge so source synchronization cannot delete runtime state.
 git fetch origin main
+git config user.name extrapcap-bot
+git config user.email extrapcap-bot@users.noreply.github.com
 
 before_merge=$(git rev-parse HEAD)
 if git merge-base --is-ancestor origin/main HEAD; then
