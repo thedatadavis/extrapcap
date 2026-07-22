@@ -137,6 +137,25 @@ def test_market_bars_batches_symbols_and_follows_page_tokens():
     assert requests[1]["page_token"] == "page-2"
 
 
+def test_market_bars_isolates_a_bad_symbol_from_a_batch():
+    requests = []
+    client = AlpacaMarketData(api_key="paper-key", secret_key="paper-secret")
+
+    def fake_get(path, params, base_url=None):
+        requests.append(params.copy())
+        if "BAD" in params["symbols"]:
+            from urllib.error import HTTPError
+            raise HTTPError("https://data.alpaca.markets/v2/stocks/bars", 400, "Bad Request", {}, None)
+        return {"bars": {symbol: [{"t": symbol.lower()}] for symbol in params["symbols"].split(",")}}
+
+    client._get = fake_get
+    result = client.stock_bars(["GOOD", "BAD", "OTHER"], "start", "end", symbol_batch_size=3)
+
+    assert set(result["bars"]) == {"GOOD", "OTHER"}
+    assert result["errors"]["BAD"]["status"] == 400
+    assert any(request["symbols"] == "BAD" for request in requests)
+
+
 def test_nebius_without_key_escalates():
     assert NebiusReviewer(api_key=None).review({})["decision"] == "escalate"
 

@@ -31,9 +31,20 @@ def build_bar_metadata(
     retrieved_at: datetime,
     *,
     source_row_count: int | None = None,
+    symbol_errors: dict[str, dict] | None = None,
 ) -> dict:
     observed_symbols = sorted({str(symbol).upper() for symbol in frame["symbol"].unique()})
     missing_symbols = [symbol for symbol in symbols if symbol not in observed_symbols]
+    symbol_errors = symbol_errors or {}
+    coverage = {
+        "requested_symbol_count": len(symbols),
+        "observed_symbol_count": len(set(symbols) & set(observed_symbols)),
+        "missing_symbol_count": len(missing_symbols),
+        "missing_symbols": missing_symbols,
+        "complete": not missing_symbols,
+    }
+    if symbol_errors:
+        coverage["symbol_errors"] = symbol_errors
     return {
         "source": "alpaca.market_data.stock_bars",
         "feed": "iex",
@@ -50,13 +61,8 @@ def build_bar_metadata(
         "date_min": frame["date"].min().isoformat() if not frame.empty else None,
         "date_max": frame["date"].max().isoformat() if not frame.empty else None,
         "symbol_counts": {str(symbol): int(count) for symbol, count in frame["symbol"].value_counts().sort_index().items()},
-        "coverage": {
-            "requested_symbol_count": len(symbols),
-            "observed_symbol_count": len(set(symbols) & set(observed_symbols)),
-            "missing_symbol_count": len(missing_symbols),
-            "missing_symbols": missing_symbols,
-            "complete": not missing_symbols,
-        },
+        "coverage": coverage,
+        "symbol_errors": symbol_errors,
     }
 
 
@@ -97,6 +103,7 @@ def main() -> None:
         end,
         retrieved_at,
         source_row_count=len(raw_frame),
+        symbol_errors=payload.get("errors"),
     )
     metadata_target.write_text(json.dumps(metadata, indent=2) + "\n", encoding="utf-8")
     print(target)
