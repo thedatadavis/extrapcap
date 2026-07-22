@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "source": "nasdaq.expected_earnings_calendar",
+  "source_page": "https://www.nasdaq.com/market-activity/earnings",
+  "endpoint": "https://api.nasdaq.com/api/calendar/earnings",
+  "retrieved_at": "2026-07-22T16:37:03.232692+00:00",
+  "center_date": "2026-07-22",
+  "blackout_calendar_days": 3,
+  "coverage_start": "2026-07-19",
+  "coverage_end": "2026-07-25",
+  "queried_dates": [
+    "2026-07-19",
+    "2026-07-20",
+    "2026-07-21",
+    "2026-07-22",
+    "2026-07-23",
+    "2026-07-24",
+    "2026-07-25"
+  ],
+  "row_count": 422,
+  "rows_by_date": {
+    "2026-07-19": 0,
+    "2026-07-20": 29,
+    "2026-07-21": 66,
+    "2026-07-22": 124,
+    "2026-07-23": 161,
+    "2026-07-24": 42,
+    "2026-07-25": 0
+  },
+  "methodology": "Expected dates are derived by Nasdaq from an algorithm based on historical reporting dates; absence from a fully queried date means no expected report was returned."
+}

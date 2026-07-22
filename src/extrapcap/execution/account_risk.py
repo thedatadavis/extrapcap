@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import math
 from pathlib import Path
 
 from ..options_data import parse_occ_option_symbol
@@ -12,6 +13,15 @@ def _number(value, default: float = 0.0) -> float:
         return float(value)
     except (TypeError, ValueError):
         return default
+
+
+def _required_number(account: dict, key: str) -> float:
+    if key not in account:
+        raise RuntimeError(f"paper account is missing {key}")
+    value = _number(account.get(key), float("nan"))
+    if not math.isfinite(value):
+        raise RuntimeError(f"paper account has invalid {key}")
+    return value
 
 
 def _registry_rows(path: str | Path) -> list[dict]:
@@ -84,6 +94,7 @@ def build_portfolio_risk_state(
     *,
     registry_path: str | Path = "logs/orders/ids.jsonl",
     report_root: str | Path = "logs/reports",
+    sector_by_ticker: dict[str, str] | None = None,
 ) -> PortfolioRiskState:
     """Rebuild hard risk state from Alpaca truth plus submitted order envelopes.
 
@@ -91,6 +102,14 @@ def build_portfolio_risk_state(
     cannot be proven from the repository ledger.
     """
     equity = _number(account.get("equity") or account.get("portfolio_value"))
+    options_buying_power = _required_number(account, "options_buying_power")
+    options_trading_level = int(_required_number(account, "options_trading_level"))
+    trading_blocked = (
+        str(account.get("status", "")).upper() != "ACTIVE"
+        or bool(account.get("trading_blocked"))
+        or bool(account.get("account_blocked"))
+        or bool(account.get("trade_suspended_by_user"))
+    )
     last_equity = _number(account.get("last_equity"), equity)
     daily_pnl = equity - last_equity
     peak = max([equity, *_historical_equities(report_root)]) if equity > 0 else 0.0
@@ -111,6 +130,7 @@ def build_portfolio_risk_state(
     asymmetric_open_risk = 0.0
     open_asymmetric_trades = 0
     ticker_open_risk: dict[str, float] = {}
+    sector_open_risk: dict[str, float] = {}
     tracked_active_contracts: set[str] = set()
     tracked_active_order_ids: set[str] = set()
 
@@ -144,6 +164,11 @@ def build_portfolio_risk_state(
         sleeve = str(record.get("sleeve") or metadata.get("sleeve") or "core")
         ticker = str(record.get("ticker") or record.get("underlying") or "UNKNOWN").upper()
         ticker_open_risk[ticker] = ticker_open_risk.get(ticker, 0.0) + max_loss
+        if sector_by_ticker is not None:
+            sector = sector_by_ticker.get(ticker)
+            if not sector:
+                raise RuntimeError(f"active paper position is missing sector metadata: {ticker}")
+            sector_open_risk[sector] = sector_open_risk.get(sector, 0.0) + max_loss
         tracked_active_contracts.update(contract_ids)
         if sleeve == "asymmetric":
             asymmetric_open_risk += max_loss
@@ -176,4 +201,8 @@ def build_portfolio_risk_state(
         drawdown=drawdown,
         open_asymmetric_trades=open_asymmetric_trades,
         ticker_open_risk=ticker_open_risk,
+        sector_open_risk=sector_open_risk,
+        options_buying_power=options_buying_power,
+        options_trading_level=options_trading_level,
+        trading_blocked=trading_blocked,
     )

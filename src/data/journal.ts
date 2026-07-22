@@ -32,11 +32,22 @@ export type JournalItem = {
   modelBucket?: string;
   dataTier?: string;
   selectionContext?: JsonRecord;
+  signalId?: string;
+  riskSnapshot?: JsonRecord;
+  eventDecision?: JsonRecord;
+  marketData?: JsonRecord;
 };
 
 export type JournalEntry = {
   date: string;
   entries: JournalItem[];
+};
+
+export type PublicReadout = {
+  label: string;
+  status: string;
+  headline: string;
+  body: string;
 };
 
 type JsonRecord = Record<string, any>;
@@ -124,6 +135,10 @@ function readLedger(): JournalEntry[] {
           modelBucket: asString(record.model_bucket ?? metadata.model_bucket),
           dataTier: asString(record.data_tier ?? metadata.data_tier),
           selectionContext: record.selection_context ?? metadata.selection_context,
+          signalId: asString(record.signal_id),
+          riskSnapshot: record.risk_snapshot,
+          eventDecision: record.event_decision,
+          marketData: record.market_data,
         });
       });
       byDate.set(date, events);
@@ -196,6 +211,96 @@ export const months = journal.reduce<Record<string, JournalEntry[]>>((groups, en
 export const performance = latestPerformance();
 export const totalJournalEvents = journal.reduce((total, entry) => total + entry.entries.length, 0);
 export const latestJournalDate = journal[0]?.date;
+
+function displayName(value: string) {
+  return value.replaceAll('_', ' ').replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function spreadDescription(item: JournalItem) {
+  const expiration = item.contracts.find((contract) => contract.expiration)?.expiration;
+  const strikes = item.contracts.map((contract) => contract.strike).filter((strike): strike is number => strike !== undefined);
+  const width = strikes.length > 1 ? Math.abs(Math.max(...strikes) - Math.min(...strikes)) : undefined;
+  const details = [
+    width ? `put spread covering a ${width}-point price range with a capped loss` : 'put spread with a capped loss',
+    expiration ? `expiring ${formatDate(expiration)}` : undefined,
+  ].filter(Boolean);
+  return details.join(' ');
+}
+
+export function readoutFor(item: JournalItem): PublicReadout {
+  const ticker = item.ticker ?? 'The underlying market';
+  const status = item.status === 'dry_run' ? 'paper order' : displayName(item.status);
+  const context = item.selectionContext ?? {};
+  const direction = context.streak_direction === 'positive' ? 'outperformed' : 'underperformed';
+  const streakLength = Number(context.streak_length ?? 0);
+  const streak = streakLength ? `${streakLength} consecutive sessions` : 'a recent run of sessions';
+  const signalReason = String(context.signal_gate?.reason ?? item.reason);
+  const isVetoed = ['vetoed', 'blocked', 'rejected'].includes(item.status);
+
+  if (item.kind === 'basket_selection') {
+    if (signalReason === 'core_requires_negative_relative_streak') {
+      return {
+        label: 'Market screen',
+        status: 'not selected',
+        headline: `${ticker} was left out of the rebound screen`,
+        body: `${ticker} outperformed the broader market for ${streak}. This part of the strategy looks for potential rebounds after a stock falls behind the market, so the move was not considered for a trade.`,
+      };
+    }
+    if (isVetoed) {
+      return {
+        label: 'Market screen',
+        status: 'not selected',
+        headline: `${ticker} did not move far enough to qualify`,
+        body: `${ticker} ${direction} the broader market for ${streak}, but the difference was not large enough to meet the system's threshold for a potential rebound. No trade was proposed.`,
+      };
+    }
+    return {
+      label: 'Market screen',
+      status: 'advanced',
+      headline: `${ticker} advanced for further review`,
+      body: `${ticker} ${direction} the broader market for ${streak}. The move was large enough to continue into the next stage of review, where the system checks price, events, liquidity, and portfolio risk.`,
+    };
+  }
+
+  if (item.kind === 'model_decision') {
+    const confidence = item.modelProbability !== undefined ? ` The model estimated a ${(item.modelProbability * 100).toFixed(0)}% chance that the setup would succeed.` : '';
+    return {
+      label: 'Risk review',
+      status: isVetoed ? 'held back' : 'approved',
+      headline: isVetoed ? `${ticker} was held back by the risk review` : `${ticker} passed the risk review`,
+      body: isVetoed
+        ? `The system reviewed ${ticker} and decided that conditions were not suitable for selling options to collect a payment.${confidence} No order was sent.`
+        : `The system reviewed ${ticker} and found the conditions suitable for the next step.${confidence}`,
+    };
+  }
+
+  if (item.kind === 'llm_review') {
+    return {
+      label: 'Trade review',
+      status: item.decision === 'go' ? 'approved' : 'declined',
+      headline: item.decision === 'go' ? `${ticker} received approval for a paper trade` : `${ticker} was declined after review`,
+      body: item.decision === 'go'
+        ? `A second review approved a ${spreadDescription(item)}. The trade was prepared for the paper account only; no real capital was committed.`
+        : `A second review did not approve a trade in ${ticker}. The decision kept the setup out of the paper account.`,
+    };
+  }
+
+  if (item.kind === 'paper_order') {
+    return {
+      label: 'Paper execution',
+      status: 'paper only',
+      headline: `A paper order was prepared for ${ticker}`,
+      body: `The system prepared one ${spreadDescription(item)} for ${ticker}. This was a dry run for testing the process, not a live order, so no real trade or capital was involved.`,
+    };
+  }
+
+  return {
+    label: displayName(item.category),
+    status: displayName(item.status),
+    headline: `${ticker} was recorded in the journal`,
+    body: `The system recorded a ${displayName(item.kind).toLowerCase()} involving ${ticker}. This entry documents the research process and does not represent a live trade.`,
+  };
+}
 
 export const eventsByCategory = journal
   .flatMap((entry) => entry.entries)

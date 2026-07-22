@@ -1,14 +1,22 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime
+import hashlib
+import json
 
 from ..events import EventDecision
 from ..execution.orders import OrderEnvelope, OrderRegistry
 from ..fills import FillAssumptions, credit_fill
 from ..ledger import AuditLedger
 from ..options import VerticalSpread
-from ..options_data import SelectedVertical, contracts_from_payload, normalize_chain, select_put_vertical
+from ..options_data import (
+    SelectedVertical,
+    contracts_from_payload,
+    normalize_chain,
+    select_put_vertical,
+    selected_vertical_quote_quality,
+)
 from ..risk import PortfolioRiskState, RiskDecision, approve_candidate
 from ..execution.reconcile import reconcile
 from ..config import RiskConfig
@@ -23,8 +31,25 @@ class PaperCandidate:
     model_bucket: str
     risk_decision: RiskDecision
     event_decision: EventDecision
+    risk_state: PortfolioRiskState
+    market_data_details: dict | None = None
     strategy_variant: str = "improved"
     selection_context: dict | None = None
+
+    @property
+    def signal_id(self) -> str:
+        context = self.selection_context or {}
+        live_features = context.get("live_features") or {}
+        identity = {
+            "trading_day": self.envelope.trading_day,
+            "ticker": self.envelope.symbol.upper(),
+            "sleeve": self.envelope.sleeve,
+            "strategy_variant": self.strategy_variant,
+            "strategy_route": context.get("strategy_route"),
+            "formation_as_of": context.get("formation_date") or live_features.get("as_of"),
+        }
+        canonical = json.dumps(identity, sort_keys=True, default=str)
+        return "sig-" + hashlib.sha256(canonical.encode()).hexdigest()[:24]
 
 
 def build_candidate(
@@ -44,6 +69,10 @@ def build_candidate(
     width: float = 5.0,
     strategy_variant: str = "improved",
     selection_context: dict | None = None,
+    observed_at: datetime | None = None,
+    max_quote_age_seconds: int = 1800,
+    max_quote_spread_pct: float = 0.25,
+    min_credit_pct_width: float = 0.20,
 ) -> PaperCandidate:
     assumptions = fill_assumptions or FillAssumptions()
     contracts = contracts_from_payload(contracts_payload)
@@ -52,19 +81,45 @@ def build_candidate(
     quote_map = {quote.symbol: quote for quote in quotes}
     fill_dollars = credit_fill(quote_map[selected.short.symbol].bid, quote_map[selected.long.symbol].ask, 1, assumptions)
     spread = VerticalSpread(underlying, selected.short.strike, selected.long.strike, fill_dollars / 100)
-    risk_decision = approve_candidate(spread, risk_state, risk_config)
+    sector = str((selection_context or {}).get("sector") or "").strip()
+    market_data_details = {
+        "data_tier": snapshot_payload.get("_data_tier"),
+        "credit_pct_width": spread.credit / spread.width,
+        "min_credit_pct_width": min_credit_pct_width,
+    }
+    quality_reason = None
+    if observed_at is not None:
+        quality_reason, quote_details = selected_vertical_quote_quality(
+            selected,
+            quotes,
+            observed_at,
+            max_age_seconds=max_quote_age_seconds,
+            max_spread_pct=max_quote_spread_pct,
+        )
+        market_data_details.update(quote_details)
+    if quality_reason:
+        risk_decision = RiskDecision(False, quality_reason)
+    elif spread.credit / spread.width < min_credit_pct_width:
+        risk_decision = RiskDecision(False, "credit_below_minimum_pct_width")
+    elif not sector or sector.upper() == "N/A":
+        risk_decision = RiskDecision(False, "sector metadata required")
+    else:
+        sector_risk = (risk_state.sector_open_risk or {}).get(sector, 0.0)
+        risk_decision = approve_candidate(spread, risk_state, risk_config, sector_risk)
     bucket = "crash_protocol" if model_probability < 0.50 else "trap" if model_probability < 0.65 else "premium_candidate"
     envelope = OrderEnvelope(str(trading_day), underlying, "sell_to_open", selected.order_legs(), "core", limit_price=spread.credit)
     return PaperCandidate(
-        envelope,
-        spread,
-        selected,
-        model_probability,
-        bucket,
-        risk_decision,
-        event_decision,
-        strategy_variant,
-        selection_context,
+        envelope=envelope,
+        spread=spread,
+        selected=selected,
+        model_probability=model_probability,
+        model_bucket=bucket,
+        risk_decision=risk_decision,
+        event_decision=event_decision,
+        risk_state=risk_state,
+        market_data_details=market_data_details,
+        strategy_variant=strategy_variant,
+        selection_context=selection_context,
     )
 
 
@@ -79,6 +134,7 @@ class PaperRunCoordinator:
 
     def execute(self, candidate: PaperCandidate) -> dict:
         cid = candidate.envelope.client_order_id
+        signal_id = candidate.signal_id
         trading_day = date.fromisoformat(candidate.envelope.trading_day)
         contracts = [
             {
@@ -93,6 +149,7 @@ class PaperRunCoordinator:
         ]
         contract_ids = [contract["contract_id"] for contract in contracts]
         common = {
+            "signal_id": signal_id,
             "ticker": candidate.envelope.symbol.upper(),
             "underlying": candidate.envelope.symbol.upper(),
             "contract_ids": contract_ids,
@@ -100,9 +157,33 @@ class PaperRunCoordinator:
             "sleeve": candidate.envelope.sleeve,
             "strategy_variant": candidate.strategy_variant,
             "selection_context": candidate.selection_context or {},
+            "data_tier": (candidate.selection_context or {}).get("data_tier"),
+            "market_data": candidate.market_data_details or {},
+            "risk_snapshot": {
+                "nav": candidate.risk_state.nav,
+                "core_open_risk": candidate.risk_state.core_open_risk,
+                "asymmetric_open_risk": candidate.risk_state.asymmetric_open_risk,
+                "daily_pnl": candidate.risk_state.daily_pnl,
+                "drawdown": candidate.risk_state.drawdown,
+                "open_asymmetric_trades": candidate.risk_state.open_asymmetric_trades,
+                "ticker_open_risk": candidate.risk_state.ticker_open_risk or {},
+                "sector_open_risk": candidate.risk_state.sector_open_risk or {},
+                "options_buying_power": candidate.risk_state.options_buying_power,
+                "options_trading_level": candidate.risk_state.options_trading_level,
+                "trading_blocked": candidate.risk_state.trading_blocked,
+            },
         }
         if self.registry.contains(cid):
             return {"client_order_id": cid, "status": "duplicate_skipped", **common}
+        if self.registry.contains_signal(signal_id):
+            result = {
+                "client_order_id": cid,
+                "status": "duplicate_signal_skipped",
+                "reason": "signal already submitted",
+                **common,
+            }
+            self.ledger.append("risk", result, trading_day, deduplicate=True)
+            return result
         self.ledger.append(
             "signals",
             {
@@ -155,6 +236,7 @@ class PaperRunCoordinator:
                 "spread_width": candidate.spread.width,
                 "opened_at": candidate.envelope.trading_day,
                 "strategy_variant": candidate.strategy_variant,
+                "signal_id": signal_id,
                 "contracts": contracts,
             },
             execution_status="dry_run" if getattr(self.client, "dry_run", True) else "submitted",

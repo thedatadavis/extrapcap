@@ -17,6 +17,10 @@
 - CatBoost calibration and OOS reporting
 - Alpaca reconciliation, idempotency, and scheduled paper workflows
 - provider-backed live cycle over recent bars, option contracts, and chain snapshots
+- complete-session daily-bar enforcement and formation-value reconciliation
+- free expected-earnings blackout snapshot with fail-closed coverage checks
+- broker-clock, persistent order-count/cooldown, and completed-signal idempotency gates
+- options buying-power/approval, quote-quality, ticker, and sector risk gates
 - provider-backed 1-minute intraday scan bursts with dynamic expiration windows
 - scheduled normalized-bar refresh and versioned Sniper artifact publication
 - Nebius structured review and immutable daily ledger commits
@@ -27,7 +31,7 @@
 - multi-period free indicative option history if a freely available source becomes accessible; otherwise retain modeled/reconstructed chain replay
 - overlapping-position, margin, and portfolio-equity accounting
 - persistent low-latency runner and fill-quality studies beyond the scheduled indicative-quote exit manager; the backtest now models the operating-window and duplicate/cooldown rules available to that runner
-- news/structural-event data feed and regime decomposition
+- broader structural-news data ingestion and regime decomposition
 - regime case studies
 - safe contextual-bandit recommendations
 - sector metadata ingestion and multi-sector real-data replay

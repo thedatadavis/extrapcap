@@ -36,6 +36,7 @@ def basket_rows(path: str | Path) -> list[dict]:
         selected.append(
             {
                 "ticker": symbol,
+                "sector": row.get("sector") or None,
                 "formation_date": row.get("date") or None,
                 "streak_length": _optional_int(row.get("streak_length")),
                 "streak_direction": row.get("streak_direction") or None,

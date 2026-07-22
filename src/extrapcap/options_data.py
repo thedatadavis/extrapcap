@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime, timezone
 from enum import StrEnum
 import json
 import os
@@ -192,5 +192,52 @@ def normalize_chain(payload: dict) -> list[OptionQuote]:
         quote = snapshot.get("latestQuote", {}) or {}
         trade = snapshot.get("latestTrade", {}) or {}
         greeks = snapshot.get("greeks", {}) or {}
-        result.append(OptionQuote(symbol, quote.get("t") or trade.get("t"), quote.get("bp"), quote.get("ap"), trade.get("p"), snapshot.get("impliedVolatility"), greeks.get("delta")))
+        result.append(OptionQuote(symbol, quote.get("t"), quote.get("bp"), quote.get("ap"), trade.get("p"), snapshot.get("impliedVolatility"), greeks.get("delta")))
     return result
+
+
+def selected_vertical_quote_quality(
+    selected: SelectedVertical,
+    quotes: list[OptionQuote],
+    observed_at: datetime,
+    *,
+    max_age_seconds: int = 1800,
+    max_spread_pct: float = 0.25,
+) -> tuple[str | None, dict]:
+    quote_map = {quote.symbol: quote for quote in quotes}
+    details = {"observed_at": observed_at.astimezone(timezone.utc).isoformat(), "legs": []}
+    for role, contract in (("short", selected.short), ("long", selected.long)):
+        quote = quote_map.get(contract.symbol)
+        if quote is None:
+            return "option_quote_missing", details
+        leg = {
+            "role": role,
+            "contract_id": contract.symbol,
+            "ticker": contract.underlying,
+            "bid": quote.bid,
+            "ask": quote.ask,
+            "timestamp": quote.timestamp,
+        }
+        details["legs"].append(leg)
+        if quote.bid is None or quote.ask is None or quote.bid <= 0 or quote.ask <= quote.bid:
+            return "option_quote_invalid", details
+        midpoint = (quote.bid + quote.ask) / 2
+        spread_pct = (quote.ask - quote.bid) / midpoint
+        leg["spread_pct"] = spread_pct
+        if spread_pct > max_spread_pct:
+            return "option_quote_spread_too_wide", details
+        if not quote.timestamp:
+            return "option_quote_timestamp_missing", details
+        try:
+            timestamp = datetime.fromisoformat(str(quote.timestamp).replace("Z", "+00:00"))
+        except ValueError:
+            return "option_quote_timestamp_invalid", details
+        if timestamp.tzinfo is None:
+            timestamp = timestamp.replace(tzinfo=timezone.utc)
+        age_seconds = (
+            observed_at.astimezone(timezone.utc) - timestamp.astimezone(timezone.utc)
+        ).total_seconds()
+        leg["age_seconds"] = age_seconds
+        if age_seconds < -5 or age_seconds > max_age_seconds:
+            return "option_quote_stale", details
+    return None, details

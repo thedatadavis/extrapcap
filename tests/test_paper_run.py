@@ -23,6 +23,7 @@ def test_build_candidate_resolves_real_option_legs(tmp_path):
         }}},
         model_probability=0.72, risk_state=PortfolioRiskState(nav=100_000), risk_config=RiskConfig(),
         event_decision=EventDecision("noise_or_opinion", True, "none"), fill_assumptions=FillAssumptions(slippage_per_leg=0),
+        selection_context={"sector": "Technology"},
     )
     assert candidate.envelope.validate_for_submission() is None
     assert candidate.envelope.alpaca_payload()["legs"][0]["asset_class"] == "us_option"
@@ -52,3 +53,53 @@ def test_build_candidate_resolves_real_option_legs(tmp_path):
     assert signal["contract_ids"] == ["ABC-LONG", "ABC-SHORT"]
     assert signal["contracts"][0]["role"] == "short"
     assert signal["strategy_variant"] == "improved"
+
+
+def test_coordinator_rejects_a_second_order_for_same_signal(tmp_path):
+    candidate = build_candidate(
+        underlying="ABC",
+        trading_day=date(2026, 7, 22),
+        underlying_price=100,
+        contracts_payload={"option_contracts": [
+            {"symbol": "ABC-short", "underlying_symbol": "ABC", "expiration_date": "2026-08-21", "strike_price": 95, "type": "put"},
+            {"symbol": "ABC-long", "underlying_symbol": "ABC", "expiration_date": "2026-08-21", "strike_price": 90, "type": "put"},
+        ]},
+        snapshot_payload={"snapshots": {
+            "ABC-short": {"latestQuote": {"bp": 2.0, "ap": 2.2}, "greeks": {"delta": -0.18}},
+            "ABC-long": {"latestQuote": {"bp": 0.8, "ap": 1.0}, "greeks": {"delta": -0.08}},
+        }},
+        model_probability=0.72,
+        risk_state=PortfolioRiskState(nav=100_000),
+        risk_config=RiskConfig(),
+        event_decision=EventDecision("noise_or_opinion", True, "none"),
+        fill_assumptions=FillAssumptions(slippage_per_leg=0),
+        selection_context={"formation_date": "2026-07-21", "strategy_route": "core_mean_reversion", "sector": "Technology"},
+    )
+    registry = OrderRegistry(tmp_path / "ids.jsonl")
+    different_order = type(candidate.envelope)(
+        candidate.envelope.trading_day,
+        candidate.envelope.symbol,
+        candidate.envelope.side,
+        candidate.envelope.legs,
+        candidate.envelope.sleeve,
+        limit_price=1.1,
+    )
+    registry.record(
+        different_order,
+        {"signal_id": candidate.signal_id},
+        execution_status="submitted",
+    )
+
+    class FakeClient:
+        dry_run = False
+
+        def submit_order(self, _order):
+            raise AssertionError("duplicate signal must not reach Alpaca")
+
+    result = PaperRunCoordinator(
+        FakeClient(),
+        object(),
+        AuditLedger(tmp_path / "logs"),
+        registry,
+    ).execute(candidate)
+    assert result["status"] == "duplicate_signal_skipped"

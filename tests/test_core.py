@@ -133,6 +133,16 @@ def test_dry_run_registry_entry_does_not_block_paper_submit(tmp_path):
     assert registry.contains(envelope.client_order_id) is True
 
 
+def test_registry_blocks_only_submitted_duplicate_signals(tmp_path):
+    legs = ({"symbol": "ABC240119P00100000", "asset_class": "us_option", "side": "sell", "position_intent": "sell_to_open", "ratio_qty": 1},)
+    envelope = OrderEnvelope("2026-07-22", "ABC", "sell_to_open", legs, "core", limit_price=1.0)
+    registry = OrderRegistry(tmp_path / "ids.jsonl")
+    registry.record(envelope, {"signal_id": "sig-1"}, execution_status="dry_run")
+    assert not registry.contains_signal("sig-1")
+    registry.record(envelope, {"signal_id": "sig-1"}, execution_status="submitted")
+    assert registry.contains_signal("sig-1")
+
+
 def test_sniper_calibration_report_and_time_split():
     import pandas as pd
     features = pd.DataFrame({"x": range(10)})

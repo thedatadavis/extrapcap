@@ -1,6 +1,6 @@
 ---
 import Shell from '../../layouts/Shell.astro';
-import { formatDate, journal } from '../../data/journal';
+import { formatDate, journal, readoutFor } from '../../data/journal';
 export function getStaticPaths() {
   return journal.map((entry) => ({ params: { date: entry.date }, props: { entry } }));
 }
@@ -12,46 +12,37 @@ const base = import.meta.env.BASE_URL;
   <header class="topbar"><a class="back-link" href={`${base}/`}>← Overview</a><span>Daily journal</span></header>
   <article class="journal-page">
     <h1>{formatDate(entry.date)}</h1>
-    <p class="lede">Signals, rationales, orders, fills, risk events, and account snapshots captured during the paper-trading cycle.</p>
+    <p class="lede">A plain-language account of the market moves considered, trades held back, and paper orders prepared that day.</p>
     <div class="entry-stack">
-      {entry.entries.map((item, index) => (
+      {entry.entries.map((item) => {
+        const readout = readoutFor(item);
+        return (
         <section class="entry-card">
           <div class="entry-meta">
-            <span>{item.category} · record {String(index + 1).padStart(2, '0')}</span>
-            <span class:list={['decision', item.decision]}>{item.status}</span>
+            <span>{readout.label}</span>
+            <span class:list={['decision', item.decision]}>{readout.status}</span>
           </div>
-          <h2>{item.title}</h2>
-          <dl>
-            <div><dt>Ticker</dt><dd>{item.ticker ?? 'Not applicable'}</dd></div>
-            <div><dt>Event type</dt><dd>{item.kind}</dd></div>
-            <div><dt>Provider</dt><dd>{item.provider}</dd></div>
-            {item.sleeve && <div><dt>Sleeve</dt><dd>{item.sleeve}</dd></div>}
-            {item.strategyVariant && <div><dt>Variant</dt><dd>{item.strategyVariant}</dd></div>}
-            {item.strategyRoute && <div><dt>Strategy route</dt><dd>{item.strategyRoute.replaceAll('_', ' ')}</dd></div>}
-            {item.selectionRank !== undefined && <div><dt>Selection rank</dt><dd>{item.selectionRank}</dd></div>}
-            {item.modelProbability !== undefined && <div><dt>Model probability</dt><dd>{(item.modelProbability * 100).toFixed(1)}% · {item.modelBucket ?? 'unbucketed'}</dd></div>}
-            {item.dataTier && <div><dt>Data tier</dt><dd>{item.dataTier}</dd></div>}
-            {item.selectionContext?.streak_length !== undefined && <div><dt>Streak</dt><dd>{item.selectionContext.streak_direction} · {item.selectionContext.streak_length} sessions · signed {item.selectionContext.signed_streak}</dd></div>}
-            {item.selectionContext?.relative_return !== undefined && <div><dt>Formation move</dt><dd>{(Number(item.selectionContext.relative_return) * 100).toFixed(2)}% relative to SPY · robust Z {Number(item.selectionContext.robust_z).toFixed(2)}</dd></div>}
-            {item.selectionContext?.formation_date && <div><dt>Formation timestamp</dt><dd>{item.selectionContext.formation_date}</dd></div>}
-            {item.selectionContext?.signal_gate?.z_threshold !== undefined && <div><dt>Entry threshold</dt><dd>robust Z ≤ {Number(item.selectionContext.signal_gate.z_threshold).toFixed(2)}</dd></div>}
-            {item.selectionContext?.dollar_volume !== undefined && <div><dt>Liquidity context</dt><dd>${Number(item.selectionContext.dollar_volume).toLocaleString('en-US', { maximumFractionDigits: 0 })} dollar volume</dd></div>}
-            {item.clientOrderId && <div><dt>Client order</dt><dd><code>{item.clientOrderId}</code></dd></div>}
-            <div><dt>Reason</dt><dd>{item.reason}</dd></div>
-          </dl>
-          {item.contracts.length > 0 && (
-            <div class="contract-list">
-              <h3>Contracts</h3>
-              {item.contracts.map((contract) => (
-                <p><strong>{contract.role ?? 'leg'}</strong> · <code>{contract.contractId}</code>{contract.expiration && <span> · {contract.expiration}</span>}{contract.strike !== undefined && <span> · {contract.optionType ?? 'option'} {contract.strike}</span>}</p>
-              ))}
-            </div>
-          )}
-          {item.contracts.length === 0 && item.contractIds.length > 0 && (
-            <div class="contract-list"><h3>Contract IDs</h3>{item.contractIds.map((contractId) => <p><code>{contractId}</code></p>)}</div>
-          )}
+          <h2>{readout.headline}</h2>
+          <p class="readout-body">{readout.body}</p>
+          <details class="technical-details">
+            <summary>Technical record</summary>
+            <dl>
+              <div><dt>Ticker</dt><dd>{item.ticker ?? 'Not applicable'}</dd></div>
+              <div><dt>Event</dt><dd>{item.kind.replaceAll('_', ' ')}</dd></div>
+              {item.selectionContext?.sector && <div><dt>Sector</dt><dd>{item.selectionContext.sector}</dd></div>}
+              {item.selectionContext?.streak_length !== undefined && <div><dt>Streak</dt><dd>{item.selectionContext.streak_direction} · {item.selectionContext.streak_length} sessions · signed {item.selectionContext.signed_streak}</dd></div>}
+              {item.selectionContext?.relative_return !== undefined && <div><dt>Formation</dt><dd>{(Number(item.selectionContext.relative_return) * 100).toFixed(2)}% versus SPY · robust Z {Number(item.selectionContext.robust_z).toFixed(2)}</dd></div>}
+              {item.dataTier && <div><dt>Data tier</dt><dd>{item.dataTier}</dd></div>}
+              {item.signalId && <div><dt>Signal ID</dt><dd><code>{item.signalId}</code></dd></div>}
+              {item.clientOrderId && <div><dt>Client order</dt><dd><code>{item.clientOrderId}</code></dd></div>}
+              {item.riskSnapshot?.options_trading_level !== undefined && <div><dt>Account gate</dt><dd>Options Level {item.riskSnapshot.options_trading_level} · {item.riskSnapshot.trading_blocked ? 'blocked' : 'available'}</dd></div>}
+              <div><dt>Reason</dt><dd>{item.reason}</dd></div>
+            </dl>
+            {item.contractIds.length > 0 && <div class="contract-list"><h3>Contract IDs</h3>{item.contractIds.map((contractId) => <p><code>{contractId}</code></p>)}</div>}
+          </details>
         </section>
-      ))}
+        );
+      })}
     </div>
     <p class="journal-footnote">No execution is implied by an escalated judgment. See the source log for the raw record.</p>
   </article>

@@ -1,7 +1,9 @@
+from datetime import datetime, timezone
+
 from extrapcap.fills import FillAssumptions, credit_fill, early_assignment_exposure, vertical_expiration_pnl
 import pytest
 from extrapcap.options import VerticalSpread
-from extrapcap.options_data import AlpacaOptionsData, DataTier, OptionContract, OptionQuote, contracts_from_payload, normalize_chain, select_put_vertical
+from extrapcap.options_data import AlpacaOptionsData, DataTier, OptionContract, OptionQuote, contracts_from_payload, normalize_chain, select_put_vertical, selected_vertical_quote_quality
 
 
 def test_chain_normalization_preserves_quote_and_greeks():
@@ -47,3 +49,37 @@ def test_put_selector_uses_delta_and_resolved_contract_legs():
     assert selected.credit == 1.0
     assert selected.order_legs()[0]["position_intent"] == "sell_to_open"
     assert contracts_from_payload({"option_contracts": [{"symbol": "ABC", "underlying_symbol": "ABC", "expiration_date": "2026-08-21", "strike_price": 95, "type": "put"}]})[0].strike == 95
+
+
+def test_selected_vertical_quote_quality_rejects_wide_or_stale_quotes():
+    contracts = [
+        OptionContract("ABC-short", "ABC", "2026-08-21", 95, "put"),
+        OptionContract("ABC-long", "ABC", "2026-08-21", 90, "put"),
+    ]
+    selected = select_put_vertical(
+        "ABC",
+        contracts,
+        [
+            OptionQuote("ABC-short", "2026-07-22T14:59:00Z", 2.0, 2.2, 2.1, delta=-0.18),
+            OptionQuote("ABC-long", "2026-07-22T14:59:00Z", 0.8, 1.0, 0.9, delta=-0.08),
+        ],
+        100,
+    )
+    reason, _ = selected_vertical_quote_quality(
+        selected,
+        [
+            OptionQuote("ABC-short", "2026-07-22T14:59:00Z", 2.0, 2.2, 2.1, delta=-0.18),
+            OptionQuote("ABC-long", "2026-07-22T14:59:00Z", 0.1, 1.0, 0.5, delta=-0.08),
+        ],
+        datetime(2026, 7, 22, 15, tzinfo=timezone.utc),
+    )
+    assert reason == "option_quote_spread_too_wide"
+    reason, _ = selected_vertical_quote_quality(
+        selected,
+        [
+            OptionQuote("ABC-short", "2026-07-22T13:00:00Z", 2.0, 2.2, 2.1, delta=-0.18),
+            OptionQuote("ABC-long", "2026-07-22T13:00:00Z", 0.8, 1.0, 0.9, delta=-0.08),
+        ],
+        datetime(2026, 7, 22, 15, tzinfo=timezone.utc),
+    )
+    assert reason == "option_quote_stale"

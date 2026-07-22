@@ -3,21 +3,29 @@
   "feed": "iex",
   "timeframe": "1Day",
   "adjustment": "all",
-  "symbols": ["SPY", "AAPL", "MSFT", "NVDA", "AMZN", "GOOGL"],
-  "requested_days": 730,
-  "requested_start": null,
-  "requested_end": null,
-  "retrieved_at": "2026-07-22T14:00:32Z",
-  "provenance_status": "backfilled_for_existing_artifact; exact_request_timestamps_unavailable",
-  "row_count": 3006,
+  "symbols": [
+    "SPY",
+    "AAPL",
+    "MSFT",
+    "NVDA",
+    "AMZN",
+    "GOOGL"
+  ],
+  "requested_start": "2024-07-22T16:14:38.369273+00:00",
+  "requested_end": "2026-07-22T16:14:38.369273+00:00",
+  "retrieved_at": "2026-07-22T16:14:44.669566+00:00",
+  "row_count": 3000,
+  "source_row_count": 3006,
+  "excluded_incomplete_rows": 6,
+  "completed_session_cutoff": "2026-07-21",
   "date_min": "2024-07-23T04:00:00+00:00",
-  "date_max": "2026-07-22T04:00:00+00:00",
+  "date_max": "2026-07-21T04:00:00+00:00",
   "symbol_counts": {
-    "AAPL": 501,
-    "AMZN": 501,
-    "GOOGL": 501,
-    "MSFT": 501,
-    "NVDA": 501,
-    "SPY": 501
+    "AAPL": 500,
+    "AMZN": 500,
+    "GOOGL": 500,
+    "MSFT": 500,
+    "NVDA": 500,
+    "SPY": 500
   }
 }

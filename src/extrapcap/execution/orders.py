@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime, timezone
 import hashlib
 import json
 from pathlib import Path
@@ -51,6 +52,21 @@ class OrderRegistry:
                     return True
         return False
 
+    def contains_signal(self, signal_id: str) -> bool:
+        if not self.path.exists():
+            return False
+        for line in self.path.read_text(encoding="utf-8").splitlines():
+            if not line.strip():
+                continue
+            record = json.loads(line)
+            metadata = record.get("metadata") or {}
+            if (
+                record.get("execution_status", "submitted") == "submitted"
+                and metadata.get("signal_id") == signal_id
+            ):
+                return True
+        return False
+
     def record(self, envelope: OrderEnvelope, metadata: dict | None = None, *, execution_status: str = "submitted") -> None:
         if execution_status not in {"dry_run", "submitted"}:
             raise ValueError("execution status must be dry_run or submitted")
@@ -59,6 +75,7 @@ class OrderRegistry:
             record = {
                 "client_order_id": envelope.client_order_id,
                 "execution_status": execution_status,
+                "recorded_at": datetime.now(timezone.utc).isoformat(),
                 "trading_day": envelope.trading_day,
                 "ticker": envelope.symbol.upper(),
                 "underlying": envelope.symbol.upper(),

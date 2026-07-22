@@ -23,6 +23,7 @@ python -m extrapcap.backtest.chain_cli --input examples/sample_option_observatio
 python -m extrapcap.orchestration.paper_run_cli --help
 python -m extrapcap.orchestration.paper_run_cli --symbol ABC --price 100 --contracts examples/sample_contracts.json --snapshot examples/sample_snapshot.json --probability 0.72 --execution-mode dry-run
 python -m extrapcap.data.refresh_cli --symbols SPY,AAPL --days 365
+python -m extrapcap.earnings --date "$(date -u +%F)"
 python -m extrapcap.data.features_cli --input data/normalized/bars.csv
 python -m extrapcap.models.score_cli --input data/features/features.csv --model models/sniper.cbm
 python -m extrapcap.universe.cli --output-dir data/universe
@@ -39,10 +40,13 @@ python -m extrapcap.orchestration.basket_cycle_cli --help
 The sample run writes a JSON report under `reports/`. Real API keys are not needed for the offline path.
 
 Provider refreshes write `bars.csv` plus a `bars.csv.metadata.json` provenance sidecar containing the request window, feed, symbols, row counts, and observed date bounds.
+Only completed daily sessions are retained; a current-session partial bar cannot form a streak or model feature. The free Nasdaq expected-earnings adapter writes a seven-day blackout window plus provenance metadata. Missing, stale, or incomplete calendar coverage vetoes entry. Nasdaq labels these dates as algorithmic expectations based on historical reporting dates, so the artifact is a conservative exclusion input rather than an assertion of a confirmed company announcement.
 
 The scheduled intraday path uses `python -m extrapcap.orchestration.intraday_cli` for one provider-backed 1-minute scan per burst. It defaults to dry-run and requires a versioned Sniper artifact for either execution mode.
 
 The scheduled operating chain is split into idempotent GitHub Actions for universe refresh, bar refresh, feature generation, model scoring, provider-backed basket review, paper execution, reconciliation, and daily reporting. Repository-writing jobs share one concurrency group, commit deterministic artifact paths, and trigger an Astro rebuild from the resulting logs and reports.
+
+Before every entry path, the system checks Alpaca's paper `/v2/clock`, reconstructs same-day symbol orders from both Alpaca `/v2/orders` and the Git registry, applies cooldown/order-count rules, and rejects a second submission for the same completed signal even if the option contract or limit price changes. The live account gate also requires an active, unblocked account, options trading level 3, sufficient options buying power, bounded aggregate/ticker/sector risk, and a fresh quote on both vertical legs. The versioned basket's streak, relative return, and robust Z must match a fresh provider recomputation.
 
 ## Operating modes
 
@@ -62,5 +66,5 @@ See `docs/charter.md`, `docs/architecture.md`, `docs/strategy/variants.md`, and 
 
 ## Safety boundary
 
-The execution adapter rejects live URLs and requires `ALPACA_PAPER=true`. Paper submission additionally requires `EXTRAPCAP_PAPER_SUBMIT_ENABLED=true`; scheduled workflows remain dry-run by default. Short options are represented only as defined-risk verticals. The LLM reviewer can veto or escalate a candidate, but cannot override hard risk controls.
+The execution adapter accepts only `https://paper-api.alpaca.markets/v2` (a host-only paper URL is normalized to this exact root), rejects live or lookalike URLs, and requires `ALPACA_PAPER=true`. Paper submission additionally requires `EXTRAPCAP_PAPER_SUBMIT_ENABLED=true`; scheduled workflows remain dry-run by default. Short options are represented only as defined-risk verticals. The LLM reviewer can veto or escalate a candidate, but cannot override hard risk controls.
 Daily reports are deterministic by default. GitHub Actions enables the optional Nebius note with the NEBIUS_API_KEY secret; missing or malformed model output escalates and never changes execution state.

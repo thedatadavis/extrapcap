@@ -11,59 +11,68 @@
       "positive"
     ]
   },
-  "accepted_rows": 4,
+  "accepted_rows": 2,
   "decisions": [
     {
       "ticker": "AAPL",
-      "as_of": "2026-07-22T04:00:00+00:00",
-      "signed_streak": -3,
-      "streak_length": 3,
+      "as_of": "2026-07-21T04:00:00+00:00",
+      "signed_streak": -2,
+      "streak_length": 2,
       "streak_direction": "negative",
-      "relative_return": -0.00605510369768314,
+      "relative_return": -0.0049993617053243344,
       "accepted": true,
-      "reasons": []
+      "reasons": [],
+      "sector": "Technology"
     },
     {
       "ticker": "AMZN",
-      "as_of": "2026-07-22T04:00:00+00:00",
-      "signed_streak": -2,
-      "streak_length": 2,
-      "streak_direction": "negative",
-      "relative_return": -0.008229936479243971,
-      "accepted": true,
-      "reasons": []
-    },
-    {
-      "ticker": "GOOGL",
-      "as_of": "2026-07-22T04:00:00+00:00",
-      "signed_streak": 1,
+      "as_of": "2026-07-21T04:00:00+00:00",
+      "signed_streak": -1,
       "streak_length": 1,
-      "streak_direction": "positive",
-      "relative_return": 0.0024657603962752184,
+      "streak_direction": "negative",
+      "relative_return": -0.018012348294049185,
       "accepted": false,
       "reasons": [
         "streak_too_short"
-      ]
+      ],
+      "sector": "Consumer Cyclical"
+    },
+    {
+      "ticker": "GOOGL",
+      "as_of": "2026-07-21T04:00:00+00:00",
+      "signed_streak": -1,
+      "streak_length": 1,
+      "streak_direction": "negative",
+      "relative_return": -0.022277264007738662,
+      "accepted": false,
+      "reasons": [
+        "streak_too_short"
+      ],
+      "sector": "Communication Services"
     },
     {
       "ticker": "MSFT",
-      "as_of": "2026-07-22T04:00:00+00:00",
-      "signed_streak": -2,
-      "streak_length": 2,
+      "as_of": "2026-07-21T04:00:00+00:00",
+      "signed_streak": -1,
+      "streak_length": 1,
       "streak_direction": "negative",
-      "relative_return": -0.01550202153526048,
-      "accepted": true,
-      "reasons": []
+      "relative_return": -0.020278297160850056,
+      "accepted": false,
+      "reasons": [
+        "streak_too_short"
+      ],
+      "sector": "Technology"
     },
     {
       "ticker": "NVDA",
-      "as_of": "2026-07-22T04:00:00+00:00",
-      "signed_streak": 3,
-      "streak_length": 3,
+      "as_of": "2026-07-21T04:00:00+00:00",
+      "signed_streak": 2,
+      "streak_length": 2,
       "streak_direction": "positive",
-      "relative_return": 0.0018304341554185033,
+      "relative_return": 0.011138467244889316,
       "accepted": true,
-      "reasons": []
+      "reasons": [],
+      "sector": "Technology"
     }
   ]
 }

@@ -7,8 +7,8 @@ from extrapcap.orchestration.basket_cycle_cli import basket_rows, basket_run_suc
 def test_basket_cycle_preserves_streak_selection_context(tmp_path):
     basket = tmp_path / "basket.csv"
     basket.write_text(
-        "symbol,streak_length,streak_direction,signed_streak,relative_return,robust_z\n"
-        "abc,3,negative,-3,-0.02,-2.4\n",
+        "symbol,sector,streak_length,streak_direction,signed_streak,relative_return,robust_z\n"
+        "abc,Technology,3,negative,-3,-0.02,-2.4\n",
         encoding="utf-8",
     )
     calls = []
@@ -28,6 +28,7 @@ def test_basket_cycle_preserves_streak_selection_context(tmp_path):
     )
     assert rows[0]["ticker"] == "ABC"
     assert rows[0]["signed_streak"] == -3
+    assert rows[0]["sector"] == "Technology"
     assert calls[0][1]["selection_context"]["streak_direction"] == "negative"
     assert results == [{"ticker": "ABC", "status": "dry_run"}]
     assert basket_run_succeeded(results)

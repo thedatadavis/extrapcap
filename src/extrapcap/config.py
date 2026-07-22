@@ -36,6 +36,8 @@ class StrategyConfig(BaseModel):
     improved_delta_max: float = Field(0.20, gt=0, lt=1)
     spread_width: float = Field(5.0, gt=0)
     min_credit_pct_width: float = Field(0.20, gt=0, lt=1)
+    max_option_quote_age_seconds: int = Field(1800, gt=0)
+    max_option_spread_pct: float = Field(0.25, gt=0, le=1)
     premium_funding_pct: float = Field(0.15, gt=0, le=0.20)
     trap_low: float = Field(0.50, ge=0, le=1)
     trap_high: float = Field(0.65, ge=0, le=1)

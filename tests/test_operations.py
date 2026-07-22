@@ -7,6 +7,7 @@ from extrapcap.config import RiskConfig
 from extrapcap.options import VerticalSpread
 from extrapcap.risk import IntradayRiskState, PortfolioRiskState, approve_candidate, approve_intraday_order
 from extrapcap.data.refresh_cli import build_bar_metadata
+from extrapcap.data.normalize import completed_daily_bars, completed_formation_reason
 from extrapcap.orchestration.intraday_cli import expiration_window
 from extrapcap.execution.position_manager import ManagedPosition, build_close_envelope, evaluate_credit_exit
 from extrapcap.execution.orders import OrderEnvelope
@@ -23,6 +24,16 @@ def test_risk_brakes_reject_daily_loss():
     spread = VerticalSpread("ABC", 100, 95, 1.0)
     decision = approve_candidate(spread, PortfolioRiskState(nav=100_000, daily_pnl=-2_100), RiskConfig())
     assert decision == type(decision)(False, "daily loss cap")
+
+
+def test_risk_brakes_enforce_options_level_and_buying_power():
+    spread = VerticalSpread("ABC", 100, 95, 1.0)
+    low_level = PortfolioRiskState(nav=100_000, options_buying_power=10_000, options_trading_level=2)
+    assert approve_candidate(spread, low_level, RiskConfig()).reason == "level 3 options approval required"
+    low_power = PortfolioRiskState(nav=100_000, options_buying_power=100, options_trading_level=3)
+    assert approve_candidate(spread, low_power, RiskConfig()).reason == "insufficient options buying power"
+    blocked = PortfolioRiskState(nav=100_000, options_buying_power=10_000, options_trading_level=3, trading_blocked=True)
+    assert approve_candidate(spread, blocked, RiskConfig()).reason == "account trading blocked"
 
 
 def test_bar_metadata_records_request_and_observed_bounds():
@@ -42,6 +53,33 @@ def test_bar_metadata_records_request_and_observed_bounds():
     assert metadata["date_max"].startswith("2026-07-02")
 
 
+def test_daily_bar_filter_excludes_current_partial_session():
+    frame = pd.DataFrame(
+        [
+            {"date": pd.Timestamp("2026-07-21 04:00:00", tz="UTC"), "symbol": "SPY", "close": 100},
+            {"date": pd.Timestamp("2026-07-22 04:00:00", tz="UTC"), "symbol": "SPY", "close": 101},
+        ]
+    )
+    during_session = datetime(2026, 7, 22, 16, 0, tzinfo=timezone.utc)
+    filtered = completed_daily_bars(frame, during_session)
+    assert filtered["date"].tolist() == [pd.Timestamp("2026-07-21 04:00:00", tz="UTC")]
+
+
+def test_daily_bar_filter_accepts_session_after_finalization_delay():
+    frame = pd.DataFrame(
+        [{"date": pd.Timestamp("2026-07-22 04:00:00", tz="UTC"), "symbol": "SPY", "close": 101}]
+    )
+    after_close = datetime(2026, 7, 22, 20, 16, tzinfo=timezone.utc)
+    assert len(completed_daily_bars(frame, after_close)) == 1
+
+
+def test_completed_formation_requires_fresh_aligned_session():
+    now = datetime(2026, 7, 22, 16, 0, tzinfo=timezone.utc)
+    assert completed_formation_reason("2026-07-21T04:00:00Z", "2026-07-21T04:00:00Z", now=now) is None
+    assert completed_formation_reason("2026-07-21T04:00:00Z", "2026-07-22T04:00:00Z", now=now) == "formation_bar_mismatch"
+    assert completed_formation_reason("2026-07-15T04:00:00Z", None, now=now) == "latest_completed_bar_stale"
+
+
 def test_intraday_expiration_window_is_bounded():
     lower, upper = expiration_window(datetime(2026, 7, 22, tzinfo=timezone.utc), 2, 35)
     assert lower == "2026-07-24"
@@ -56,6 +94,9 @@ def test_intraday_controls_reject_duplicate_and_bad_fill():
         IntradayRiskState("SPY", now=now, modeled_credit=1.0, observed_credit=0.8), cfg
     )
     assert decision == type(decision)(False, "fill-quality circuit breaker")
+    assert approve_intraday_order(
+        IntradayRiskState("SPY", market_is_open=False, now=now), cfg
+    ).reason == "broker market clock closed"
 
 
 def test_position_manager_creates_defined_risk_close_orders():

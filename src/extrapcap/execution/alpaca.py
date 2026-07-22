@@ -3,7 +3,9 @@ from __future__ import annotations
 import json
 import os
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from urllib.parse import urlsplit
+from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 from ..secrets import optional_paper_credentials, require_paper_credentials, require_paper_submit_enabled
 
@@ -103,8 +105,29 @@ class AlpacaPaperClient:
     def account(self) -> dict:
         return self._get("/account")
 
+    def clock(self) -> dict:
+        result = self._get("/clock")
+        if not isinstance(result, dict) or not isinstance(result.get("is_open"), bool):
+            raise RuntimeError("Alpaca market clock returned an invalid response")
+        return result
+
     def open_orders(self) -> list:
         return self._get("/orders?status=open&nested=true")
+
+    def orders_after(self, after: datetime) -> list:
+        query = urlencode(
+            {
+                "status": "all",
+                "after": after.astimezone(timezone.utc).isoformat(),
+                "direction": "asc",
+                "nested": "true",
+                "limit": 500,
+            }
+        )
+        result = self._get(f"/orders?{query}")
+        if not isinstance(result, list):
+            raise RuntimeError("Alpaca orders history returned an invalid response")
+        return result
 
     def positions(self) -> list:
         return self._get("/positions")

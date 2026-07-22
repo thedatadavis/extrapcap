@@ -1,4 +1,4 @@
-from extrapcap.selection import core_streak_gate, streak_priority_key
+from extrapcap.selection import completed_signal_alignment_reason, core_streak_gate, streak_priority_key
 
 
 def test_core_streak_gate_requires_negative_two_to_five_day_streak_and_z_gate():
@@ -25,3 +25,15 @@ def test_longer_negative_streaks_receive_higher_selection_priority():
         {"ticker": "POS", "streak_direction": "positive", "streak_length": 5, "robust_z": 2.5},
     ]
     assert [row["ticker"] for row in sorted(rows, key=streak_priority_key)] == ["FOUR", "TWO", "POS"]
+
+
+def test_completed_signal_alignment_rejects_modified_basket_values():
+    live = {
+        "streak_length": 3,
+        "streak_direction": "negative",
+        "robust_z": -2.4,
+        "relative_return": -0.02,
+    }
+    assert completed_signal_alignment_reason(dict(live), live) is None
+    assert completed_signal_alignment_reason({**live, "robust_z": -3.0}, live) == "formation_robust_z_mismatch"
+    assert completed_signal_alignment_reason({**live, "streak_length": 4}, live) == "formation_streak_length_mismatch"

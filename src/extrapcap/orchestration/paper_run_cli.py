@@ -29,6 +29,7 @@ def main() -> None:
     parser.add_argument("--features-json", help="JSON object containing the Sniper feature vector")
     parser.add_argument("--trading-day", default=date.today().isoformat())
     parser.add_argument("--execution-mode", choices=("dry-run", "paper-submit"), default="dry-run")
+    parser.add_argument("--sector", default="Fixture", help="sector metadata for concentration controls")
     args = parser.parse_args()
     if args.execution_mode == "paper-submit" and not args.model:
         parser.error("--model is required for paper-submit")
@@ -45,7 +46,7 @@ def main() -> None:
     os.environ["EXTRAPCAP_EXECUTION_MODE"] = args.execution_mode
     contracts = json.loads(Path(args.contracts).read_text(encoding="utf-8"))
     snapshot = json.loads(Path(args.snapshot).read_text(encoding="utf-8"))
-    candidate = build_candidate(underlying=args.symbol, trading_day=date.fromisoformat(args.trading_day), underlying_price=args.price, contracts_payload=contracts, snapshot_payload=snapshot, model_probability=probability, risk_state=PortfolioRiskState(nav=100_000), risk_config=RiskConfig(), event_decision=EventDecision("noise_or_opinion", True, "no headline supplied"), fill_assumptions=FillAssumptions())
+    candidate = build_candidate(underlying=args.symbol, trading_day=date.fromisoformat(args.trading_day), underlying_price=args.price, contracts_payload=contracts, snapshot_payload=snapshot, model_probability=probability, risk_state=PortfolioRiskState(nav=100_000), risk_config=RiskConfig(), event_decision=EventDecision("noise_or_opinion", True, "no headline supplied"), fill_assumptions=FillAssumptions(), selection_context={"sector": args.sector})
     result = PaperRunCoordinator(AlpacaPaperClient.from_env(), NebiusReviewer()).execute(candidate)
     print(json.dumps(result, indent=2))
 

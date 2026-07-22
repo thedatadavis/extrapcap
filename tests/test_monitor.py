@@ -13,7 +13,7 @@ class FakeClient:
         return {"id": order_id, "status": "filled", "filled_qty": "1"}
 
     def account(self):
-        return {"status": "ACTIVE"}
+        return {"id": "private-id", "account_number": "private-number", "status": "ACTIVE"}
 
     def positions(self):
         return [{"symbol": "SPY260724P00739000"}]
@@ -23,6 +23,9 @@ def test_monitor_records_terminal_fill(tmp_path):
     observation = ExecutionMonitor(FakeClient(), AuditLedger(tmp_path / "logs")).wait_for_terminal("abc", trading_day=date(2026, 7, 22))
     assert observation.order["status"] == "filled"
     assert list((tmp_path / "logs" / "fills").glob("*.jsonl"))
+    record = json.loads(next((tmp_path / "logs" / "fills").glob("*.jsonl")).read_text())
+    assert "id" not in record["account"]
+    assert "account_number" not in record["account"]
 
 
 def test_live_position_manager_marks_held_legs_and_dry_runs_close(tmp_path):

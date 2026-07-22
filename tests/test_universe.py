@@ -1,6 +1,6 @@
 import pandas as pd
 
-from extrapcap.universe.greenlist import GreenlistFilter, filter_greenlist
+from extrapcap.universe.greenlist import GreenlistFilter, filter_greenlist, load_sector_map
 from extrapcap.universe.streak_screen import StreakPolicy, screen_streaks
 
 
@@ -25,3 +25,12 @@ def test_streak_screen_uses_signed_completed_relative_streaks():
     assert selected.iloc[0]["streak_direction"] == "negative"
     assert selected.iloc[0]["streak_length"] == 5
     assert decisions[0]["accepted"] is True
+
+
+def test_sector_map_is_loaded_from_versioned_greenlist(tmp_path):
+    path = tmp_path / "greenlist-test.csv"
+    path.write_text("ticker,sector\nABC,Technology\nBAD,N/A\n", encoding="utf-8")
+    result = load_sector_map(path)
+    assert result["ABC"] == "Technology"
+    assert result["SPY"] == "Broad Market ETF"
+    assert "BAD" not in result

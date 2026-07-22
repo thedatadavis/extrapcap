@@ -5,6 +5,7 @@ from datetime import date
 import time
 
 from ..ledger import AuditLedger
+from .reconcile import sanitize_account
 
 
 TERMINAL_STATUSES = {"filled", "partially_filled", "canceled", "expired", "rejected", "done_for_day"}
@@ -24,7 +25,11 @@ class ExecutionMonitor:
         self.reviewer = reviewer
 
     def observe(self, order_id: str, trading_day: date | None = None) -> OrderObservation:
-        observation = OrderObservation(self.client.order(order_id), self.client.account(), self.client.positions())
+        observation = OrderObservation(
+            self.client.order(order_id),
+            sanitize_account(self.client.account()),
+            self.client.positions(),
+        )
         payload = {"order": observation.order, "account": observation.account, "positions": observation.positions}
         self.ledger.append("fills", payload, trading_day)
         if self.reviewer is not None and observation.order.get("status") in TERMINAL_STATUSES:

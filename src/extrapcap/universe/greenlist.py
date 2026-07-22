@@ -11,6 +11,7 @@ from urllib.request import urlopen
 
 SOURCE_URL = "https://raw.githubusercontent.com/bootstrapital/stockstreaks-registry/main/data/active_tickers.csv"
 SOURCE_API_URL = "https://api.github.com/repos/bootstrapital/stockstreaks-registry/contents/data/active_tickers.csv"
+INDEX_SECTORS = {"SPY": "Broad Market ETF", "QQQ": "Broad Market ETF", "IWM": "Broad Market ETF"}
 
 
 @dataclass(frozen=True)
@@ -92,3 +93,23 @@ def refresh_greenlist(output_dir: str | Path = "data/universe", policy: Greenlis
     }
     (directory / f"greenlist-{stamp}.json").write_text(json.dumps(metadata, indent=2) + "\n", encoding="utf-8")
     return snapshot
+
+
+def load_sector_map(path: str | Path | None = None, root: str | Path = "data/universe") -> dict[str, str]:
+    if path is None:
+        snapshots = sorted(Path(root).glob("greenlist-*.csv"))
+        if not snapshots:
+            raise RuntimeError("no versioned Greenlist snapshot is available for sector controls")
+        target = snapshots[-1]
+    else:
+        target = Path(path)
+    rows = _read_csv(target.read_text(encoding="utf-8"))
+    if not rows or not {"ticker", "sector"}.issubset(rows[0]):
+        raise RuntimeError("Greenlist snapshot is missing ticker/sector metadata")
+    result = dict(INDEX_SECTORS)
+    for row in rows:
+        ticker = str(row.get("ticker", "")).strip().upper()
+        sector = str(row.get("sector", "")).strip()
+        if ticker and sector and sector.upper() != "N/A":
+            result[ticker] = sector
+    return result

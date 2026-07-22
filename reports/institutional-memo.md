@@ -7,7 +7,7 @@
 
 Extrapolation Capital tests a simple claim: liquid, sharp downside moves can create a repeatable opportunity to sell bounded downside risk, provided the system rejects structural breaks and refuses ambiguous model states. The implementation expresses that claim as transactions-as-code: a core defined-risk premium sleeve, a premium-funded asymmetric sleeve, a CatBoost Sniper classifier, hard risk gates, and a bounded Nebius review layer.
 
-The current evidence is deliberately mixed. A six-symbol Alpaca bar dataset is now versioned locally and supports a reproducible signal/model run. The tradable-basket screen now includes the paper-inspired signed relative streak: completed 2-to-5-day underperformance and outperformance versus SPY are recorded before downstream liquidity, Sniper, event, and risk gates. On that bar-only proxy, the improved OTM construction produced more wins and a higher proxy profit factor, while the baseline collected more premium and had higher proxy expectancy. These figures are risk-unit simulations with modeled option credits and one-bar exits, not historical option-chain performance. A single real SPY indicative chain snapshot supports contract resolution and dry-run order construction, but is not enough for a historical performance claim.
+The current evidence is deliberately mixed. A six-symbol Alpaca bar dataset is now versioned locally and supports a reproducible signal/model run. The tradable-basket screen includes the paper-inspired signed relative streak: completed 2-to-5-day underperformance and outperformance versus SPY are recorded before downstream liquidity, Sniper, event, and risk gates. Current-session partial daily bars are excluded, and the executable cycle must reproduce the basket's completed streak, relative return, and robust Z from fresh provider data. On that bar-only proxy, the improved OTM construction produced more wins and a higher proxy profit factor, while the baseline collected more premium and had higher proxy expectancy. These figures are risk-unit simulations with modeled option credits and one-bar exits, not historical option-chain performance. A single real SPY indicative chain snapshot supports contract resolution and dry-run order construction, but is not enough for a historical performance claim.
 
 The first real provider-backed cycle used the newly trained model, scored SPY at `0.4524`, and stopped under the Crash Protocol. That is the intended safety behavior: a low probability of mean reversion does not become a premium sale merely because a quote exists.
 
@@ -19,7 +19,9 @@ Variant A is the premium-maximizing baseline. Variant B moves the short put fart
 
 ## Data and universe
 
-The canonical universe adapter consumes the `active_tickers.csv` data contract from `bootstrapital/stockstreaks-registry`, records source metadata, and writes timestamped Greenlist snapshots and filter decisions. The current real bar refresh used Alpaca daily bars for `SPY`, `AAPL`, `MSFT`, `NVDA`, `AMZN`, and `GOOGL`: 3,006 observations, 501 per symbol, from 2024-07-23 through 2026-07-22 UTC.
+The canonical universe adapter consumes the `active_tickers.csv` data contract from `bootstrapital/stockstreaks-registry`, records source metadata, and writes timestamped Greenlist snapshots and filter decisions. The current Alpaca refresh requested daily bars for `SPY`, `AAPL`, `MSFT`, `NVDA`, `AMZN`, and `GOOGL`. The source returned 3,006 rows; six current-session partial bars were excluded, leaving 3,000 completed observations, 500 per symbol, through 2026-07-21. The completed streak screen currently retains AAPL and NVDA, but AAPL's robust Z is above the core threshold and NVDA's positive streak routes to the deferred bearish watch rather than a bull-put entry.
+
+The free earnings artifact covers every calendar date from 2026-07-19 through 2026-07-25 and records 422 expected reports returned by Nasdaq. The live gate requires complete, fresh coverage and vetoes a symbol returned within three calendar days. Nasdaq describes these as algorithmically expected dates derived from historical reporting patterns, so this is a conservative blackout control rather than confirmed issuer guidance.
 
 The real options artifact is `data/options/spy-20260722T135625Z.json`: 2,046 contracts and 4,092 quote snapshots across five pages, with an indicative feed. It resolved a one-contract SPY 2026-07-24 put vertical (`739/734`) at a quoted credit of $0.39 and a dry-run limit credit of $0.35. Paid OPRA history is intentionally out of scope; free multi-period chain history, corporate-action normalization, and survivorship analysis remain open research work.
 
@@ -37,9 +39,9 @@ This is calibration evidence, not proof of economic edge. Feature importance and
 ## Proxy backtest results
 
 The refreshed engine enforces overlapping core-risk, daily-loss, drawdown,
-ticker, and optional sector concentration gates. Sector concentration remains
-explicitly unavailable for the current real-bar artifact because no sector
-metadata is present.
+ticker, and sector concentration gates. Sector metadata now travels from the
+pinned Greenlist through the streak basket and is used to aggregate active
+defined-risk spreads before admission.
 
 The visual comparison is committed at reports/assets/variant-comparison.svg,
 and formation-date examples from the signed streak basket are in
@@ -60,13 +62,13 @@ The ablation matrix in `reports/research-matrix-2026-07-22.md` makes the remaini
 
 ## Execution and judgment layer
 
-Alpaca is hard-wired to the paper endpoint and rejects non-paper routing. The coordinator requires resolved option legs, applies event and portfolio controls before the model bucket, asks Nebius for a structured bounded review, then produces an idempotent multi-leg order. It supports `dry-run`, `paper-submit`, and replay paths. The real Alpaca account returned `ACTIVE`; Nebius model listing and structured review also succeeded through the OpenAI-compatible Token Factory endpoint ([API introduction](https://docs.tokenfactory.nebius.com/api-reference/introduction), [model listing](https://docs.tokenfactory.nebius.com/api-reference/models/list-models)). No raw key is stored in the repository or report files.
+Alpaca is hard-wired to `https://paper-api.alpaca.markets/v2` and rejects non-paper, non-v2, or lookalike routing. Every entry consults the broker clock and same-day order history; those records are merged with the Git registry for persistent count/cooldown enforcement. Contract-specific client IDs prevent exact retries, while a separate completed-signal ID prevents repricing from generating a second entry. The coordinator requires resolved option legs, fresh two-sided quotes, acceptable quote spreads, minimum credit/width, options Level 3, sufficient options buying power, an unblocked account, bounded portfolio/ticker/sector risk, and complete event coverage before the model and Nebius review. It supports `dry-run`, `paper-submit`, and replay paths. The real Alpaca account returned `ACTIVE`, options Level 3, and no block flags; Nebius model listing and structured review also succeeded through the OpenAI-compatible Token Factory endpoint ([API introduction](https://docs.tokenfactory.nebius.com/api-reference/introduction), [model listing](https://docs.tokenfactory.nebius.com/api-reference/models/list-models)). No raw key or Alpaca account identifier is stored in repository logs.
 
 The real model-backed SPY cycle returned `vetoed / crash_protocol`, so no order was sent. A separate full-chain dry-run demonstrated the resolved OCC legs and mleg payload with a positive model override; that override was fixture-only and did not submit an order. This separation keeps provider reachability, candidate construction, and model behavior observable without conflating a dry-run with a fill.
 
 ## What worked, what failed, and what remains
 
-What worked: the provider boundaries are paper-only and redacted; real bars normalized successfully; the CatBoost artifact trained and loaded; a real chain was paginated and persisted; Nebius returned structured judgment; the real low-probability cycle stopped safely; and 33 unit/integration tests plus Ruff pass.
+What worked: the provider boundaries are paper-only and redacted; real bars normalized successfully with partial-session exclusion; the CatBoost artifact trained and loaded; a real chain was paginated and persisted; Nebius returned structured judgment; the real low-probability cycle stopped safely; the free earnings calendar refreshed; the paper `/v2` account, clock, and order-history endpoints passed read-only checks; and 85 unit/integration tests pass.
 
 What failed or is not identifiable yet: the first Nebius endpoint/model defaults were stale and had to be corrected; automated macOS Keychain writes were blocked by desktop authorization; the option snapshot is indicative and only one day; no paper order has been submitted; and historical option-level CAGR, Sharpe, Sortino, tail loss, utilization, assignment, and intraday fill-quality conclusions cannot be identified from the present data.
 
@@ -74,7 +76,7 @@ What failed or is not identifiable yet: the first Nebius endpoint/model defaults
 
 **MVP:** keep all scheduled workflows in dry-run, refresh real bars and Greenlist snapshots, retrain only through the versioned evaluation report, and collect paper observations with explicit approval before any `paper-submit` run.
 
-**Production hardening:** add multi-period free indicative history if a freely available source becomes accessible, realistic bid/ask and partial-fill replay, overlapping-position/margin accounting, sector metadata, earnings/news feeds, daily report generation, and a manual paper-submit approval gate.
+**Production hardening:** add multi-period free indicative history if a freely available source becomes accessible, realistic partial-fill replay, overlapping-position/margin accounting, a broader structural-news feed, and a manual paper-submit approval gate.
 
 **Research backlog:** compare every required ablation (classifier, news filter, overlays, Crash Protocol, sleeve mix, and operating mode), quantify regime and sector decomposition, and only then assess bounded policy proposals from the RL-style improvement loop. The learner can recommend configuration changes but cannot submit orders.
 

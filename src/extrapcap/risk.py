@@ -20,11 +20,16 @@ class PortfolioRiskState:
     drawdown: float = 0.0
     open_asymmetric_trades: int = 0
     ticker_open_risk: dict[str, float] | None = None
+    sector_open_risk: dict[str, float] | None = None
+    options_buying_power: float | None = None
+    options_trading_level: int | None = None
+    trading_blocked: bool = False
 
 
 @dataclass(frozen=True)
 class IntradayRiskState:
     symbol: str
+    market_is_open: bool | None = None
     orders_today: int = 0
     last_order_at: datetime | None = None
     now: datetime | None = None
@@ -35,6 +40,8 @@ class IntradayRiskState:
 def approve_intraday_order(state: IntradayRiskState, cfg: RiskConfig, *, is_exit: bool = False) -> RiskDecision:
     """Apply non-overridable intraday window, duplicate, cooldown, and fill gates."""
     now = state.now or datetime.now().astimezone()
+    if state.market_is_open is False:
+        return RiskDecision(False, "broker market clock closed")
     window = execution_window(now)
     if window == "closed":
         return RiskDecision(False, "market closed")
@@ -54,8 +61,17 @@ def approve_intraday_order(state: IntradayRiskState, cfg: RiskConfig, *, is_exit
 
 
 def approve_candidate(spread: VerticalSpread, state: PortfolioRiskState, cfg: RiskConfig, sector_open_risk: float = 0.0) -> RiskDecision:
+    if state.trading_blocked:
+        return RiskDecision(False, "account trading blocked")
+    if state.options_trading_level is not None and state.options_trading_level < 3:
+        return RiskDecision(False, "level 3 options approval required")
     if state.nav <= 0:
         return RiskDecision(False, "invalid NAV")
+    if state.options_buying_power is not None:
+        if state.options_buying_power < 0:
+            return RiskDecision(False, "invalid options buying power")
+        if spread.max_loss > state.options_buying_power:
+            return RiskDecision(False, "insufficient options buying power")
     if state.drawdown <= -cfg.max_drawdown_brake_pct:
         return RiskDecision(False, "drawdown brake")
     if state.daily_pnl <= -state.nav * cfg.max_daily_loss_pct:

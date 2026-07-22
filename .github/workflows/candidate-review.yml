@@ -24,6 +24,8 @@ jobs:
       - uses: actions/setup-python@v6
         with: {python-version: '3.11'}
       - run: pip install -e '.[research]'
+      - name: Refresh complete free earnings-blackout window
+        run: python -m extrapcap.earnings --date "$(date -u +%F)"
       - name: Run provider-backed basket review
         env:
           ALPACA_PAPER: 'true'
@@ -31,6 +33,7 @@ jobs:
           ALPACA_SECRET_KEY: ${{ secrets.ALPACA_SECRET_KEY }}
           NEBIUS_API_KEY: ${{ secrets.NEBIUS_API_KEY }}
           SNIPER_MODEL_PATH: models/sniper.cbm
+          EXTRAPCAP_EARNINGS_CALENDAR: data/events/earnings.csv
           EXTRAPCAP_NEWS_EVENTS: data/events/news.csv
           EXTRAPCAP_NEWS_LLM: 'true'
           EXTRAPCAP_PAPER_SUBMIT_ENABLED: ${{ vars.EXTRAPCAP_PAPER_SUBMIT_ENABLED || 'false' }}
@@ -46,6 +49,6 @@ jobs:
         run: |
           git config user.name extrapcap-bot
           git config user.email extrapcap-bot@users.noreply.github.com
-          git add -A logs
+          git add -A logs data/events/earnings.csv data/events/earnings.csv.metadata.json
           git diff --cached --quiet || git commit -m "ledger: review paper basket $(date -u +%F)"
           git push
