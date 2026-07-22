@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 from urllib.parse import urlencode
+from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
 
@@ -47,29 +48,55 @@ class AlpacaMarketData:
             raise ValueError("symbol_batch_size must be positive")
 
         bars: dict[str, list] = {}
-        for offset in range(0, len(requested), symbol_batch_size):
-            batch = requested[offset:offset + symbol_batch_size]
+        errors: dict[str, dict] = {}
+
+        def fetch_batch(batch: list[str]) -> None:
+            batch_bars: dict[str, list] = {}
             page_token = None
-            while True:
-                response = self._get(
-                    "/v2/stocks/bars",
-                    {
-                        "symbols": ",".join(batch),
-                        "start": start,
-                        "end": end,
-                        "timeframe": timeframe,
-                        "adjustment": "all",
-                        "feed": "iex",
-                        "limit": 10000,
-                        "page_token": page_token,
-                    },
-                )
-                for symbol, rows in (response.get("bars") or {}).items():
-                    bars.setdefault(symbol, []).extend(rows)
-                page_token = response.get("next_page_token")
-                if not page_token:
-                    break
-        return {"bars": bars}
+            try:
+                while True:
+                    response = self._get(
+                        "/v2/stocks/bars",
+                        {
+                            "symbols": ",".join(batch),
+                            "start": start,
+                            "end": end,
+                            "timeframe": timeframe,
+                            "adjustment": "all",
+                            "feed": "iex",
+                            "limit": 10000,
+                            "page_token": page_token,
+                        },
+                    )
+                    for symbol, rows in (response.get("bars") or {}).items():
+                        batch_bars.setdefault(symbol, []).extend(rows)
+                    page_token = response.get("next_page_token")
+                    if not page_token:
+                        break
+            except HTTPError as exc:
+                if exc.code != 400:
+                    raise
+                if len(batch) > 1:
+                    midpoint = len(batch) // 2
+                    fetch_batch(batch[:midpoint])
+                    fetch_batch(batch[midpoint:])
+                    return
+                detail = ""
+                try:
+                    detail = exc.read().decode("utf-8", errors="replace").strip()
+                except Exception:
+                    detail = str(exc)
+                errors[batch[0]] = {"status": exc.code, "reason": exc.reason, "detail": detail}
+                return
+            for symbol, rows in batch_bars.items():
+                bars.setdefault(symbol, []).extend(rows)
+
+        for offset in range(0, len(requested), symbol_batch_size):
+            fetch_batch(requested[offset:offset + symbol_batch_size])
+        payload = {"bars": bars}
+        if errors:
+            payload["errors"] = errors
+        return payload
 
     def option_contracts(self, underlying_symbols: list[str], expiration_date_gte: str, expiration_date_lte: str | None = None) -> dict:
         return self._get("/v2/options/contracts", {"underlying_symbols": ",".join(underlying_symbols), "expiration_date_gte": expiration_date_gte, "expiration_date_lte": expiration_date_lte, "status": "active", "limit": 1000}, self.trading_base_url)

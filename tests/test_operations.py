@@ -74,6 +74,22 @@ def test_bar_metadata_records_missing_symbol_coverage():
     }
 
 
+def test_bar_metadata_records_provider_symbol_errors():
+    frame = pd.DataFrame([{"date": pd.Timestamp("2026-07-01", tz="UTC"), "symbol": "SPY"}])
+    errors = {"BAD": {"status": 400, "reason": "Bad Request", "detail": "unsupported symbol"}}
+    metadata = build_bar_metadata(
+        frame,
+        ["SPY", "BAD"],
+        datetime(2026, 6, 1, tzinfo=timezone.utc),
+        datetime(2026, 7, 3, tzinfo=timezone.utc),
+        datetime(2026, 7, 3, tzinfo=timezone.utc),
+        symbol_errors=errors,
+    )
+    assert metadata["symbol_errors"] == errors
+    assert metadata["coverage"]["missing_symbols"] == ["BAD"]
+    assert metadata["coverage"]["symbol_errors"] == errors
+
+
 def test_symbols_from_greenlist_includes_benchmark_once(tmp_path):
     path = tmp_path / "greenlist.csv"
     path.write_text("ticker,sector\nABC,Technology\nSPY,Broad Market ETF\nABC,Technology\n", encoding="utf-8")
