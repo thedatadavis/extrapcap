@@ -6,7 +6,7 @@ from extrapcap.orchestration.windows import execution_window
 from extrapcap.config import RiskConfig
 from extrapcap.options import VerticalSpread
 from extrapcap.risk import IntradayRiskState, PortfolioRiskState, approve_candidate, approve_intraday_order
-from extrapcap.data.refresh_cli import build_bar_metadata
+from extrapcap.data.refresh_cli import build_bar_metadata, symbols_from_greenlist
 from extrapcap.data.normalize import completed_daily_bars, completed_formation_reason
 from extrapcap.orchestration.intraday_cli import expiration_window
 from extrapcap.execution.position_manager import ManagedPosition, build_close_envelope, evaluate_credit_exit
@@ -51,6 +51,33 @@ def test_bar_metadata_records_request_and_observed_bounds():
     assert metadata["row_count"] == 2
     assert metadata["requested_start"].startswith("2026-06-01")
     assert metadata["date_max"].startswith("2026-07-02")
+
+
+def test_bar_metadata_records_missing_symbol_coverage():
+    frame = pd.DataFrame([
+        {"date": pd.Timestamp("2026-07-01", tz="UTC"), "symbol": "SPY"},
+        {"date": pd.Timestamp("2026-07-01", tz="UTC"), "symbol": "ABC"},
+    ])
+    metadata = build_bar_metadata(
+        frame,
+        ["SPY", "ABC", "MISSING"],
+        datetime(2026, 6, 1, tzinfo=timezone.utc),
+        datetime(2026, 7, 3, tzinfo=timezone.utc),
+        datetime(2026, 7, 3, tzinfo=timezone.utc),
+    )
+    assert metadata["coverage"] == {
+        "requested_symbol_count": 3,
+        "observed_symbol_count": 2,
+        "missing_symbol_count": 1,
+        "missing_symbols": ["MISSING"],
+        "complete": False,
+    }
+
+
+def test_symbols_from_greenlist_includes_benchmark_once(tmp_path):
+    path = tmp_path / "greenlist.csv"
+    path.write_text("ticker,sector\nABC,Technology\nSPY,Broad Market ETF\nABC,Technology\n", encoding="utf-8")
+    assert symbols_from_greenlist(path) == ["SPY", "ABC"]
 
 
 def test_daily_bar_filter_excludes_current_partial_session():

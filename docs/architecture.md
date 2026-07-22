@@ -4,7 +4,7 @@ Data adapters produce versioned bars, option chains, news, and account snapshots
 
 Daily bars are complete-session data only. Before 16:15 America/New_York, the current session is excluded; after that delay it may become the next completed formation bar. Candidate review verifies the basket formation date and signal values against a fresh provider recomputation, so a stale or modified artifact cannot supply the executable Z-score.
 
-The first external data contract is the `active_tickers.csv` snapshot from `bootstrapital/stockstreaks-registry`. `extrapcap.universe.greenlist.refresh_greenlist` stores a timestamped accepted CSV and a JSON decision log. Market bars are normalized into the common `date/symbol/open/high/low/close/volume/vwap` schema.
+The first external data contract is the `active_tickers.csv` snapshot from `bootstrapital/stockstreaks-registry`. `extrapcap.universe.greenlist.refresh_greenlist` stores a timestamped accepted CSV and a JSON decision log. The daily bar refresh derives its requested symbols from that pinned Greenlist plus SPY, batches and paginates the provider request, and records missing-symbol coverage in the provenance sidecar. Market bars are normalized into the common `date/symbol/open/high/low/close/volume/vwap` schema.
 
 The backtest's operating mode is behavioral when intraday observations exist: `end_of_day` admits one decision per supplied observation, `hybrid` admits only close-positioning entries, and `intraday_loop` admits open/close-window entries with session duplicate and cooldown gates. This keeps mode comparisons honest instead of labeling identical daily behavior as intraday evidence.
 
