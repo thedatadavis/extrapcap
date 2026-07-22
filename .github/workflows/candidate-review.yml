@@ -11,7 +11,7 @@ on:
   schedule:
     - cron: '0 15-20 * * 1-5'
 concurrency:
-  group: extrapcap-main-writer
+  group: extrapcap-ops-writer
   cancel-in-progress: false
 jobs:
   review:
@@ -21,6 +21,11 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v6
+        with:
+          ref: ops
+          fetch-depth: 0
+      - name: Sync source branch
+        run: .github/scripts/sync-ops.sh
       - uses: actions/setup-python@v6
         with: {python-version: '3.11'}
       - run: pip install -e '.[research]'
@@ -51,4 +56,4 @@ jobs:
           git config user.email extrapcap-bot@users.noreply.github.com
           git add -A logs data/events/earnings.csv data/events/earnings.csv.metadata.json
           git diff --cached --quiet || git commit -m "ledger: review paper basket $(date -u +%F)"
-          git push
+          .github/scripts/push-ops.sh

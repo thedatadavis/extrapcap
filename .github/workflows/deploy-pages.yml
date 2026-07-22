@@ -2,18 +2,8 @@ name: Deploy journal to GitHub Pages
 
 on:
   push:
-    branches: [main]
+    branches: [ops]
   workflow_dispatch:
-  workflow_run:
-    workflows:
-      - Review paper candidates
-      - Provider-backed paper cycle
-      - Intraday paper loop
-      - Manage paper positions
-      - Reconcile paper account
-      - Generate daily report
-      - Replay paper-trading day
-    types: [completed]
 
 permissions:
   contents: read
@@ -26,11 +16,13 @@ concurrency:
 
 jobs:
   build:
-    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+        with:
+          ref: ops
+          fetch-depth: 0
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:

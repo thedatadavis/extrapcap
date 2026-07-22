@@ -1,0 +1,25 @@
+name: Sync ops branch
+
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: extrapcap-ops-writer
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ops
+          fetch-depth: 0
+      - name: Merge source changes into ops
+        run: .github/scripts/sync-ops.sh
+      - name: Publish ops branch
+        run: .github/scripts/push-ops.sh

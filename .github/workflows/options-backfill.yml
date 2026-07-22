@@ -21,6 +21,11 @@ jobs:
     environment: research
     steps:
       - uses: actions/checkout@v6
+        with:
+          ref: ops
+          fetch-depth: 0
+      - name: Sync source branch
+        run: .github/scripts/sync-ops.sh
       - uses: actions/setup-python@v6
         with: {python-version: '3.11'}
       - run: pip install -e .

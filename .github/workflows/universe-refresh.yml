@@ -4,7 +4,7 @@ on:
   schedule:
     - cron: '30 5 * * 1'
 concurrency:
-  group: extrapcap-main-writer
+  group: extrapcap-ops-writer
   cancel-in-progress: false
 jobs:
   refresh:
@@ -13,6 +13,11 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v6
+        with:
+          ref: ops
+          fetch-depth: 0
+      - name: Sync source branch
+        run: .github/scripts/sync-ops.sh
       - uses: actions/setup-python@v6
         with: {python-version: '3.11'}
       - run: pip install -e .
@@ -23,4 +28,4 @@ jobs:
           git config user.email extrapcap-bot@users.noreply.github.com
           git add data/universe
           git diff --cached --quiet || git commit -m "data: refresh Greenlist snapshot"
-          git push
+          .github/scripts/push-ops.sh

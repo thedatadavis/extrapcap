@@ -4,7 +4,7 @@ on:
   schedule:
     - cron: '0 4 * * 1-5'
 concurrency:
-  group: extrapcap-main-writer
+  group: extrapcap-ops-writer
   cancel-in-progress: false
 jobs:
   refresh:
@@ -14,6 +14,11 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v6
+        with:
+          ref: ops
+          fetch-depth: 0
+      - name: Sync source branch
+        run: .github/scripts/sync-ops.sh
       - uses: actions/setup-python@v6
         with: {python-version: '3.11'}
       - run: pip install -e .
@@ -29,4 +34,4 @@ jobs:
           git config user.email extrapcap-bot@users.noreply.github.com
           git add data/normalized/bars.csv data/normalized/bars.csv.metadata.json
           git diff --cached --quiet || git commit -m "data: refresh normalized bars"
-          git push
+          .github/scripts/push-ops.sh

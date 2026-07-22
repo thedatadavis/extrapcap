@@ -38,7 +38,7 @@ Dry-run and submitted order identities share deterministic IDs but have distinct
 
 Each dated event receives a versioned journal envelope containing a deterministic event ID, timestamp, ticker, OCC contract IDs and parsed contract details, strategy and sleeve, model context, provider, status, and readable title.
 
-The static Astro journal scans every dated ledger category and the newest real-bar variant report during each build. It does not contain a separately maintained trade list or performance fixture. Scheduled repository writers use the shared extrapcap-main-writer concurrency group so ledger pushes serialize and each successful push can regenerate GitHub Pages.
+The static Astro journal scans every dated ledger category and the newest real-bar variant report during each build. It does not contain a separately maintained trade list or performance fixture. Scheduled repository writers check out the generated `ops` branch, merge source changes from `main`, and use the shared `extrapcap-ops-writer` concurrency group so runtime-state pushes serialize. GitHub Pages deploys from `ops`.
 
 Scheduled candidate review runs the provider-backed cycle over the current streak-screened basket. The formation streak length, direction, signed depth, relative move, and robust Z-score travel with each candidate into the ledger and public journal.
 

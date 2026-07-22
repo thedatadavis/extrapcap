@@ -60,7 +60,7 @@ Every dated ledger event carries a stable journal envelope with ticker, OCC
 contract IDs, parsed expiration/type/strike details, strategy and sleeve,
 model bucket, data tier, status, and readable title. The Astro site reads every
 ledger category plus the latest real-bar comparison report at build time, so a
-workflow commit updates the journal without a hand-maintained frontend fixture.
+workflow commit to the `ops` branch updates the journal without a hand-maintained frontend fixture.
 
 See `docs/charter.md`, `docs/architecture.md`, `docs/strategy/variants.md`, and `docs/roadmap.md` for the current scope and explicit TODOs.
 
