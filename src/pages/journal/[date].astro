@@ -12,7 +12,7 @@ const base = import.meta.env.BASE_URL;
   <header class="topbar"><a class="back-link" href={`${base}/`}>← Overview</a><span>Daily journal</span></header>
   <article class="journal-page">
     <h1>{formatDate(entry.date)}</h1>
-    <p class="lede">A plain-language account of the market moves considered, trades held back, and paper orders prepared that day.</p>
+    <p class="lede">A plain-language account of the market moves considered, trades passed over, and entries prepared that day.</p>
     <div class="entry-stack">
       {entry.entries.map((item) => {
         const readout = readoutFor(item);
@@ -28,7 +28,7 @@ const base = import.meta.env.BASE_URL;
             <summary>Technical record</summary>
             <dl>
               <div><dt>Ticker</dt><dd>{item.ticker ?? 'Not applicable'}</dd></div>
-              <div><dt>Event</dt><dd>{item.kind.replaceAll('_', ' ')}</dd></div>
+              <div><dt>Event</dt><dd>{item.kind === 'paper_order' ? 'order' : item.kind.replaceAll('_', ' ')}</dd></div>
               {item.selectionContext?.sector && <div><dt>Sector</dt><dd>{item.selectionContext.sector}</dd></div>}
               {item.selectionContext?.streak_length !== undefined && <div><dt>Streak</dt><dd>{item.selectionContext.streak_direction} · {item.selectionContext.streak_length} sessions · signed {item.selectionContext.signed_streak}</dd></div>}
               {item.selectionContext?.relative_return !== undefined && <div><dt>Formation</dt><dd>{(Number(item.selectionContext.relative_return) * 100).toFixed(2)}% versus SPY · robust Z {Number(item.selectionContext.robust_z).toFixed(2)}</dd></div>}
@@ -44,6 +44,6 @@ const base = import.meta.env.BASE_URL;
         );
       })}
     </div>
-    <p class="journal-footnote">No execution is implied by an escalated judgment. See the source log for the raw record.</p>
+    <p class="journal-footnote">These entries describe decisions and proposed orders; they do not confirm that an order was filled.</p>
   </article>
 </Shell>

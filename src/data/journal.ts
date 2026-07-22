@@ -36,6 +36,8 @@ export type JournalItem = {
   riskSnapshot?: JsonRecord;
   eventDecision?: JsonRecord;
   marketData?: JsonRecord;
+  marketPrice?: number;
+  marketPriceDate?: string;
 };
 
 export type JournalEntry = {
@@ -52,9 +54,28 @@ export type PublicReadout = {
 
 type JsonRecord = Record<string, any>;
 
+type PriceSnapshot = { price: number; date: string };
+
 const logsDir = path.join(process.cwd(), 'logs');
 const reportDir = path.join(process.cwd(), 'reports');
 const datedLog = /^\d{4}-\d{2}-\d{2}\.jsonl$/;
+
+function readPriceSnapshots() {
+  const snapshots = new Map<string, PriceSnapshot>();
+  if (!fs.existsSync(reportDir)) return snapshots;
+  fs.readdirSync(reportDir).filter((name) => /^provider-dry-run-.*\.json$/.test(name)).forEach((fileName) => {
+    const report = JSON.parse(fs.readFileSync(path.join(reportDir, fileName), 'utf8'));
+    if (typeof report.underlying_price === 'number' && report.trading_day && report.symbol) {
+      snapshots.set(`${report.trading_day}:${String(report.symbol).toUpperCase()}`, {
+        price: report.underlying_price,
+        date: report.trading_day,
+      });
+    }
+  });
+  return snapshots;
+}
+
+const priceSnapshots = readPriceSnapshots();
 
 function asString(value: unknown): string | undefined {
   return typeof value === 'string' && value.length > 0 ? value : undefined;
@@ -109,6 +130,7 @@ function readLedger(): JournalEntry[] {
         const decision = String(judgment.decision ?? record.decision ?? status);
         const kind = String(record.kind ?? metadata.kind ?? category.replace(/s$/, ''));
         const eventId = String(metadata.event_id ?? record.client_order_id ?? record.order_id ?? (category + '-' + String(index + 1)));
+        const snapshot = priceSnapshots.get(`${date}:${String(ticker ?? '').toUpperCase()}`);
         events.push({
           eventId,
           category,
@@ -139,6 +161,8 @@ function readLedger(): JournalEntry[] {
           riskSnapshot: record.risk_snapshot,
           eventDecision: record.event_decision,
           marketData: record.market_data,
+          marketPrice: typeof record.underlying_price === 'number' ? record.underlying_price : snapshot?.price,
+          marketPriceDate: snapshot?.date,
         });
       });
       byDate.set(date, events);
@@ -200,7 +224,16 @@ function latestPerformance() {
   };
 }
 
-export const journal = readLedger();
+const ledger = readLedger();
+const executionCategories = new Set(['orders', 'fills', 'executions', 'entries', 'exits', 'positions']);
+
+function isExecutionEvent(item: JournalItem) {
+  return executionCategories.has(item.category) || /(^|_)(order|entry|exit|fill|close)(s?_|$)/.test(item.kind);
+}
+
+export const journal = ledger
+  .map((entry) => ({ ...entry, entries: entry.entries.filter(isExecutionEvent) }))
+  .filter((entry) => entry.entries.length > 0);
 
 export const months = journal.reduce<Record<string, JournalEntry[]>>((groups, entry) => {
   const month = entry.date.slice(0, 7);
@@ -227,9 +260,18 @@ function spreadDescription(item: JournalItem) {
   return details.join(' ');
 }
 
+function marketContext(item: JournalItem) {
+  if (item.marketPrice === undefined) return '';
+  const strikes = [...new Set(item.contracts.map((contract) => contract.strike).filter((strike): strike is number => strike !== undefined))].sort((left, right) => right - left);
+  const price = `$${item.marketPrice.toFixed(2)}`;
+  if (strikes.length > 0) {
+    return ` At the time, ${item.ticker ?? 'the underlying'} was trading near ${price}; the option strikes were ${strikes.map((strike) => `$${strike.toFixed(0)}`).join(' and ')}.`;
+  }
+  return ` At the time, ${item.ticker ?? 'the underlying'} was trading near ${price}.`;
+}
+
 export function readoutFor(item: JournalItem): PublicReadout {
   const ticker = item.ticker ?? 'The underlying market';
-  const status = item.status === 'dry_run' ? 'paper order' : displayName(item.status);
   const context = item.selectionContext ?? {};
   const direction = context.streak_direction === 'positive' ? 'outperformed' : 'underperformed';
   const streakLength = Number(context.streak_length ?? 0);
@@ -241,22 +283,22 @@ export function readoutFor(item: JournalItem): PublicReadout {
     if (signalReason === 'core_requires_negative_relative_streak') {
       return {
         label: 'Market screen',
-        status: 'not selected',
+        status: 'pass',
         headline: `${ticker} was left out of the rebound screen`,
-        body: `${ticker} outperformed the broader market for ${streak}. This part of the strategy looks for potential rebounds after a stock falls behind the market, so the move was not considered for a trade.`,
+        body: `${ticker} outperformed the broader market for ${streak}. This part of the strategy looks for potential rebounds after a stock falls behind the market, so the move was passed over.`,
       };
     }
     if (isVetoed) {
       return {
         label: 'Market screen',
-        status: 'not selected',
+        status: 'pass',
         headline: `${ticker} did not move far enough to qualify`,
         body: `${ticker} ${direction} the broader market for ${streak}, but the difference was not large enough to meet the system's threshold for a potential rebound. No trade was proposed.`,
       };
     }
     return {
-      label: 'Market screen',
-      status: 'advanced',
+        label: 'Market screen',
+        status: 'advance',
       headline: `${ticker} advanced for further review`,
       body: `${ticker} ${direction} the broader market for ${streak}. The move was large enough to continue into the next stage of review, where the system checks price, events, liquidity, and portfolio risk.`,
     };
@@ -266,7 +308,7 @@ export function readoutFor(item: JournalItem): PublicReadout {
     const confidence = item.modelProbability !== undefined ? ` The model estimated a ${(item.modelProbability * 100).toFixed(0)}% chance that the setup would succeed.` : '';
     return {
       label: 'Risk review',
-      status: isVetoed ? 'held back' : 'approved',
+      status: isVetoed ? 'block' : 'advance',
       headline: isVetoed ? `${ticker} was held back by the risk review` : `${ticker} passed the risk review`,
       body: isVetoed
         ? `The system reviewed ${ticker} and decided that conditions were not suitable for selling options to collect a payment.${confidence} No order was sent.`
@@ -277,26 +319,26 @@ export function readoutFor(item: JournalItem): PublicReadout {
   if (item.kind === 'llm_review') {
     return {
       label: 'Trade review',
-      status: item.decision === 'go' ? 'approved' : 'declined',
-      headline: item.decision === 'go' ? `${ticker} received approval for a paper trade` : `${ticker} was declined after review`,
+      status: item.decision === 'go' ? 'entry approved' : 'entry declined',
+      headline: item.decision === 'go' ? `${ticker} received approval for an entry` : `${ticker} was declined after review`,
       body: item.decision === 'go'
-        ? `A second review approved a ${spreadDescription(item)}. The trade was prepared for the paper account only; no real capital was committed.`
-        : `A second review did not approve a trade in ${ticker}. The decision kept the setup out of the paper account.`,
+        ? `A second review approved a ${spreadDescription(item)}.${marketContext(item)}`
+        : `A second review did not approve a trade in ${ticker}. The setup was not sent to the order queue.${marketContext(item)}`,
     };
   }
 
   if (item.kind === 'paper_order') {
     return {
-      label: 'Paper execution',
-      status: 'paper only',
-      headline: `A paper order was prepared for ${ticker}`,
-      body: `The system prepared one ${spreadDescription(item)} for ${ticker}. This was a dry run for testing the process, not a live order, so no real trade or capital was involved.`,
+      label: 'Order',
+      status: 'entry prepared',
+      headline: `An entry was prepared for ${ticker}`,
+      body: `The system prepared one ${spreadDescription(item)} for ${ticker}.${marketContext(item)}`,
     };
   }
 
   return {
     label: displayName(item.category),
-    status: displayName(item.status),
+    status: item.kind.includes('exit') || item.kind.includes('close') ? 'exit' : displayName(item.status),
     headline: `${ticker} was recorded in the journal`,
     body: `The system recorded a ${displayName(item.kind).toLowerCase()} involving ${ticker}. This entry documents the research process and does not represent a live trade.`,
   };
