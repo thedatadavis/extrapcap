@@ -1,6 +1,13 @@
 name: Review paper candidates
 on:
   workflow_dispatch:
+    inputs:
+      execution_mode:
+        description: Dry-run or guarded paper submission
+        required: true
+        default: dry-run
+        type: choice
+        options: [dry-run, paper-submit]
   schedule:
     - cron: '0 15-20 * * 1-5'
 concurrency:
@@ -13,8 +20,8 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
         with: {python-version: '3.11'}
       - run: pip install -e '.[research]'
       - name: Run provider-backed basket review
@@ -26,13 +33,15 @@ jobs:
           SNIPER_MODEL_PATH: models/sniper.cbm
           EXTRAPCAP_NEWS_EVENTS: data/events/news.csv
           EXTRAPCAP_NEWS_LLM: 'true'
+          EXTRAPCAP_PAPER_SUBMIT_ENABLED: ${{ vars.EXTRAPCAP_PAPER_SUBMIT_ENABLED || 'false' }}
+          EXTRAPCAP_EXECUTION_MODE: ${{ inputs.execution_mode || vars.EXTRAPCAP_EXECUTION_MODE || 'dry-run' }}
         run: >-
           python -m extrapcap.orchestration.basket_cycle_cli
           --basket data/universe/tradable-basket.csv
           --model "$SNIPER_MODEL_PATH"
           --expiration-gte "$(date -u -d '+2 days' +%F)"
           --expiration-lte "$(date -u -d '+35 days' +%F)"
-          --execution-mode dry-run
+          --execution-mode "$EXTRAPCAP_EXECUTION_MODE"
       - name: Commit review ledger
         run: |
           git config user.name extrapcap-bot

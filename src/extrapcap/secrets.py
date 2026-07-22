@@ -8,6 +8,8 @@ def _secret(name: str, service: str) -> str | None:
     value = os.getenv(name)
     if value:
         return value
+    if os.getenv("EXTRAPCAP_KEYCHAIN_ENABLED", "true").lower() != "true":
+        return None
     try:
         result = subprocess.run(["security", "find-generic-password", "-s", service, "-w"], capture_output=True, text=True, check=False, timeout=5)
     except (OSError, subprocess.TimeoutExpired):
@@ -25,8 +27,28 @@ def require_paper_credentials() -> tuple[str, str]:
     return key, secret
 
 
+def optional_paper_credentials() -> tuple[str | None, str | None]:
+    """Load paper credentials when present without making read-only startup fatal."""
+    return (
+        _secret("ALPACA_API_KEY", "extrapcap.alpaca.api_key"),
+        _secret("ALPACA_SECRET_KEY", "extrapcap.alpaca.secret_key"),
+    )
+
+
+def require_paper_submit_enabled() -> None:
+    """Require a separate, explicit switch before any paper order mutation."""
+    if os.getenv("EXTRAPCAP_PAPER_SUBMIT_ENABLED", "false").lower() != "true":
+        raise RuntimeError(
+            "paper-submit is disabled; set EXTRAPCAP_PAPER_SUBMIT_ENABLED=true in the paper environment"
+        )
+
+
 def require_nebius_key() -> str:
     key = _secret("NEBIUS_API_KEY", "extrapcap.nebius.api_key")
     if not key:
         raise RuntimeError("set NEBIUS_API_KEY through a secret manager")
     return key
+
+
+def optional_nebius_key() -> str | None:
+    return _secret("NEBIUS_API_KEY", "extrapcap.nebius.api_key")

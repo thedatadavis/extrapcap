@@ -9,6 +9,7 @@ from ..config import AppConfig
 from ..data.alpaca_market import AlpacaMarketData
 from ..data.normalize import normalize_stock_bars
 from ..events import EventDecision, decision_from_csv
+from ..execution.account_risk import build_portfolio_risk_state
 from ..execution.alpaca import AlpacaPaperClient
 from ..ledger import AuditLedger
 from ..fills import FillAssumptions
@@ -16,7 +17,8 @@ from ..llm.nebius import NebiusReviewer
 from ..models.sniper import SniperModel
 from ..options_data import AlpacaOptionsData
 from ..orchestration.paper_run import PaperRunCoordinator, build_candidate
-from ..risk import IntradayRiskState, PortfolioRiskState, approve_intraday_order
+from ..risk import IntradayRiskState, approve_intraday_order
+from ..selection import core_streak_gate
 from ..signals import SNIPER_FEATURES, relative_features
 
 
@@ -60,10 +62,49 @@ def run_live_cycle(
     latest = features.dropna(subset=SNIPER_FEATURES).tail(1)
     if latest.empty:
         raise RuntimeError("not enough bars to produce Sniper features")
+    latest_row = latest.iloc[0]
+    live_features = {
+        "as_of": latest_row["date"].isoformat(),
+        "streak_length": int(latest_row["streak_length"]),
+        "streak_direction": str(latest_row["streak_direction"]),
+        "signed_streak": int(latest_row["signed_streak"]),
+        "relative_return": float(latest_row["relative_return"]),
+        "robust_z": float(latest_row["robust_z"]),
+    }
+    context = dict(selection_context or {})
+    context["live_features"] = live_features
+    formation_keys = {"streak_length", "streak_direction", "robust_z"}
+    has_completed_formation = all(context.get(key) is not None for key in formation_keys)
+    gate_context = context if has_completed_formation else live_features
+    context["formation_source"] = "completed_basket" if gate_context is context else "latest_provider_bar"
+    signal_gate = core_streak_gate(gate_context, config.strategy.z_threshold)
+    context["signal_gate"] = signal_gate.as_dict()
+    if not signal_gate.allowed:
+        result = {
+            "kind": "entry_signal_gate",
+            "ticker": symbol.upper(),
+            "symbol": symbol.upper(),
+            "timeframe": timeframe,
+            "status": "vetoed",
+            "reason": signal_gate.reason,
+            "provider": "system",
+            "sleeve": "core",
+            "strategy_variant": "improved",
+            "selection_context": context,
+        }
+        AuditLedger().append("signals", result, end.date(), deduplicate=True)
+        return {
+            "ticker": symbol.upper(),
+            "symbol": symbol.upper(),
+            "timeframe": timeframe,
+            "status": "vetoed",
+            "reason": signal_gate.reason,
+            "result": result,
+        }
     model = SniperModel.load(model_path, SNIPER_FEATURES)
     probability = float(model.predict_probability(latest[SNIPER_FEATURES].astype(float))[0])
     account = client.account()
-    equity = float(account.get("equity", "0"))
+    risk_state = build_portfolio_risk_state(account, client.positions(), client.open_orders())
     contracts_payload = options.contracts_all(symbol, expiration_gte, expiration_lte)
     snapshot_payload, _ = options.chain_all(symbol, expiration_gte=expiration_gte, expiration_lte=expiration_lte, option_type="put", feed=os.getenv("ALPACA_OPTIONS_FEED", "indicative"))
     reviewer = NebiusReviewer()
@@ -73,15 +114,15 @@ def run_live_cycle(
     candidate = build_candidate(
         underlying=symbol,
         trading_day=end.date(),
-        underlying_price=float(latest.iloc[0]["close"]),
+        underlying_price=float(latest_row["close"]),
         contracts_payload=contracts_payload,
         snapshot_payload=snapshot_payload,
         model_probability=probability,
-        risk_state=PortfolioRiskState(nav=equity),
+        risk_state=risk_state,
         risk_config=config.risk,
         event_decision=event_decision,
         fill_assumptions=FillAssumptions(),
-        selection_context=selection_context,
+        selection_context=context,
     )
     result = PaperRunCoordinator(client, reviewer).execute(candidate)
     return {"ticker": symbol.upper(), "symbol": symbol.upper(), "timeframe": timeframe, "probability": probability, "model": model.version, "result": result}

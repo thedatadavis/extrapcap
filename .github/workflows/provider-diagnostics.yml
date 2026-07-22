@@ -6,8 +6,8 @@ jobs:
     runs-on: ubuntu-latest
     environment: paper
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
         with: {python-version: '3.11'}
       - run: pip install -e .
       - name: Read-only provider check
@@ -16,4 +16,4 @@ jobs:
           ALPACA_API_KEY: ${{ secrets.ALPACA_API_KEY }}
           ALPACA_SECRET_KEY: ${{ secrets.ALPACA_SECRET_KEY }}
           NEBIUS_API_KEY: ${{ secrets.NEBIUS_API_KEY }}
-        run: python -m extrapcap.diagnostics
+        run: python -m extrapcap.diagnostics --require-ready

@@ -17,8 +17,8 @@ jobs:
     runs-on: ubuntu-latest
     environment: paper
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
         with: {python-version: '3.11'}
       - run: pip install -e .
       - name: Reset paper account
@@ -27,6 +27,7 @@ jobs:
           ALPACA_API_KEY: ${{ secrets.ALPACA_API_KEY }}
           ALPACA_SECRET_KEY: ${{ secrets.ALPACA_SECRET_KEY }}
           EXTRAPCAP_EXECUTION_MODE: ${{ inputs.execution_mode }}
+          EXTRAPCAP_PAPER_SUBMIT_ENABLED: ${{ vars.EXTRAPCAP_PAPER_SUBMIT_ENABLED || 'false' }}
         run: |
           test "${{ inputs.confirm }}" = "RESET_PAPER_ACCOUNT"
           python -m extrapcap.execution.reset_cli --confirm "${{ inputs.confirm }}"

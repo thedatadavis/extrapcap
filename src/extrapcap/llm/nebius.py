@@ -4,13 +4,15 @@ import json
 import os
 from urllib.request import Request, urlopen
 
+from ..secrets import optional_nebius_key
+
 
 class NebiusReviewer:
     """OpenAI-compatible Nebius reviewer; output is advisory and structured."""
 
     def __init__(self, base_url: str | None = None, api_key: str | None = None, model: str | None = None):
         self.base_url = (base_url or os.getenv("NEBIUS_BASE_URL", "https://api.tokenfactory.nebius.com/v1")).rstrip("/")
-        self.api_key = api_key or os.getenv("NEBIUS_API_KEY")
+        self.api_key = api_key or optional_nebius_key()
         self.model = model or os.getenv("NEBIUS_MODEL", "Qwen/Qwen3-30B-A3B-Instruct-2507")
 
     def _request_json(self, system: str, user: dict) -> dict:

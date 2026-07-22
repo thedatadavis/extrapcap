@@ -9,18 +9,19 @@ concurrency:
 jobs:
   report:
     runs-on: ubuntu-latest
+    environment: paper
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
         with: {python-version: '3.11'}
       - run: pip install -e .
       - name: Render replayable report
         env:
           EXTRAPCAP_DAILY_LLM: 'true'
-          NEBIUS_API_KEY: \${{ secrets.NEBIUS_API_KEY }}
-          NEBIUS_MODEL: \${{ vars.NEBIUS_MODEL }}
+          NEBIUS_API_KEY: ${{ secrets.NEBIUS_API_KEY }}
+          NEBIUS_MODEL: ${{ vars.NEBIUS_MODEL || 'Qwen/Qwen3-30B-A3B-Instruct-2507' }}
         run: python -m extrapcap.reporting.daily_cli --date "$(date -u +%F)" --output "reports/daily-$(date -u +%F).json"
       - name: Commit report
         run: |

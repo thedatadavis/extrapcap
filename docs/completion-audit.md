@@ -43,8 +43,11 @@ This is a living handoff, not a claim that the platform is ready for live capita
 - All new ledger events now include journal-ready ticker and OCC contract metadata, and the existing provider-backed SPY records were migrated to the same schema.
 - The Astro site now generates from every dated ledger category and the latest modeled comparison report; hardcoded fixture performance and test-era journal pages were removed.
 - Scheduled candidate review now scans the streak-screened basket, preserves formation context, commits its ledger, and serializes repository writes with the other operational workflows.
+- The current core route now enforces completed negative streaks of 2–5 sessions plus the configured robust-Z threshold, ranks longer streaks first, and defers positive streaks to a named bearish-watch route before provider-heavy work.
+- Provider-backed sizing now reconstructs NAV, daily PnL, drawdown, sleeve risk, and ticker risk from the Alpaca paper account plus the submitted-order registry; untracked option positions or orders fail closed.
+- Paper submission now requires a separate persistent enable switch in addition to selecting `paper-submit`; scheduled candidate review remains dry-run until both GitHub variables are deliberately changed.
 
-- Alpaca/Nebius paper-submit remains intentionally unexecuted; dry-run and read-only provider paths are verified.
+- Alpaca/Nebius paper-submit remains intentionally unexecuted; dry-run and read-only provider paths are verified. The new strict remote provider diagnostic must pass after credential changes before any turn-on decision.
 - A real SPY indicative snapshot is now persisted under `data/options`; paid OPRA history is intentionally out of scope, and free multi-period historical option quotes remain unavailable.
 - The institutional memo now records the real bar/model/provider evidence and its limitations; it does not claim historical option-level performance.
 - Intraday looping is represented by scheduled bursts and execution windows; a persistent low-latency runner is not implemented. The provider-backed position manager is scheduled, but its paper-submit path remains unexecuted.

@@ -7,7 +7,9 @@ Extrapcap uses the signal as a tradable-basket screen, not as permission to bypa
 - `signed_streak` is positive for consecutive relative outperformance and negative for consecutive relative underperformance.
 - A zero relative return breaks the streak.
 - The default screen keeps absolute lengths 2 through 5 and records both directions.
-- Negative streaks are the primary mean-reversion/core candidates; positive streaks remain available to continuation and Crash Protocol research.
+- The implemented bullish core route accepts only negative streaks. Positive streaks are recorded under `bearish_reversal_watch` and deferred until a separately tested defined-risk bearish construction exists.
+- Within the negative 2–5-session set, longer streaks rank first, followed by more negative robust Z. Ranking does not increase position size.
+- The provider-backed core route also requires robust Z at or below the configured entry threshold (default `-2.0`). A streak can be eligible for the research basket yet still be vetoed before option-chain or LLM calls.
 - Eligibility is computed after the latest completed bar and applies to the next session. The screen never uses the next-session return.
 - Every symbol receives a decision record with the as-of timestamp, signed length, direction, relative return, acceptance, and rejection reason.
 

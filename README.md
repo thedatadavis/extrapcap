@@ -27,7 +27,7 @@ python -m extrapcap.data.features_cli --input data/normalized/bars.csv
 python -m extrapcap.models.score_cli --input data/features/features.csv --model models/sniper.cbm
 python -m extrapcap.universe.cli --output-dir data/universe
 # then pass the timestamped greenlist CSV to extrapcap.universe.streak_cli
-python -m extrapcap.diagnostics
+python -m extrapcap.diagnostics --require-ready
 python -m extrapcap.playback_cli --date 2026-07-22
 python -m extrapcap.reporting.daily_cli --date 2026-07-22
 python -m extrapcap.execution.position_manager_cli --help
@@ -50,7 +50,7 @@ The scheduled operating chain is split into idempotent GitHub Actions for univer
 
 Research results must distinguish reconstructed/approximated option data from historical chain data. Do not treat a high win rate as proof of quality; inspect expectancy, drawdown, tail loss, fill assumptions, and sleeve contribution together. Production matrix runs accept `--basket data/universe/tradable-basket.csv` to keep the streak-screened universe aligned with research.
 
-The tradable-basket screen also uses the completed relative-return streak. A streak is a signed run of stock outperformance or underperformance versus SPY; the default screen retains lengths 2 through 5, records every decision, and is eligible for the next session only after the close. Negative streaks feed the mean-reversion/core research path; positive streaks remain available to continuation and Crash Protocol research.
+The tradable-basket screen also uses the completed relative-return streak. A streak is a signed run of stock outperformance or underperformance versus SPY; the default screen retains lengths 2 through 5, records every decision, and is eligible for the next session only after the close. The current bullish core route requires a negative streak and robust Z at or below `-2.0`, ranking longer streaks first. Positive streaks are journaled under a deferred bearish-watch route rather than entering a bull-put spread.
 
 Every dated ledger event carries a stable journal envelope with ticker, OCC
 contract IDs, parsed expiration/type/strike details, strategy and sleeve,
@@ -62,5 +62,5 @@ See `docs/charter.md`, `docs/architecture.md`, `docs/strategy/variants.md`, and 
 
 ## Safety boundary
 
-The execution adapter rejects live URLs and requires `ALPACA_PAPER=true`. Short options are represented only as defined-risk verticals. The LLM reviewer can veto or escalate a candidate, but cannot override hard risk controls.
+The execution adapter rejects live URLs and requires `ALPACA_PAPER=true`. Paper submission additionally requires `EXTRAPCAP_PAPER_SUBMIT_ENABLED=true`; scheduled workflows remain dry-run by default. Short options are represented only as defined-risk verticals. The LLM reviewer can veto or escalate a candidate, but cannot override hard risk controls.
 Daily reports are deterministic by default. GitHub Actions enables the optional Nebius note with the NEBIUS_API_KEY secret; missing or malformed model output escalates and never changes execution state.

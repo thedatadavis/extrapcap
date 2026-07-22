@@ -26,6 +26,8 @@ export type JournalItem = {
   reason: string;
   sleeve?: string;
   strategyVariant?: string;
+  strategyRoute?: string;
+  selectionRank?: number;
   modelProbability?: number;
   modelBucket?: string;
   dataTier?: string;
@@ -112,6 +114,10 @@ function readLedger(): JournalEntry[] {
           reason: String(record.reason ?? judgment.reason ?? metadata.reason ?? 'No rationale recorded.'),
           sleeve: asString(record.sleeve ?? metadata.sleeve),
           strategyVariant: asString(record.strategy_variant ?? metadata.strategy_variant),
+          strategyRoute: asString(record.strategy_route ?? metadata.strategy_route ?? record.selection_context?.strategy_route),
+          selectionRank: typeof (record.selection_rank ?? metadata.selection_rank ?? record.selection_context?.selection_rank) === 'number'
+            ? Number(record.selection_rank ?? metadata.selection_rank ?? record.selection_context?.selection_rank)
+            : undefined,
           modelProbability: typeof (record.model_probability ?? metadata.model_probability) === 'number'
             ? Number(record.model_probability ?? metadata.model_probability)
             : undefined,

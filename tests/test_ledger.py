@@ -36,3 +36,12 @@ def test_ledger_indexes_underlying_and_option_contracts(tmp_path):
     assert record["ticker"] == "SPY"
     assert record["contract_ids"] == ["SPY260724P00734000", "SPY260724P00739000"]
     assert record["journal"]["contract_details"][0]["expiration"] == "2026-07-24"
+
+
+def test_ledger_can_deduplicate_identical_selection_events(tmp_path):
+    ledger = AuditLedger(tmp_path / "logs")
+    event = {"kind": "basket_selection", "ticker": "ABC", "status": "vetoed"}
+    ledger.append("signals", event, date(2026, 7, 22), deduplicate=True)
+    ledger.append("signals", event, date(2026, 7, 22), deduplicate=True)
+    lines = (tmp_path / "logs" / "signals" / "2026-07-22.jsonl").read_text().splitlines()
+    assert len(lines) == 1

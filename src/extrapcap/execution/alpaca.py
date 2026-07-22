@@ -4,7 +4,7 @@ import json
 import os
 from dataclasses import dataclass
 from urllib.request import Request, urlopen
-from ..secrets import require_paper_credentials
+from ..secrets import optional_paper_credentials, require_paper_credentials, require_paper_submit_enabled
 
 
 @dataclass
@@ -27,9 +27,10 @@ class AlpacaPaperClient:
         if mode not in {"dry-run", "paper-submit"}:
             raise RuntimeError("EXTRAPCAP_EXECUTION_MODE must be dry-run or paper-submit")
         if mode == "paper-submit":
+            require_paper_submit_enabled()
             key, secret = require_paper_credentials()
         else:
-            key, secret = os.getenv("ALPACA_API_KEY"), os.getenv("ALPACA_SECRET_KEY")
+            key, secret = optional_paper_credentials()
         return cls(base_url, key, secret, mode != "paper-submit")
 
     def submit_order(self, order: dict) -> dict:

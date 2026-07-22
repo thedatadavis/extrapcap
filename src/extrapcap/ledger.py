@@ -100,6 +100,8 @@ def journal_metadata(category: str, event: dict, trading_day: date) -> dict:
         "client_order_id": event.get("client_order_id"),
         "sleeve": event.get("sleeve") or (event.get("spread") or {}).get("sleeve"),
         "strategy_variant": event.get("strategy_variant"),
+        "strategy_route": event.get("strategy_route"),
+        "selection_rank": event.get("selection_rank"),
         "model_probability": event.get("model_probability"),
         "model_bucket": event.get("model_bucket"),
         "data_tier": event.get("data_tier"),
@@ -114,7 +116,14 @@ class AuditLedger:
     def __init__(self, root: str | Path = "logs"):
         self.root = Path(root)
 
-    def append(self, category: str, event: dict, trading_day: date | None = None) -> Path:
+    def append(
+        self,
+        category: str,
+        event: dict,
+        trading_day: date | None = None,
+        *,
+        deduplicate: bool = False,
+    ) -> Path:
         day = trading_day or date.today()
         path = self.root / category / f"{day.isoformat()}.jsonl"
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -123,6 +132,16 @@ class AuditLedger:
         record["ticker"] = metadata["ticker"]
         record["contract_ids"] = metadata["contract_ids"]
         record["journal"] = metadata
+        if deduplicate and path.exists():
+            for line in path.read_text(encoding="utf-8").splitlines():
+                if not line.strip():
+                    continue
+                try:
+                    existing = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                if (existing.get("journal") or {}).get("event_id") == metadata["event_id"]:
+                    return path
         with path.open("a", encoding="utf-8") as handle:
             handle.write(json.dumps(record, sort_keys=True, default=str) + "\n")
         return path

@@ -20,8 +20,8 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
         with: {python-version: '3.11'}
       - run: pip install -e .
       - name: Evaluate and manage held verticals
@@ -29,6 +29,7 @@ jobs:
           ALPACA_PAPER: 'true'
           ALPACA_API_KEY: ${{ secrets.ALPACA_API_KEY }}
           ALPACA_SECRET_KEY: ${{ secrets.ALPACA_SECRET_KEY }}
+          EXTRAPCAP_PAPER_SUBMIT_ENABLED: ${{ vars.EXTRAPCAP_PAPER_SUBMIT_ENABLED || 'false' }}
         run: >-
           python -m extrapcap.execution.manage_live_cli
           --execution-mode "${{ inputs.execution_mode || 'dry-run' }}"

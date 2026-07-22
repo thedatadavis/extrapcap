@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import argparse
 import json
+from urllib.error import HTTPError
 
 from .execution.alpaca import AlpacaPaperClient
 from .llm.nebius import NebiusReviewer
@@ -17,7 +19,9 @@ def run_diagnostics() -> dict:
         else:
             result["alpaca"]["reachable"] = False
     except Exception as exc:
-        result["alpaca"] = {"reachable": False, "error_type": type(exc).__name__}
+        result["alpaca"].update({"reachable": False, "error_type": type(exc).__name__})
+        if isinstance(exc, HTTPError):
+            result["alpaca"]["http_status"] = exc.code
     try:
         reviewer = NebiusReviewer()
         result["nebius"]["configured"] = bool(reviewer.api_key)
@@ -32,8 +36,22 @@ def run_diagnostics() -> dict:
     return result
 
 
+def diagnostic_ready(result: dict) -> bool:
+    return result.get("ready_for_read_only_live_cycle") is True
+
+
 def main() -> None:
-    print(json.dumps(run_diagnostics(), indent=2))
+    parser = argparse.ArgumentParser(description="Read-only Alpaca paper and Nebius provider diagnostics")
+    parser.add_argument(
+        "--require-ready",
+        action="store_true",
+        help="exit non-zero unless both providers are configured and reachable",
+    )
+    args = parser.parse_args()
+    result = run_diagnostics()
+    print(json.dumps(result, indent=2))
+    if args.require_ready and not diagnostic_ready(result):
+        raise SystemExit("provider diagnostics failed: Alpaca paper and Nebius must both be reachable")
 
 
 if __name__ == "__main__":

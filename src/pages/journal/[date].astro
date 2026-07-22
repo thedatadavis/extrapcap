@@ -11,7 +11,6 @@ const base = import.meta.env.BASE_URL;
 <Shell>
   <header class="topbar"><a class="back-link" href={`${base}/`}>← Overview</a><span>Daily journal</span></header>
   <article class="journal-page">
-    <p class="kicker">Paper loop / {entry.date.slice(0, 7)}</p>
     <h1>{formatDate(entry.date)}</h1>
     <p class="lede">Signals, rationales, orders, fills, risk events, and account snapshots captured during the paper-trading cycle.</p>
     <div class="entry-stack">
@@ -28,10 +27,15 @@ const base = import.meta.env.BASE_URL;
             <div><dt>Provider</dt><dd>{item.provider}</dd></div>
             {item.sleeve && <div><dt>Sleeve</dt><dd>{item.sleeve}</dd></div>}
             {item.strategyVariant && <div><dt>Variant</dt><dd>{item.strategyVariant}</dd></div>}
+            {item.strategyRoute && <div><dt>Strategy route</dt><dd>{item.strategyRoute.replaceAll('_', ' ')}</dd></div>}
+            {item.selectionRank !== undefined && <div><dt>Selection rank</dt><dd>{item.selectionRank}</dd></div>}
             {item.modelProbability !== undefined && <div><dt>Model probability</dt><dd>{(item.modelProbability * 100).toFixed(1)}% · {item.modelBucket ?? 'unbucketed'}</dd></div>}
             {item.dataTier && <div><dt>Data tier</dt><dd>{item.dataTier}</dd></div>}
             {item.selectionContext?.streak_length !== undefined && <div><dt>Streak</dt><dd>{item.selectionContext.streak_direction} · {item.selectionContext.streak_length} sessions · signed {item.selectionContext.signed_streak}</dd></div>}
             {item.selectionContext?.relative_return !== undefined && <div><dt>Formation move</dt><dd>{(Number(item.selectionContext.relative_return) * 100).toFixed(2)}% relative to SPY · robust Z {Number(item.selectionContext.robust_z).toFixed(2)}</dd></div>}
+            {item.selectionContext?.formation_date && <div><dt>Formation timestamp</dt><dd>{item.selectionContext.formation_date}</dd></div>}
+            {item.selectionContext?.signal_gate?.z_threshold !== undefined && <div><dt>Entry threshold</dt><dd>robust Z ≤ {Number(item.selectionContext.signal_gate.z_threshold).toFixed(2)}</dd></div>}
+            {item.selectionContext?.dollar_volume !== undefined && <div><dt>Liquidity context</dt><dd>${Number(item.selectionContext.dollar_volume).toLocaleString('en-US', { maximumFractionDigits: 0 })} dollar volume</dd></div>}
             {item.clientOrderId && <div><dt>Client order</dt><dd><code>{item.clientOrderId}</code></dd></div>}
             <div><dt>Reason</dt><dd>{item.reason}</dd></div>
           </dl>
