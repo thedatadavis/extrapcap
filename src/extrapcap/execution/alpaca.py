@@ -53,6 +53,32 @@ class AlpacaPaperClient:
         with urlopen(request, timeout=20) as response:
             return json.loads(response.read())
 
+    def _request(self, path: str, method: str) -> dict | list:
+        if not self.api_key or not self.secret_key:
+            raise RuntimeError("missing Alpaca paper credentials")
+        request = Request(
+            f"{self.base_url}{path}",
+            headers={"APCA-API-KEY-ID": self.api_key, "APCA-API-SECRET-KEY": self.secret_key},
+            method=method,
+        )
+        with urlopen(request, timeout=20) as response:
+            body = response.read()
+            return json.loads(body) if body else {}
+
+    def reset_paper_account(self) -> dict:
+        """Cancel open orders and close positions; never available on a live URL."""
+        if self.dry_run:
+            return {
+                "status": "dry_run",
+                "open_orders": self.open_orders() if self.api_key and self.secret_key else "credentials_not_configured",
+                "positions": self.positions() if self.api_key and self.secret_key else "credentials_not_configured",
+            }
+        return {
+            "status": "paper_submit",
+            "canceled_orders": self._request("/v2/orders", "DELETE"),
+            "closed_positions": self._request("/v2/positions", "DELETE"),
+        }
+
     def account(self) -> dict:
         return self._get("/v2/account")
 

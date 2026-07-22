@@ -5,7 +5,7 @@ from ..config import AppConfig
 from ..fills import debit_expiration_pnl, vertical_expiration_pnl
 from ..options import build_asymmetric_debit_spread, build_credit_spread
 from ..portfolio import SleeveLedger
-from ..risk import PortfolioRiskState, approve_asymmetric, approve_core
+from ..risk import PortfolioRiskState, approve_asymmetric, approve_candidate
 from ..reporting.metrics import summarize_returns
 from ..signals import SNIPER_FEATURES, relative_features
 from ..orchestration.windows import execution_window
@@ -53,7 +53,7 @@ class BacktestResult:
     average_open_risk_utilization: float = 0.0
     trade_skewness: float = 0.0
     regime_decomposition: dict = field(default_factory=dict)
-    sector_concentration: str = "unavailable_without_sector_metadata"
+    sector_concentration: dict | str = "unavailable_without_sector_metadata"
     intraday_vetoes: int = 0
 
     def as_dict(self) -> dict:
@@ -73,6 +73,7 @@ def run_backtest(
     news_events: pd.DataFrame | None = None,
     mode: str = "end_of_day",
     eligible_symbols: set[str] | None = None,
+    sector_by_symbol: dict[str, str] | None = None,
 ) -> BacktestResult:
     if mode not in {"end_of_day", "hybrid", "intraday_loop"}:
         raise ValueError("mode must be end_of_day, hybrid, or intraday_loop")
@@ -86,7 +87,7 @@ def run_backtest(
     frame = frame.sort_values(["date", "symbol"]).reset_index(drop=True)
     trades = wins = trap = 0
     open_risk = 0.0
-    releases: dict[pd.Timestamp, float] = {}
+    releases: dict[pd.Timestamp, list[tuple[str, str | None, float]]] = {}
     crash_open_risk = 0.0
     crash_releases: dict[pd.Timestamp, float] = {}
     asymmetric_open_risk = 0.0
@@ -94,6 +95,12 @@ def run_backtest(
     asymmetric_releases: dict[pd.Timestamp, tuple[float, int]] = {}
     pnl = []
     pnl_events: list[tuple[pd.Timestamp, float]] = []
+    realized_by_date: dict[pd.Timestamp, float] = {}
+    ticker_open_risk: dict[str, float] = {}
+    sector_open_risk: dict[str, float] = {}
+    sector_map = {str(key).upper(): str(value) for key, value in (sector_by_symbol or {}).items()}
+    peak_nav = 100_000.0
+    max_sector_risk = 0.0
     crash_trades = 0
     crash_pnl = 0.0
     asymmetric_rejected = 0
@@ -143,10 +150,14 @@ def run_backtest(
         }
     for row in frame.itertuples():
         current_date = pd.Timestamp(row.date)
-        released = sum(amount for date, amount in releases.items() if date <= current_date)
-        if released:
-            open_risk = max(0.0, open_risk - released)
-            releases = {date: amount for date, amount in releases.items() if date > current_date}
+        for release_date, records in list(releases.items()):
+            if release_date <= current_date:
+                for symbol, sector, amount in records:
+                    open_risk = max(0.0, open_risk - amount)
+                    ticker_open_risk[symbol] = max(0.0, ticker_open_risk.get(symbol, 0.0) - amount)
+                    if sector is not None:
+                        sector_open_risk[sector] = max(0.0, sector_open_risk.get(sector, 0.0) - amount)
+                del releases[release_date]
         crash_released = sum(amount for date, amount in crash_releases.items() if date <= current_date)
         if crash_released:
             crash_open_risk = max(0.0, crash_open_risk - crash_released)
@@ -157,6 +168,11 @@ def run_backtest(
                 asymmetric_open_trades = max(0, asymmetric_open_trades - trade_count)
                 del asymmetric_releases[release_date]
         utilization_samples.append((open_risk + crash_open_risk + asymmetric_open_risk) / 100_000)
+        current_equity = 100_000.0 + sum(value for day, value in realized_by_date.items() if day <= current_date.normalize())
+        peak_nav = max(peak_nav, current_equity)
+        drawdown = current_equity / peak_nav - 1.0 if peak_nav else -1.0
+        daily_pnl = realized_by_date.get(current_date.normalize(), 0.0)
+        max_sector_risk = max(max_sector_risk, max(sector_open_risk.values(), default=0.0))
         if pd.isna(row.next_close):
             continue
         if turn_of_month_only and not bool(row.turn_of_month):
@@ -189,7 +205,19 @@ def run_backtest(
             trap += 1
             continue
         spread = build_credit_spread(row.symbol, row.close, variant, cfg.strategy.spread_width)
-        decision = approve_core(spread, 100_000, open_risk, cfg.risk)
+        sector = sector_map.get(str(row.symbol).upper())
+        decision = approve_candidate(
+            spread,
+            PortfolioRiskState(
+                nav=100_000,
+                core_open_risk=open_risk,
+                daily_pnl=daily_pnl,
+                drawdown=drawdown,
+                ticker_open_risk=ticker_open_risk,
+            ),
+            cfg.risk,
+            sector_open_risk=sector_open_risk.get(sector, 0.0) if sector is not None else 0.0,
+        )
         if not decision.allowed:
             continue
         if not allows_intraday_entry(row.symbol, current_date):
@@ -198,7 +226,9 @@ def run_backtest(
         next_price = float(row.next_close)
         trade_pnl = vertical_expiration_pnl(spread, next_price)
         pnl.append(trade_pnl / spread.max_loss)
-        pnl_events.append((pd.Timestamp(row.date), trade_pnl))
+        exit_date = pd.Timestamp(row.next_date).normalize()
+        pnl_events.append((exit_date, trade_pnl))
+        realized_by_date[exit_date] = realized_by_date.get(exit_date, 0.0) + trade_pnl
         trade_durations.append(max(0, (pd.Timestamp(row.next_date) - current_date).days))
         regime = "positive" if row.market_regime > 0 else "negative" if row.market_regime < 0 else "neutral"
         regime_returns[regime].append(trade_pnl / spread.max_loss)
@@ -207,8 +237,10 @@ def run_backtest(
         # One-bar holding period: release core risk and, when funded, deploy a
         # small continuation debit spread on the same signal for separate analysis.
         open_risk += spread.max_loss
-        exit_date = pd.Timestamp(row.next_date)
-        releases[exit_date] = releases.get(exit_date, 0.0) + spread.max_loss
+        releases.setdefault(exit_date, []).append((str(row.symbol).upper(), sector, spread.max_loss))
+        ticker_open_risk[str(row.symbol).upper()] = ticker_open_risk.get(str(row.symbol).upper(), 0.0) + spread.max_loss
+        if sector is not None:
+            sector_open_risk[sector] = sector_open_risk.get(sector, 0.0) + spread.max_loss
         if include_asymmetric and row.robust_z <= cfg.strategy.z_threshold and ledger.asymmetric_budget >= 100:
             asymmetric = build_asymmetric_debit_spread(row.symbol, row.close, "bearish")
             asymmetric_decision = approve_asymmetric(
@@ -238,7 +270,10 @@ def run_backtest(
         elapsed_years = elapsed_days / 365.25 if elapsed_days > 0 else None
     metrics = summarize_returns(pnl, elapsed_years=elapsed_years)
     initial_nav = 100_000.0
-    dates = pd.DatetimeIndex(frame["date"].dropna().drop_duplicates().sort_values())
+    event_dates = [event_date for event_date, _ in pnl_events]
+    dates = pd.DatetimeIndex(
+        sorted(set(frame["date"].dropna().tolist()) | set(event_dates))
+    )
     daily_pnl = pd.Series(0.0, index=dates)
     for event_date, event_pnl in pnl_events:
         daily_pnl.loc[event_date] += event_pnl
@@ -284,5 +319,18 @@ def run_backtest(
         average_open_risk_utilization=float(sum(utilization_samples) / len(utilization_samples)) if utilization_samples else 0.0,
         trade_skewness=float(metrics["skewness"]),
         regime_decomposition={regime: summarize_returns(values) for regime, values in regime_returns.items()},
+        sector_concentration=(
+            {
+                "metadata_available": True,
+                "max_open_risk_pct": float(max_sector_risk / initial_nav),
+                "by_sector": {
+                    sector: float(value / initial_nav)
+                    for sector, value in sorted(sector_open_risk.items())
+                    if value > 0
+                },
+            }
+            if sector_map
+            else "unavailable_without_sector_metadata"
+        ),
         intraday_vetoes=intraday_vetoes,
     )

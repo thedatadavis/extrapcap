@@ -4,8 +4,8 @@
 
 | Variant | Trades | Win rate | Premium | Expectancy | Return on capital | Utilization | Avg duration | Skew | Portfolio return | Portfolio Sharpe | Portfolio Sortino | Portfolio drawdown | P05 tail | Profit factor |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| baseline | 810 | 91.7% | 121500.00 | 0.3342 | 76.54% | 0.24% | 1.5 | -3.383 | 114.63% | 11.89 | 25.81 | -1.42% | -0.4809 | 7.659426402361873 |
-| improved | 810 | 99.0% | 89100.00 | 0.2721 | 72.65% | 0.26% | 1.5 | -11.454 | 106.59% | 18.42 | 73.07 | -0.44% | 0.2821 | 41.579792256846034 |
+| baseline | 810 | 91.7% | 121500.00 | 0.3342 | 76.54% | 0.24% | 1.5 | -3.383 | 114.52% | 6.65 | 17.73 | -1.41% | -0.4809 | 7.659426402361873 |
+| improved | 810 | 99.0% | 89100.00 | 0.2721 | 72.65% | 0.26% | 1.5 | -11.454 | 106.52% | 8.66 | 28.81 | -0.47% | 0.2821 | 41.579792256846034 |
 
 ## Machine-readable results
 
@@ -32,11 +32,11 @@
     "worst_return": -1.0,
     "data_scope": "modeled_option_proxy",
     "initial_nav": 100000.0,
-    "portfolio_total_return": 1.1463042550200946,
-    "portfolio_max_drawdown": -0.014156171257854178,
-    "portfolio_sharpe_annualized": 11.886105137803776,
-    "portfolio_sortino_annualized": 25.81469783025963,
-    "portfolio_cagr": 0.46617864422819233,
+    "portfolio_total_return": 1.1451851701286855,
+    "portfolio_max_drawdown": -0.014146879359744347,
+    "portfolio_sharpe_annualized": 6.6463450473600565,
+    "portfolio_sortino_annualized": 17.731885144101632,
+    "portfolio_cagr": 0.46579557449731857,
     "classifier_used": false,
     "news_filter_used": false,
     "news_vetoes": 0,
@@ -95,7 +95,8 @@
         "skewness": 0.0
       }
     },
-    "sector_concentration": "unavailable_without_sector_metadata"
+    "sector_concentration": "unavailable_without_sector_metadata",
+    "intraday_vetoes": 0
   },
   {
     "variant": "improved",
@@ -118,11 +119,11 @@
     "worst_return": -1.0,
     "data_scope": "modeled_option_proxy",
     "initial_nav": 100000.0,
-    "portfolio_total_return": 1.0658970112339654,
-    "portfolio_max_drawdown": -0.004404464884000148,
-    "portfolio_sharpe_annualized": 18.42087884760462,
-    "portfolio_sortino_annualized": 73.06764299937048,
-    "portfolio_cagr": 0.43839617511355966,
+    "portfolio_total_return": 1.0651939232734704,
+    "portfolio_max_drawdown": -0.004686309999999971,
+    "portfolio_sharpe_annualized": 8.664247936704852,
+    "portfolio_sortino_annualized": 28.80525183853586,
+    "portfolio_cagr": 0.43815088553935366,
     "classifier_used": false,
     "news_filter_used": false,
     "news_vetoes": 0,
@@ -133,7 +134,7 @@
     "asymmetric_rejected": 0,
     "asymmetric_enabled": true,
     "mode": "end_of_day",
-    "return_on_capital": 0.72648,
+    "return_on_capital": 0.7264800000000001,
     "average_trade_duration_days": 1.4790123456790123,
     "average_open_risk_utilization": 0.002626626746506986,
     "trade_skewness": -11.453551457293882,
@@ -181,7 +182,8 @@
         "skewness": 0.0
       }
     },
-    "sector_concentration": "unavailable_without_sector_metadata"
+    "sector_concentration": "unavailable_without_sector_metadata",
+    "intraday_vetoes": 0
   }
 ]
 ```

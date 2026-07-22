@@ -53,3 +53,21 @@ def test_intraday_modes_apply_session_window_and_duplicate_gates():
     assert hybrid.trades == 0
     assert hybrid.intraday_vetoes > 0
     assert intraday.trades == 1
+
+
+def test_backtest_enforces_ticker_and_sector_caps_when_metadata_is_available():
+    bars = pd.read_csv("examples/sample_bars.csv", parse_dates=["date"])
+    benchmark = bars.loc[bars.symbol == "SPY"].set_index("date")["close"]
+    cfg = AppConfig(strategy=StrategyConfig(z_window=5, z_threshold=-0.5))
+    cfg.risk.max_ticker_concentration_pct = 0.001
+    cfg.risk.max_sector_concentration_pct = 0.001
+    result = run_backtest(
+        bars[bars.symbol != "SPY"],
+        benchmark,
+        "improved",
+        cfg,
+        eligible_symbols={"ABC"},
+        sector_by_symbol={"ABC": "technology"},
+    )
+    assert result.trades == 0
+    assert result.sector_concentration["metadata_available"] is True

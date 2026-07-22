@@ -1,0 +1,32 @@
+name: Replay paper-trading day
+on:
+  workflow_dispatch:
+    inputs:
+      trading_day:
+        description: UTC trading day to replay
+        required: true
+        type: string
+      commit_report:
+        description: Commit the replay report to the ledger
+        required: true
+        default: false
+        type: boolean
+jobs:
+  replay:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.11'}
+      - run: pip install -e .
+      - run: python -m extrapcap.playback_cli --date "${{ inputs.trading_day }}" --output "reports/replay-${{ inputs.trading_day }}.json"
+      - name: Commit replay report
+        if: ${{ inputs.commit_report }}
+        run: |
+          git config user.name extrapcap-bot
+          git config user.email extrapcap-bot@users.noreply.github.com
+          git add "reports/replay-${{ inputs.trading_day }}.json"
+          git diff --cached --quiet || git commit -m "report: replay paper day ${{ inputs.trading_day }}"
+          git push

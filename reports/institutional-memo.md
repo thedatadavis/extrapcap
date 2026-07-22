@@ -36,6 +36,11 @@ This is calibration evidence, not proof of economic edge. Feature importance and
 
 ## Proxy backtest results
 
+The refreshed engine enforces overlapping core-risk, daily-loss, drawdown,
+ticker, and optional sector concentration gates. Sector concentration remains
+explicitly unavailable for the current real-bar artifact because no sector
+metadata is present.
+
 The comparison in `reports/real-bars-variant-comparison-2026-07-22.md` uses real daily bars but modeled spread credits, one-bar expiration-style exits, and normalized risk-unit returns. It now emits both risk-unit diagnostics and a fixed-$100,000 daily portfolio curve with win rate, expectancy, Sharpe, Sortino, max drawdown, P05 tail loss, profit factor, and total-return diagnostics, but it is useful for testing implementation and relative trade-offs only.
 
 | Variant | Trades | Wins | Win rate | Premium | Proxy expectancy | Portfolio return | Portfolio drawdown | Proxy profit factor |

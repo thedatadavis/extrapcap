@@ -1,0 +1,22 @@
+{
+  "mode": "end_of_day",
+  "benchmark": "SPY",
+  "paper_only": true,
+  "free_data_policy": {
+    "bars_feed": "iex",
+    "options_feed": "indicative",
+    "paid_opra_history": false
+  },
+  "strategy": {
+    "z_threshold": -2.0,
+    "improved_delta_min": 0.15,
+    "improved_delta_max": 0.20,
+    "premium_funding_pct": 0.15
+  },
+  "risk": {
+    "max_core_open_risk_pct": 0.10,
+    "max_asymmetric_open_risk_pct": 0.03,
+    "max_daily_loss_pct": 0.02,
+    "max_drawdown_brake_pct": 0.10
+  }
+}

@@ -1,0 +1,32 @@
+name: Reset paper account
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: Type RESET_PAPER_ACCOUNT to authorize the paper-only reset
+        required: true
+        type: string
+      execution_mode:
+        description: Dry-run first; paper-submit cancels orders and closes positions
+        required: true
+        default: dry-run
+        type: choice
+        options: [dry-run, paper-submit]
+jobs:
+  reset:
+    runs-on: ubuntu-latest
+    environment: paper
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.11'}
+      - run: pip install -e .
+      - name: Reset paper account
+        env:
+          ALPACA_PAPER: 'true'
+          ALPACA_API_KEY: ${{ secrets.ALPACA_API_KEY }}
+          ALPACA_SECRET_KEY: ${{ secrets.ALPACA_SECRET_KEY }}
+          EXTRAPCAP_EXECUTION_MODE: ${{ inputs.execution_mode }}
+        run: |
+          test "${{ inputs.confirm }}" = "RESET_PAPER_ACCOUNT"
+          python -m extrapcap.execution.reset_cli --confirm "${{ inputs.confirm }}"

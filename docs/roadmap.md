@@ -30,3 +30,5 @@
 - news/structural-event data feed and regime decomposition
 - regime case studies
 - safe contextual-bandit recommendations
+- sector metadata ingestion and multi-sector real-data replay
+- realistic overlapping option marks and partial-fill path
