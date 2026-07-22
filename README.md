@@ -39,7 +39,7 @@ python -m extrapcap.orchestration.basket_cycle_cli --help
 
 The sample run writes a JSON report under `reports/`. Real API keys are not needed for the offline path.
 
-Provider refreshes write `bars.csv` plus a `bars.csv.metadata.json` provenance sidecar containing the request window, feed, symbols, row counts, and observed date bounds.
+Provider refreshes derive their symbol list from the pinned Greenlist plus SPY, batch and paginate the Alpaca request, and write `bars.csv` plus a `bars.csv.metadata.json` provenance sidecar containing the request window, feed, symbols, row counts, observed date bounds, and missing-symbol coverage. The streak screen fails closed unless every accepted Greenlist ticker has completed bars.
 Only completed daily sessions are retained; a current-session partial bar cannot form a streak or model feature. The free Nasdaq expected-earnings adapter writes a seven-day blackout window plus provenance metadata. Missing, stale, or incomplete calendar coverage vetoes entry. Nasdaq labels these dates as algorithmic expectations based on historical reporting dates, so the artifact is a conservative exclusion input rather than an assertion of a confirmed company announcement.
 
 The scheduled intraday path uses `python -m extrapcap.orchestration.intraday_cli` for one provider-backed 1-minute scan per burst. It defaults to dry-run and requires a versioned Sniper artifact for either execution mode.

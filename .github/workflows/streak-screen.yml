@@ -29,6 +29,7 @@ jobs:
           python -m extrapcap.universe.streak_cli \
             --bars data/normalized/bars.csv \
             --greenlist "$greenlist" \
+            --require-coverage \
             --directions negative,positive \
             --output data/universe/tradable-basket.csv
       - name: Commit basket and decisions

@@ -14,7 +14,7 @@ This is a living handoff, not a claim that the platform is ready for live capita
 - Bounded policy-improvement proposal loop with test/simulation/approval/rollback gates.
 - Provider-backed live-cycle command and redacted provider diagnostics.
 - Alpaca paper account read-only verification (`ACTIVE`), Nebius model-list/review verification, and a real-chain dry-run with resolved SPY OCC legs.
-- Real Alpaca daily bars for six symbols (3,006 rows spanning 2024-07-23 through 2026-07-22) normalized and used to train the versioned Sniper artifact; the held-out test report records Brier `0.2628` and ECE `0.0760`.
+- Real Alpaca daily bars are refreshed from the pinned Greenlist plus SPY, with batched/paginated retrieval and an explicit missing-symbol coverage gate before streak evaluation.
 - Normalized bar refreshes now write a provenance sidecar containing request window, symbols, IEX feed, adjustment, row counts, and observed date bounds.
 - The bar-based variant report now emits win rate, expectancy, Sharpe, Sortino, max drawdown, P05 tail loss, profit factor, total return, and an explicit `modeled_option_proxy` scope.
 - The research matrix now runs baseline/improved, classifier/no-classifier, turn-of-month, Crash Protocol, premium-only/asymmetric, hybrid, and intraday scenarios; missing classifier/news/intraday inputs are recorded as `not_run` rather than fabricated.
@@ -29,7 +29,7 @@ This is a living handoff, not a claim that the platform is ready for live capita
 - Candidate records now persist model probability, bucket, spread, event, and risk decisions before review; dry-run registry entries are explicitly marked and cannot suppress a later paper-submit attempt.
 - Nebius now has a bounded headline-classification path for dated event rows, with local structural-term precedence and fail-closed handling for missing/invalid model output; live and intraday workflows enable it explicitly.
 - Backtest operating modes now have distinct behavior on multi-observation sessions: hybrid entries are restricted to close-positioning windows, intraday loop entries honor open/close windows, per-symbol session duplicate prevention, and cooldowns; daily data continues to report intraday scenarios as unavailable.
-- The tradable-basket layer now applies the paper-inspired signed relative-streak screen (completed lengths 2–5, both directions by default), writes every acceptance/rejection decision, and feeds an optional basket into the research matrix; the current real-bar run accepted four of five non-SPY Greenlist names.
+- The tradable-basket layer applies the paper-inspired signed relative-streak screen (completed lengths 2–5, both directions by default), writes every acceptance/rejection or missing-bars decision, and feeds an optional basket into the research matrix.
 - The sleeve ledger now supports continuous and batched realized-premium transfers; asymmetric admission enforces reward-to-risk, open-risk, trade-count, and core-drawdown gates, with deterministic decay/time-stop exit reasons.
 - A deterministic position manager now evaluates credit-spread profit targets, stop losses, and calendar time stops and constructs reversed-leg close orders. The provider-backed `manage_live_cli` matches current held OCC legs to free indicative quotes and fails closed on missing metadata/quotes; it is dry-run by default and has not submitted an exit.
 

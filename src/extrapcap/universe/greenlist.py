@@ -81,13 +81,13 @@ def refresh_greenlist(output_dir: str | Path = "data/universe", policy: Greenlis
     with snapshot.open("w", newline="", encoding="utf-8") as handle:
         writer = csv.DictWriter(handle, fieldnames=list(rows[0].keys()))
         writer.writeheader()
-        writer.writerows(accepted[:1000])
+        writer.writerows(accepted)
     metadata = {
         "source_url": SOURCE_URL,
         "source_api_url": SOURCE_API_URL,
         "retrieved_at": datetime.now(timezone.utc).isoformat(),
         "raw_rows": len(rows),
-        "accepted_rows": len(accepted[:1000]),
+        "accepted_rows": len(accepted),
         "policy": asdict(policy),
         "decisions": decisions,
     }

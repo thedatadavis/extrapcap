@@ -4,6 +4,7 @@ from extrapcap.config import AppConfig
 from extrapcap.options import DebitSpread, VerticalSpread
 from extrapcap.portfolio import SleeveLedger
 from extrapcap.signals import robust_zscore
+from extrapcap.data.alpaca_market import AlpacaMarketData
 from extrapcap.execution.alpaca import PAPER_API_ROOT, AlpacaPaperClient
 from extrapcap.llm.nebius import NebiusReviewer
 from extrapcap.execution.orders import OrderEnvelope
@@ -110,6 +111,30 @@ def test_alpaca_account_request_uses_exact_paper_v2_endpoint(monkeypatch):
     client = AlpacaPaperClient(api_key="paper-key", secret_key="paper-secret")
     client.account()
     assert requested_urls == [("https://paper-api.alpaca.markets/v2/account", 20)]
+
+
+def test_market_bars_batches_symbols_and_follows_page_tokens():
+    requests = []
+    client = AlpacaMarketData(api_key="paper-key", secret_key="paper-secret")
+
+    def fake_get(path, params, base_url=None):
+        requests.append(params.copy())
+        batch = params["symbols"]
+        token = params.get("page_token")
+        if batch == "A,B" and token is None:
+            return {"bars": {"A": [{"t": "a1"}]}, "next_page_token": "page-2"}
+        if batch == "A,B" and token == "page-2":
+            return {"bars": {"B": [{"t": "b1"}]}}
+        if batch == "SPY" and token is None:
+            return {"bars": {"SPY": [{"t": "spy1"}]}}
+        raise AssertionError(f"unexpected request: {params}")
+
+    client._get = fake_get
+    result = client.stock_bars(["a", "b", "spy"], "start", "end", symbol_batch_size=2)
+
+    assert result == {"bars": {"A": [{"t": "a1"}], "B": [{"t": "b1"}], "SPY": [{"t": "spy1"}]}}
+    assert [request["symbols"] for request in requests] == ["A,B", "A,B", "SPY"]
+    assert requests[1]["page_token"] == "page-2"
 
 
 def test_nebius_without_key_escalates():

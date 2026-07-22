@@ -76,6 +76,7 @@ def write_streak_screen(
     output: str | Path,
     policy: StreakPolicy,
     source_bars: str,
+    coverage: dict | None = None,
 ) -> Path:
     target = Path(output)
     target.parent.mkdir(parents=True, exist_ok=True)
@@ -87,7 +88,10 @@ def write_streak_screen(
         "formation_rule": "latest completed bar; eligible for next session",
         "policy": asdict(policy),
         "accepted_rows": int(len(selected)),
+        "decision_rows": len(decisions),
         "decisions": decisions,
     }
+    if coverage is not None:
+        metadata["coverage"] = coverage
     target.with_suffix(target.suffix + ".json").write_text(json.dumps(metadata, indent=2) + "\n", encoding="utf-8")
     return target
