@@ -4,7 +4,7 @@ from extrapcap.config import AppConfig
 from extrapcap.options import DebitSpread, VerticalSpread
 from extrapcap.portfolio import SleeveLedger
 from extrapcap.signals import robust_zscore
-from extrapcap.execution.alpaca import AlpacaPaperClient
+from extrapcap.execution.alpaca import PAPER_API_ROOT, AlpacaPaperClient
 from extrapcap.llm.nebius import NebiusReviewer
 from extrapcap.execution.orders import OrderEnvelope
 from extrapcap.execution.orders import OrderRegistry
@@ -62,6 +62,54 @@ def test_alpaca_client_is_fail_closed(monkeypatch):
     monkeypatch.setenv("ALPACA_PAPER", "false")
     with pytest.raises(RuntimeError, match="paper-only"):
         AlpacaPaperClient.from_env()
+
+
+def test_alpaca_client_normalizes_exact_paper_v2_root(monkeypatch):
+    monkeypatch.setenv("ALPACA_PAPER", "true")
+    monkeypatch.setenv("EXTRAPCAP_EXECUTION_MODE", "dry-run")
+    monkeypatch.setenv("EXTRAPCAP_KEYCHAIN_ENABLED", "false")
+    monkeypatch.setenv("ALPACA_BASE_URL", "https://paper-api.alpaca.markets/v2")
+    assert AlpacaPaperClient.from_env().base_url == PAPER_API_ROOT
+
+    monkeypatch.setenv("ALPACA_BASE_URL", "https://paper-api.alpaca.markets")
+    assert AlpacaPaperClient.from_env().base_url == PAPER_API_ROOT
+
+
+def test_alpaca_client_rejects_lookalike_or_non_v2_roots(monkeypatch):
+    monkeypatch.setenv("ALPACA_PAPER", "true")
+    monkeypatch.setenv("EXTRAPCAP_EXECUTION_MODE", "dry-run")
+    monkeypatch.setenv("EXTRAPCAP_KEYCHAIN_ENABLED", "false")
+    for value in (
+        "https://paper-api.alpaca.markets.example.com/v2",
+        "https://paper-api.alpaca.markets/v1",
+        "https://api.alpaca.markets/v2",
+    ):
+        monkeypatch.setenv("ALPACA_BASE_URL", value)
+        with pytest.raises(RuntimeError, match="paper Alpaca v2"):
+            AlpacaPaperClient.from_env()
+
+
+def test_alpaca_account_request_uses_exact_paper_v2_endpoint(monkeypatch):
+    requested_urls = []
+
+    class Response:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return False
+
+        def read(self):
+            return b"{}"
+
+    def fake_urlopen(request, timeout):
+        requested_urls.append((request.full_url, timeout))
+        return Response()
+
+    monkeypatch.setattr("extrapcap.execution.alpaca.urlopen", fake_urlopen)
+    client = AlpacaPaperClient(api_key="paper-key", secret_key="paper-secret")
+    client.account()
+    assert requested_urls == [("https://paper-api.alpaca.markets/v2/account", 20)]
 
 
 def test_nebius_without_key_escalates():

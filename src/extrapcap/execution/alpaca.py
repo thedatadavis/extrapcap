@@ -3,15 +3,37 @@ from __future__ import annotations
 import json
 import os
 from dataclasses import dataclass
+from urllib.parse import urlsplit
 from urllib.request import Request, urlopen
 from ..secrets import optional_paper_credentials, require_paper_credentials, require_paper_submit_enabled
+
+PAPER_API_ROOT = "https://paper-api.alpaca.markets/v2"
+
+
+def normalize_paper_api_root(value: str) -> str:
+    """Return the one permitted Alpaca paper v2 API root.
+
+    Accepting the host-only form keeps older configuration compatible while
+    preventing both `/v2/v2/...` requests and lookalike-host bypasses.
+    """
+    parsed = urlsplit(value.rstrip("/"))
+    path = parsed.path.rstrip("/")
+    if (
+        parsed.scheme != "https"
+        or parsed.netloc != "paper-api.alpaca.markets"
+        or path not in {"", "/v2"}
+        or parsed.query
+        or parsed.fragment
+    ):
+        raise RuntimeError("refusing non-paper Alpaca v2 API root")
+    return PAPER_API_ROOT
 
 
 @dataclass
 class AlpacaPaperClient:
     """Small fail-closed Alpaca adapter. No live URL is accepted."""
 
-    base_url: str = "https://paper-api.alpaca.markets"
+    base_url: str = PAPER_API_ROOT
     api_key: str | None = None
     secret_key: str | None = None
     dry_run: bool = True
@@ -20,9 +42,7 @@ class AlpacaPaperClient:
     def from_env(cls) -> "AlpacaPaperClient":
         if os.getenv("ALPACA_PAPER", "true").lower() != "true":
             raise RuntimeError("Alpaca integration is paper-only: set ALPACA_PAPER=true")
-        base_url = os.getenv("ALPACA_BASE_URL", "https://paper-api.alpaca.markets")
-        if "paper-api.alpaca.markets" not in base_url:
-            raise RuntimeError("refusing non-paper Alpaca base URL")
+        base_url = normalize_paper_api_root(os.getenv("ALPACA_BASE_URL", PAPER_API_ROOT))
         mode = os.getenv("EXTRAPCAP_EXECUTION_MODE", "dry-run")
         if mode not in {"dry-run", "paper-submit"}:
             raise RuntimeError("EXTRAPCAP_EXECUTION_MODE must be dry-run or paper-submit")
@@ -39,7 +59,7 @@ class AlpacaPaperClient:
         if not self.api_key or not self.secret_key:
             raise RuntimeError("missing Alpaca paper credentials")
         request = Request(
-            f"{self.base_url}/v2/orders",
+            f"{self.base_url}/orders",
             data=json.dumps(order).encode(),
             headers={"APCA-API-KEY-ID": self.api_key, "APCA-API-SECRET-KEY": self.secret_key, "Content-Type": "application/json"},
             method="POST",
@@ -76,19 +96,19 @@ class AlpacaPaperClient:
             }
         return {
             "status": "paper_submit",
-            "canceled_orders": self._request("/v2/orders", "DELETE"),
-            "closed_positions": self._request("/v2/positions", "DELETE"),
+            "canceled_orders": self._request("/orders", "DELETE"),
+            "closed_positions": self._request("/positions", "DELETE"),
         }
 
     def account(self) -> dict:
-        return self._get("/v2/account")
+        return self._get("/account")
 
     def open_orders(self) -> list:
-        return self._get("/v2/orders?status=open&nested=true")
+        return self._get("/orders?status=open&nested=true")
 
     def positions(self) -> list:
-        return self._get("/v2/positions")
+        return self._get("/positions")
 
     def order(self, order_id: str, nested: bool = True) -> dict:
         suffix = "?nested=true" if nested else ""
-        return self._get(f"/v2/orders/{order_id}{suffix}")
+        return self._get(f"/orders/{order_id}{suffix}")

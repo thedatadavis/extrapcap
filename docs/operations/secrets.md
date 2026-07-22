@@ -6,7 +6,7 @@ Required runtime variables:
 
 ```text
 ALPACA_PAPER=true
-ALPACA_BASE_URL=https://paper-api.alpaca.markets
+ALPACA_BASE_URL=https://paper-api.alpaca.markets/v2
 ALPACA_API_KEY=<Extrapcap paper account key>
 ALPACA_SECRET_KEY=<Extrapcap paper account secret>
 NEBIUS_BASE_URL=https://api.tokenfactory.nebius.com/v1
@@ -21,7 +21,7 @@ For local runs, load these from the operator's secret manager or an ignored `.en
 
 The runtime reads environment variables or these optional login-Keychain service names: `extrapcap.alpaca.api_key`, `extrapcap.alpaca.secret_key`, and `extrapcap.nebius.api_key`. GitHub Actions uses repository or environment secrets. The code refuses `paper-submit` without credentials and the separate `EXTRAPCAP_PAPER_SUBMIT_ENABLED=true` switch.
 
-The Alpaca adapter rejects non-paper URLs and the Nebius reviewer escalates when its key is absent. A missing secret is a safe stop, not permission to fall back to another account.
+The Alpaca adapter normalizes the host-only legacy value to `https://paper-api.alpaca.markets/v2`, rejects every other origin or API version, and never falls back to Alpaca's live-trading host. The Nebius reviewer escalates when its key is absent. A missing secret is a safe stop, not permission to fall back to another account.
 
 The position-management workflow uses the same paper credentials to read held option legs and current free indicative quotes. It defaults to `dry-run`; selecting `paper-submit` is an explicit workflow input and remains subject to the GitHub `paper` environment approval gate.
 

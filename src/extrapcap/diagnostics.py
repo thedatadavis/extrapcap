@@ -4,7 +4,7 @@ import argparse
 import json
 from urllib.error import HTTPError
 
-from .execution.alpaca import AlpacaPaperClient
+from .execution.alpaca import PAPER_API_ROOT, AlpacaPaperClient
 from .llm.nebius import NebiusReviewer
 
 
@@ -12,7 +12,10 @@ def run_diagnostics() -> dict:
     result = {"paper_only": True, "alpaca": {}, "nebius": {}}
     try:
         client = AlpacaPaperClient.from_env()
-        result["alpaca"] = {"configured": bool(client.api_key and client.secret_key), "endpoint_is_paper": "paper-api.alpaca.markets" in client.base_url}
+        result["alpaca"] = {
+            "configured": bool(client.api_key and client.secret_key),
+            "endpoint_is_paper_v2": client.base_url == PAPER_API_ROOT,
+        }
         if client.api_key and client.secret_key:
             account = client.account()
             result["alpaca"].update({"reachable": True, "account_status": account.get("status"), "account_number_present": bool(account.get("account_number"))})

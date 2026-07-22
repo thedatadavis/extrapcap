@@ -18,7 +18,7 @@ def test_diagnostics_reports_safe_alpaca_http_status(monkeypatch):
     class FakeClient:
         api_key = "configured"
         secret_key = "configured"
-        base_url = "https://paper-api.alpaca.markets"
+        base_url = "https://paper-api.alpaca.markets/v2"
 
         def account(self):
             raise HTTPError(self.base_url, 401, "unauthorized", {}, None)
@@ -34,7 +34,7 @@ def test_diagnostics_reports_safe_alpaca_http_status(monkeypatch):
     result = run_diagnostics()
     assert result["alpaca"] == {
         "configured": True,
-        "endpoint_is_paper": True,
+        "endpoint_is_paper_v2": True,
         "reachable": False,
         "error_type": "HTTPError",
         "http_status": 401,
