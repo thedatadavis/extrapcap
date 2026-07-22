@@ -3,7 +3,7 @@
   "source": "nasdaq.expected_earnings_calendar",
   "source_page": "https://www.nasdaq.com/market-activity/earnings",
   "endpoint": "https://api.nasdaq.com/api/calendar/earnings",
-  "retrieved_at": "2026-07-22T16:46:35.434388+00:00",
+  "retrieved_at": "2026-07-22T16:55:50.857321+00:00",
   "center_date": "2026-07-22",
   "blackout_calendar_days": 3,
   "coverage_start": "2026-07-19",
