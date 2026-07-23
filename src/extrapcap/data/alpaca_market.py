@@ -11,6 +11,13 @@ class AlpacaMarketData:
     """Read-only Alpaca market-data adapter using the paper account credentials."""
 
     DEFAULT_STOCK_BAR_BATCH_SIZE = 100
+    STOCK_SYMBOL_ALIASES = {
+        # The Greenlist source uses Yahoo-style dash share classes; Alpaca's
+        # market-data API uses dot notation for these symbols.
+        "BF-B": "BF.B",
+        "BRK-B": "BRK.B",
+        "PBR-A": "PBR.A",
+    }
 
     def __init__(self, api_key: str | None = None, secret_key: str | None = None, base_url: str = "https://data.alpaca.markets", trading_base_url: str = "https://paper-api.alpaca.markets"):
         self.api_key = api_key or os.getenv("ALPACA_API_KEY")
@@ -52,13 +59,14 @@ class AlpacaMarketData:
 
         def fetch_batch(batch: list[str]) -> None:
             batch_bars: dict[str, list] = {}
+            provider_batch = [self.STOCK_SYMBOL_ALIASES.get(symbol, symbol) for symbol in batch]
             page_token = None
             try:
                 while True:
                     response = self._get(
                         "/v2/stocks/bars",
                         {
-                            "symbols": ",".join(batch),
+                            "symbols": ",".join(provider_batch),
                             "start": start,
                             "end": end,
                             "timeframe": timeframe,
@@ -69,7 +77,11 @@ class AlpacaMarketData:
                         },
                     )
                     for symbol, rows in (response.get("bars") or {}).items():
-                        batch_bars.setdefault(symbol, []).extend(rows)
+                        source_symbol = next(
+                            (candidate for candidate, provider_symbol in zip(batch, provider_batch) if provider_symbol == symbol),
+                            symbol,
+                        )
+                        batch_bars.setdefault(source_symbol, []).extend(rows)
                     page_token = response.get("next_page_token")
                     if not page_token:
                         break
