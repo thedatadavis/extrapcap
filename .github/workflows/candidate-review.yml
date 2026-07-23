@@ -31,6 +31,14 @@ jobs:
       - run: pip install -e '.[research]'
       - name: Refresh complete free earnings-blackout window
         run: python -m extrapcap.earnings --date "$(date -u +%F)"
+      - name: Verify paper-submit readiness
+        env:
+          ALPACA_PAPER: 'true'
+          ALPACA_API_KEY: ${{ secrets.ALPACA_API_KEY }}
+          ALPACA_SECRET_KEY: ${{ secrets.ALPACA_SECRET_KEY }}
+          NEBIUS_API_KEY: ${{ secrets.NEBIUS_API_KEY }}
+          EXTRAPCAP_PAPER_SUBMIT_ENABLED: ${{ vars.EXTRAPCAP_PAPER_SUBMIT_ENABLED || 'false' }}
+        run: python -m extrapcap.diagnostics --require-ready --require-paper-submit-ready
       - name: Run provider-backed basket review
         env:
           ALPACA_PAPER: 'true'
