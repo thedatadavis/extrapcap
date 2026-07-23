@@ -35,6 +35,14 @@ def manage_live_positions(
     as_of = as_of or date.today()
     cfg = risk_config or RiskConfig()
     ledger = ledger or AuditLedger()
+    if hasattr(client, "clock"):
+        clock = client.clock()
+        if not isinstance(clock, dict) or not isinstance(clock.get("is_open"), bool):
+            raise RuntimeError("broker market clock returned an invalid response")
+        if not clock["is_open"]:
+            result = {"status": "skipped", "reason": "broker market clock closed"}
+            ledger.append("risk", result, as_of)
+            return [result]
     held = {
         str(position.get("symbol", "")).upper()
         for position in client.positions()
