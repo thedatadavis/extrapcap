@@ -39,3 +39,31 @@ def test_diagnostics_reports_safe_alpaca_http_status(monkeypatch):
         "error_type": "HTTPError",
         "http_status": 401,
     }
+
+
+def test_diagnostics_requires_paper_options_readiness(monkeypatch):
+    class FakeClient:
+        api_key = "configured"
+        secret_key = "configured"
+        base_url = "https://paper-api.alpaca.markets/v2"
+
+        def account(self):
+            return {
+                "status": "ACTIVE",
+                "account_number": "paper",
+                "options_trading_level": 3,
+                "options_buying_power": "10000",
+            }
+
+    class FakeReviewer:
+        api_key = "configured"
+
+        def list_models(self):
+            return {"data": []}
+
+    monkeypatch.setenv("EXTRAPCAP_PAPER_SUBMIT_ENABLED", "true")
+    monkeypatch.setattr("extrapcap.diagnostics.AlpacaPaperClient.from_env", lambda: FakeClient())
+    monkeypatch.setattr("extrapcap.diagnostics.NebiusReviewer", FakeReviewer)
+    result = run_diagnostics()
+    assert result["alpaca"]["account_trading_ready"] is True
+    assert result["ready_for_paper_submit"] is True
