@@ -37,6 +37,6 @@ Turning on paper submission is deliberately two-step:
 
 1. Keep `EXTRAPCAP_EXECUTION_MODE=dry-run` and `EXTRAPCAP_PAPER_SUBMIT_ENABLED=false` while diagnostics and candidate-review dry runs are verified.
 2. Set the GitHub Actions variable `EXTRAPCAP_PAPER_SUBMIT_ENABLED=true` only after reviewing the paper account, open-order registry, logs, and risk limits.
-3. Select `paper-submit` for a manual workflow run, or separately set `EXTRAPCAP_EXECUTION_MODE=paper-submit` for the scheduled candidate review. Either setting without the other fails closed.
+3. Scheduled candidate review and position management use `paper-submit` explicitly. Select `paper-submit` for a manual workflow run; scheduled and manual submission still require `EXTRAPCAP_PAPER_SUBMIT_ENABLED=true` in the paper environment.
 
 Reset and position-management submissions use the same enable switch. Account reset additionally requires the exact `RESET_PAPER_ACCOUNT` confirmation token.
