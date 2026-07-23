@@ -18,7 +18,7 @@ This is a living handoff, not a claim that the platform is ready for live capita
 - Normalized bar refreshes now write a provenance sidecar containing request window, symbols, IEX feed, adjustment, row counts, and observed date bounds.
 - The bar-based variant report now emits win rate, expectancy, Sharpe, Sortino, max drawdown, P05 tail loss, profit factor, total return, and an explicit `modeled_option_proxy` scope.
 - The research matrix now runs baseline/improved, classifier/no-classifier, turn-of-month, Crash Protocol, premium-only/asymmetric, hybrid, and intraday scenarios; missing classifier/news/intraday inputs are recorded as `not_run` rather than fabricated.
-- The scheduled intraday workflow now invokes a provider-backed 1-minute scan with dynamic 2-to-35-day expiration bounds; the historical matrix still marks intraday backtests unavailable until intraday history is ingested.
+- The intraday CLI supports a provider-backed 1-minute scan with dynamic 2-to-35-day expiration bounds, but the SPY diagnostic is manual-only; the historical matrix still marks intraday backtests unavailable until intraday history is ingested.
 - Live and intraday workflows now load the versioned `data/events/news.csv` schema when configured and fail closed on malformed structural-risk event data; the checked-in file is intentionally an empty template.
 - The trained real-data model was exercised through the provider-backed SPY dry-run and correctly stopped the candidate under the crash protocol at probability `0.4524`; no order was submitted.
 - Feature generation and Sniper scoring now have standalone CLIs and versionable `data/features` artifacts; scoring requires the optional CatBoost dependency and fails explicitly when it is unavailable.
@@ -50,7 +50,7 @@ This is a living handoff, not a claim that the platform is ready for live capita
 - Alpaca/Nebius paper-submit remains intentionally unexecuted; dry-run and read-only provider paths are verified. The new strict remote provider diagnostic must pass after credential changes before any turn-on decision.
 - A real SPY indicative snapshot is now persisted under `data/options`; paid OPRA history is intentionally out of scope, and free multi-period historical option quotes remain unavailable.
 - The institutional memo now records the real bar/model/provider evidence and its limitations; it does not claim historical option-level performance.
-- Intraday looping is represented by scheduled bursts and execution windows; a persistent low-latency runner is not implemented. The provider-backed position manager is scheduled, but its paper-submit path remains unexecuted.
+- Intraday looping is represented by execution-window logic and a manual diagnostic; automatic SPY bursts and a persistent low-latency runner are not enabled. The provider-backed position manager is scheduled, but its paper-submit path remains unexecuted.
 
 ## Explicitly not claimed
 

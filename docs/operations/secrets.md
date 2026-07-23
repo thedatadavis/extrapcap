@@ -29,7 +29,7 @@ When `EXTRAPCAP_NEWS_EVENTS` is set, the live cycle requires a CSV with `date,sy
 
 Add `headline` to event rows and set `EXTRAPCAP_NEWS_LLM=true` to invoke Nebius classification for non-structural rows. A missing or malformed Nebius classification is a veto/escalation, never an approval.
 
-Paper operation is intentionally split into one scan, one idempotent order decision, and reconciliation. The intraday workflow is a 15-minute burst scheduler that requests 1-minute bars for each scan; it is not a low-latency execution venue. A future dedicated runner can reuse the same cycle contract if fill-quality and buying-power monitoring justify it.
+Paper operation is intentionally split into one candidate review, one idempotent order decision, position management, and reconciliation. The former SPY intraday workflow is manual-only as a diagnostic; it is not part of the live paper schedule or a low-latency execution venue.
 
 Run `python -m extrapcap.diagnostics --require-ready` before any live-cycle invocation. It performs read-only checks, never prints keys or submits orders, and exits nonzero unless both providers are reachable.
 
