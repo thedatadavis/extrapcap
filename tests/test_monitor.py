@@ -48,6 +48,9 @@ def test_live_position_manager_marks_held_legs_and_dry_runs_close(tmp_path):
                 {"symbol": "SPY260724P00734000", "qty": "-1"},
             ]
 
+        def clock(self):
+            return {"is_open": True}
+
         def submit_order(self, order):
             self.submitted.append(order)
             return {"status": "dry_run"}
@@ -84,3 +87,18 @@ def test_live_position_manager_marks_held_legs_and_dry_runs_close(tmp_path):
     assert result[0]["ticker"] == "SPY"
     assert result[0]["contract_ids"] == ["SPY260724P00739000", "SPY260724P00734000"]
     assert client.submitted[0]["legs"][0]["position_intent"] == "buy_to_close"
+
+
+def test_live_position_manager_skips_exits_when_market_is_closed(tmp_path):
+    class ClosedClient:
+        def clock(self):
+            return {"is_open": False}
+
+    result = manage_live_positions(
+        ClosedClient(),
+        object(),
+        registry_path=tmp_path / "missing.jsonl",
+        as_of=date(2026, 7, 22),
+        ledger=AuditLedger(tmp_path / "logs"),
+    )
+    assert result == [{"status": "skipped", "reason": "broker market clock closed"}]
