@@ -103,3 +103,42 @@ def test_coordinator_rejects_a_second_order_for_same_signal(tmp_path):
         registry,
     ).execute(candidate)
     assert result["status"] == "duplicate_signal_skipped"
+
+
+def test_coordinator_does_not_register_provider_rejected_order(tmp_path):
+    candidate = build_candidate(
+        underlying="ABC",
+        trading_day=date(2026, 7, 22),
+        underlying_price=100,
+        contracts_payload={"option_contracts": [
+            {"symbol": "ABC-short", "underlying_symbol": "ABC", "expiration_date": "2026-08-21", "strike_price": 95, "type": "put"},
+            {"symbol": "ABC-long", "underlying_symbol": "ABC", "expiration_date": "2026-08-21", "strike_price": 90, "type": "put"},
+        ]},
+        snapshot_payload={"snapshots": {
+            "ABC-short": {"latestQuote": {"bp": 2.0, "ap": 2.2}, "greeks": {"delta": -0.18}},
+            "ABC-long": {"latestQuote": {"bp": 0.8, "ap": 1.0}, "greeks": {"delta": -0.08}},
+        }},
+        model_probability=0.72,
+        risk_state=PortfolioRiskState(nav=100_000),
+        risk_config=RiskConfig(),
+        event_decision=EventDecision("noise_or_opinion", True, "none"),
+        fill_assumptions=FillAssumptions(slippage_per_leg=0),
+        selection_context={"formation_date": "2026-07-21", "strategy_route": "core_mean_reversion", "sector": "Technology"},
+    )
+
+    class RejectedClient:
+        dry_run = False
+
+        def submit_order(self, _order):
+            return {"status": "rejected", "id": "rejected-id"}
+
+    registry = OrderRegistry(tmp_path / "ids.jsonl")
+    result = PaperRunCoordinator(
+        RejectedClient(),
+        type("Reviewer", (), {"review": lambda _self, _candidate: {"decision": "go", "provider": "test"}})(),
+        AuditLedger(tmp_path / "logs"),
+        registry,
+    ).execute(candidate)
+
+    assert result["status"] == "provider_rejected"
+    assert not registry.contains(candidate.envelope.client_order_id)

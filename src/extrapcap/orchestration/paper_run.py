@@ -22,6 +22,17 @@ from ..execution.reconcile import reconcile
 from ..config import RiskConfig
 
 
+PAPER_ORDER_ACCEPTED_STATUSES = {
+    "accepted",
+    "new",
+    "pending_new",
+    "partially_filled",
+    "filled",
+    "done_for_day",
+}
+PAPER_ORDER_REJECTED_STATUSES = {"rejected", "canceled", "expired", "suspended"}
+
+
 @dataclass(frozen=True)
 class PaperCandidate:
     envelope: OrderEnvelope
@@ -229,6 +240,22 @@ class PaperRunCoordinator:
         if judgment.get("decision") != "go":
             return {"client_order_id": cid, "status": "vetoed", "reason": judgment.get("decision", "missing_decision")}
         response = self.client.submit_order(candidate.envelope.alpaca_payload())
+        if not getattr(self.client, "dry_run", True):
+            if not isinstance(response, dict):
+                raise RuntimeError("paper order response was not an object")
+            provider_status = str(response.get("status", "")).lower()
+            if provider_status in PAPER_ORDER_REJECTED_STATUSES:
+                result = {
+                    "client_order_id": cid,
+                    "status": "provider_rejected",
+                    "reason": provider_status,
+                    "provider_response": response,
+                    **common,
+                }
+                self.ledger.append("risk", result, trading_day)
+                return result
+            if provider_status not in PAPER_ORDER_ACCEPTED_STATUSES:
+                raise RuntimeError(f"unrecognized paper order response status: {provider_status or 'missing'}")
         self.registry.record(
             candidate.envelope,
             {
