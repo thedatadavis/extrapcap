@@ -21,4 +21,5 @@ jobs:
           ALPACA_API_KEY: ${{ secrets.ALPACA_API_KEY }}
           ALPACA_SECRET_KEY: ${{ secrets.ALPACA_SECRET_KEY }}
           NEBIUS_API_KEY: ${{ secrets.NEBIUS_API_KEY }}
-        run: python -m extrapcap.diagnostics --require-ready
+          EXTRAPCAP_PAPER_SUBMIT_ENABLED: ${{ vars.EXTRAPCAP_PAPER_SUBMIT_ENABLED || 'false' }}
+        run: python -m extrapcap.diagnostics --require-ready --require-paper-submit-ready
