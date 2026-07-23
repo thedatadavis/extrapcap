@@ -4,11 +4,24 @@ from extrapcap.ledger import AuditLedger
 from extrapcap.orchestration.basket_cycle_cli import basket_rows, basket_run_succeeded, run_basket
 
 
+class FakeModel:
+    def predict_probability(self, features):
+        return [0.90 if value < -0.035 else 0.80 for value in features["relative_return"]]
+
+    @staticmethod
+    def bucket(probability):
+        return "premium_candidate" if probability >= 0.65 else "trap"
+
+
+def fake_model_loader(*_args):
+    return FakeModel()
+
+
 def test_basket_cycle_preserves_streak_selection_context(tmp_path):
     basket = tmp_path / "basket.csv"
     basket.write_text(
-        "symbol,sector,streak_length,streak_direction,signed_streak,relative_return,robust_z\n"
-        "abc,Technology,3,negative,-3,-0.02,-2.4\n",
+        "symbol,sector,streak_length,streak_depth,streak_direction,signed_streak,relative_return,robust_z,stock_return,benchmark_return,turn_of_month\n"
+        "abc,Technology,3,3,negative,-3,-0.02,-2.4,-0.01,0.01,False\n",
         encoding="utf-8",
     )
     calls = []
@@ -25,6 +38,7 @@ def test_basket_cycle_preserves_streak_selection_context(tmp_path):
         "2026-08-26",
         runner=fake_runner,
         ledger=AuditLedger(tmp_path / "logs"),
+        model_loader=fake_model_loader,
     )
     assert rows[0]["ticker"] == "ABC"
     assert rows[0]["signed_streak"] == -3
@@ -34,14 +48,14 @@ def test_basket_cycle_preserves_streak_selection_context(tmp_path):
     assert basket_run_succeeded(results)
 
 
-def test_basket_cycle_routes_and_ranks_streaks_before_provider_calls(tmp_path):
+def test_basket_cycle_scores_then_ranks_model_candidates_before_provider_calls(tmp_path):
     basket = tmp_path / "basket.csv"
     basket.write_text(
-        "date,symbol,streak_length,streak_direction,signed_streak,relative_return,robust_z,dollar_volume,market_regime\n"
-        "2026-07-22,shrt,2,negative,-2,-0.03,-3.0,10000000,0.1\n"
-        "2026-07-22,long,5,negative,-5,-0.04,-2.2,12000000,0.1\n"
-        "2026-07-22,weak,4,negative,-4,-0.01,-0.5,9000000,0.1\n"
-        "2026-07-22,pos,5,positive,5,0.05,2.8,11000000,0.1\n",
+        "date,symbol,streak_length,streak_depth,streak_direction,signed_streak,relative_return,robust_z,dollar_volume,market_regime,stock_return,benchmark_return,turn_of_month\n"
+        "2026-07-22,shrt,2,2,negative,-2,-0.03,-3.0,10000000,0.1,-0.02,0.01,False\n"
+        "2026-07-22,long,5,5,negative,-5,-0.04,-2.2,12000000,0.1,-0.03,0.01,False\n"
+        "2026-07-22,weak,4,4,negative,-4,-0.01,-0.5,9000000,0.1,-0.01,0.00,False\n"
+        "2026-07-22,pos,5,5,positive,5,0.05,2.8,11000000,0.1,0.06,0.01,False\n",
         encoding="utf-8",
     )
     calls = []
@@ -58,6 +72,7 @@ def test_basket_cycle_routes_and_ranks_streaks_before_provider_calls(tmp_path):
         max_candidates=1,
         runner=fake_runner,
         ledger=ledger,
+        model_loader=fake_model_loader,
     )
 
     assert [row[0][0] for row in calls] == ["LONG"]

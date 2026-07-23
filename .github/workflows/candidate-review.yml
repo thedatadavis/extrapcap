@@ -49,6 +49,7 @@ jobs:
           --model "$SNIPER_MODEL_PATH"
           --expiration-gte "$(date -u -d '+2 days' +%F)"
           --expiration-lte "$(date -u -d '+35 days' +%F)"
+          --max-candidates 10
           --execution-mode "$EXTRAPCAP_EXECUTION_MODE"
       - name: Commit review ledger
         run: |

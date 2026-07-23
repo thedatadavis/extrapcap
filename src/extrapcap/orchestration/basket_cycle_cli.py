@@ -7,8 +7,12 @@ import json
 import os
 from pathlib import Path
 
+import pandas as pd
+
 from ..ledger import AuditLedger
+from ..models.sniper import SniperModel
 from ..selection import core_streak_gate, streak_priority_key
+from ..signals import SNIPER_FEATURES
 from .live_cycle import run_live_cycle
 
 
@@ -22,6 +26,14 @@ def _optional_int(value) -> int | None:
     if value in (None, ""):
         return None
     return int(float(value))
+
+
+def _optional_bool(value) -> bool | None:
+    if value in (None, ""):
+        return None
+    if isinstance(value, bool):
+        return value
+    return str(value).strip().lower() in {"true", "1", "yes"}
 
 
 def basket_rows(path: str | Path) -> list[dict]:
@@ -39,10 +51,14 @@ def basket_rows(path: str | Path) -> list[dict]:
                 "sector": row.get("sector") or None,
                 "formation_date": row.get("date") or None,
                 "streak_length": _optional_int(row.get("streak_length")),
+                "streak_depth": _optional_int(row.get("streak_depth")),
                 "streak_direction": row.get("streak_direction") or None,
                 "signed_streak": _optional_int(row.get("signed_streak")),
                 "relative_return": _optional_float(row.get("relative_return")),
                 "robust_z": _optional_float(row.get("robust_z")),
+                "stock_return": _optional_float(row.get("stock_return")),
+                "benchmark_return": _optional_float(row.get("benchmark_return")),
+                "turn_of_month": _optional_bool(row.get("turn_of_month")),
                 "dollar_volume": _optional_float(row.get("dollar_volume")),
                 "liquidity_context": _optional_float(row.get("liquidity_context")),
                 "volatility_context": _optional_float(row.get("volatility_context")),
@@ -54,6 +70,41 @@ def basket_rows(path: str | Path) -> list[dict]:
     return sorted(selected, key=streak_priority_key)
 
 
+def score_core_candidates(
+    selections: list[dict],
+    model_path: str | Path,
+    *,
+    z_threshold: float = -2.0,
+    model_loader=SniperModel.load,
+) -> tuple[list[dict], dict[str, str]]:
+    """Score every core-qualified row before applying the candidate limit."""
+    eligible = [selection for selection in selections if core_streak_gate(selection, z_threshold).allowed]
+    if not eligible:
+        return [], {}
+    features = pd.DataFrame(eligible)
+    missing = set(SNIPER_FEATURES) - set(features.columns)
+    if missing:
+        raise ValueError(f"basket rows missing model features: {sorted(missing)}")
+    if features[SNIPER_FEATURES].isnull().any().any():
+        missing_values = [name for name in SNIPER_FEATURES if features[name].isnull().any()]
+        raise ValueError(f"basket rows contain missing model features: {sorted(missing_values)}")
+    model = model_loader(model_path, SNIPER_FEATURES)
+    probabilities = model.predict_probability(features[SNIPER_FEATURES].astype(float))
+    buckets = {}
+    for selection, probability in zip(eligible, probabilities):
+        selection["model_probability"] = float(probability)
+        selection["model_bucket"] = model.bucket(float(probability))
+        buckets[selection["ticker"]] = selection["model_bucket"]
+    ranked = sorted(
+        eligible,
+        key=lambda selection: (
+            -selection["model_probability"],
+            *streak_priority_key(selection),
+        ),
+    )
+    return ranked, buckets
+
+
 def run_basket(
     basket: str | Path,
     model: str,
@@ -63,26 +114,46 @@ def run_basket(
     execution_mode: str = "dry-run",
     timeframe: str = "1Day",
     z_threshold: float = -2.0,
-    max_candidates: int = 3,
+    max_candidates: int = 10,
     runner=run_live_cycle,
     ledger: AuditLedger | None = None,
+    model_loader=SniperModel.load,
 ) -> list[dict]:
     if max_candidates < 1:
         raise ValueError("max_candidates must be at least 1")
     audit = ledger or AuditLedger()
     results = []
-    approved_count = 0
-    for rank, selection in enumerate(basket_rows(basket), start=1):
+    selections = basket_rows(basket)
+    ranked, model_buckets = score_core_candidates(
+        selections,
+        model,
+        z_threshold=z_threshold,
+        model_loader=model_loader,
+    )
+    premium_candidates = [selection for selection in ranked if selection["model_bucket"] == "premium_candidate"]
+    selected_tickers = {selection["ticker"] for selection in premium_candidates[:max_candidates]}
+    selection_ranks = {
+        selection["ticker"]: rank
+        for rank, selection in enumerate(premium_candidates[:max_candidates], start=1)
+    }
+    for selection in selections:
         ticker = selection["ticker"]
         decision = core_streak_gate(selection, z_threshold)
+        model_bucket = model_buckets.get(ticker)
         selection = {
             **selection,
-            "selection_rank": rank,
+            "selection_rank": selection_ranks.get(ticker),
+            "model_bucket": model_bucket,
             "strategy_route": decision.strategy_route,
             "signal_gate": decision.as_dict(),
         }
-        if not decision.allowed or approved_count >= max_candidates:
-            reason = decision.reason if not decision.allowed else "candidate_limit"
+        if not decision.allowed or model_bucket != "premium_candidate" or ticker not in selected_tickers:
+            if not decision.allowed:
+                reason = decision.reason
+            elif model_bucket != "premium_candidate":
+                reason = model_bucket or "model_score_unavailable"
+            else:
+                reason = "candidate_limit"
             status = "vetoed" if not decision.allowed else "deferred"
             event = {
                 "kind": "basket_selection",
@@ -93,7 +164,8 @@ def run_basket(
                 "sleeve": "core",
                 "strategy_variant": "improved",
                 "strategy_route": decision.strategy_route,
-                "selection_rank": rank,
+                "selection_rank": selection.get("selection_rank"),
+                "model_probability": selection.get("model_probability"),
                 "selection_context": selection,
             }
             audit.append("signals", event, date.today(), deduplicate=True)
@@ -107,7 +179,6 @@ def run_basket(
                 }
             )
             continue
-        approved_count += 1
         audit.append(
             "signals",
             {
@@ -119,7 +190,8 @@ def run_basket(
                 "sleeve": "core",
                 "strategy_variant": "improved",
                 "strategy_route": decision.strategy_route,
-                "selection_rank": rank,
+                "selection_rank": selection["selection_rank"],
+                "model_probability": selection["model_probability"],
                 "selection_context": selection,
             },
             date.today(),
