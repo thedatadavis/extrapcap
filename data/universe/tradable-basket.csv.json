@@ -2291,7 +2291,7 @@
       "signed_streak": -1,
       "streak_length": 1,
       "streak_direction": "negative",
-      "relative_return": -0.02199154467431297,
+      "relative_return": -0.02195216959537194,
       "accepted": false,
       "reasons": [
         "streak_too_short"
@@ -5366,7 +5366,7 @@
       "signed_streak": -2,
       "streak_length": 2,
       "streak_direction": "negative",
-      "relative_return": -0.02847020946971779,
+      "relative_return": -0.02844300148126888,
       "accepted": true,
       "reasons": [],
       "sector": "Financial Services"
