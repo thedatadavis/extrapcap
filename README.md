@@ -66,5 +66,5 @@ See `docs/charter.md`, `docs/architecture.md`, `docs/strategy/variants.md`, and 
 
 ## Safety boundary
 
-The execution adapter accepts only `https://paper-api.alpaca.markets/v2` (a host-only paper URL is normalized to this exact root), rejects live or lookalike URLs, and requires `ALPACA_PAPER=true`. Paper submission additionally requires `EXTRAPCAP_PAPER_SUBMIT_ENABLED=true`; scheduled workflows remain dry-run by default. Short options are represented only as defined-risk verticals. The LLM reviewer can veto or escalate a candidate, but cannot override hard risk controls.
+The execution adapter accepts only `https://paper-api.alpaca.markets/v2` (a host-only paper URL is normalized to this exact root), rejects live or lookalike URLs, and requires `ALPACA_PAPER=true`. Paper submission additionally requires `EXTRAPCAP_PAPER_SUBMIT_ENABLED=true`; scheduled candidate review and position management explicitly use paper-submit, while manual dispatch defaults to dry-run. Short options are represented only as defined-risk verticals. The LLM reviewer can veto or escalate a candidate, but cannot override hard risk controls.
 Daily reports are deterministic by default. GitHub Actions enables the optional Nebius note with the NEBIUS_API_KEY secret; missing or malformed model output escalates and never changes execution state.
