@@ -11,7 +11,9 @@
     "z_threshold": -2.0,
     "improved_delta_min": 0.15,
     "improved_delta_max": 0.20,
-    "premium_funding_pct": 0.15
+    "premium_funding_pct": 0.15,
+    "trap_low": 0.50,
+    "trap_high": 0.80
   },
   "risk": {
     "max_core_open_risk_pct": 0.10,
