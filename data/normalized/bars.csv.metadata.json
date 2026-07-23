@@ -773,11 +773,11 @@
     "BF-B",
     "HONAV"
   ],
-  "requested_start": "2024-07-22T23:57:00.187951+00:00",
-  "requested_end": "2026-07-22T23:57:00.187951+00:00",
-  "retrieved_at": "2026-07-22T23:59:17.195330+00:00",
-  "row_count": 375059,
-  "source_row_count": 375059,
+  "requested_start": "2024-07-23T00:01:14.791286+00:00",
+  "requested_end": "2026-07-23T00:01:14.791286+00:00",
+  "retrieved_at": "2026-07-23T00:03:21.142135+00:00",
+  "row_count": 376562,
+  "source_row_count": 376562,
   "excluded_incomplete_rows": 0,
   "completed_session_cutoff": "2026-07-22",
   "date_min": "2024-07-23T04:00:00+00:00",
@@ -881,6 +881,7 @@
     "BE": 501,
     "BEKE": 501,
     "BEN": 501,
+    "BF-B": 501,
     "BG": 501,
     "BHP": 501,
     "BIDU": 501,
@@ -895,6 +896,7 @@
     "BNY": 501,
     "BP": 501,
     "BR": 501,
+    "BRK-B": 501,
     "BRO": 501,
     "BROS": 501,
     "BSBR": 501,
@@ -1301,6 +1303,7 @@
     "PAYX": 501,
     "PBA": 501,
     "PBR": 501,
+    "PBR-A": 501,
     "PCAR": 501,
     "PCG": 501,
     "PDD": 501,
@@ -1551,47 +1554,10 @@
   },
   "coverage": {
     "requested_symbol_count": 768,
-    "observed_symbol_count": 765,
-    "missing_symbol_count": 3,
-    "missing_symbols": [
-      "BRK-B",
-      "PBR-A",
-      "BF-B"
-    ],
-    "complete": false,
-    "symbol_errors": {
-      "BRK-B": {
-        "status": 400,
-        "reason": "Bad Request",
-        "detail": "{\"message\":\"invalid symbol: BRK-B\"}"
-      },
-      "PBR-A": {
-        "status": 400,
-        "reason": "Bad Request",
-        "detail": "{\"message\":\"invalid symbol: PBR-A\"}"
-      },
-      "BF-B": {
-        "status": 400,
-        "reason": "Bad Request",
-        "detail": "{\"message\":\"invalid symbol: BF-B\"}"
-      }
-    }
+    "observed_symbol_count": 768,
+    "missing_symbol_count": 0,
+    "missing_symbols": [],
+    "complete": true
   },
-  "symbol_errors": {
-    "BRK-B": {
-      "status": 400,
-      "reason": "Bad Request",
-      "detail": "{\"message\":\"invalid symbol: BRK-B\"}"
-    },
-    "PBR-A": {
-      "status": 400,
-      "reason": "Bad Request",
-      "detail": "{\"message\":\"invalid symbol: PBR-A\"}"
-    },
-    "BF-B": {
-      "status": 400,
-      "reason": "Bad Request",
-      "detail": "{\"message\":\"invalid symbol: BF-B\"}"
-    }
-  }
+  "symbol_errors": {}
 }
