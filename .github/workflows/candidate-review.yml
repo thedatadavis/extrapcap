@@ -39,6 +39,11 @@ jobs:
           NEBIUS_API_KEY: ${{ secrets.NEBIUS_API_KEY }}
           EXTRAPCAP_PAPER_SUBMIT_ENABLED: ${{ vars.EXTRAPCAP_PAPER_SUBMIT_ENABLED || 'false' }}
         run: python -m extrapcap.diagnostics --require-ready --require-paper-submit-ready
+      - name: Assert scheduled paper-submit mode
+        if: ${{ github.event_name == 'schedule' }}
+        env:
+          EXTRAPCAP_EXECUTION_MODE: ${{ github.event_name == 'schedule' && 'paper-submit' || inputs.execution_mode || 'dry-run' }}
+        run: test "$EXTRAPCAP_EXECUTION_MODE" = paper-submit
       - name: Run provider-backed basket review
         env:
           ALPACA_PAPER: 'true'
