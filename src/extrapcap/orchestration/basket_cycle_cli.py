@@ -235,7 +235,7 @@ def main() -> None:
     parser.add_argument("--execution-mode", choices=("dry-run", "paper-submit"), default="dry-run")
     parser.add_argument("--timeframe", choices=("1Day", "1Min", "5Min", "15Min", "1Hour"), default="1Day")
     parser.add_argument("--z-threshold", type=float, default=-2.0)
-    parser.add_argument("--max-candidates", type=int, default=3)
+    parser.add_argument("--max-candidates", type=int, default=10)
     args = parser.parse_args()
     if not args.model:
         parser.error("--model or SNIPER_MODEL_PATH is required")
