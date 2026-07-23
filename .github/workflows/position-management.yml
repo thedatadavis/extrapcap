@@ -29,6 +29,11 @@ jobs:
       - uses: actions/setup-python@v6
         with: {python-version: '3.11'}
       - run: pip install -e .
+      - name: Assert scheduled paper-submit mode
+        if: ${{ github.event_name == 'schedule' }}
+        env:
+          EXTRAPCAP_EXECUTION_MODE: ${{ github.event_name == 'schedule' && 'paper-submit' || inputs.execution_mode || 'dry-run' }}
+        run: test "$EXTRAPCAP_EXECUTION_MODE" = paper-submit
       - name: Evaluate and manage held verticals
         env:
           ALPACA_PAPER: 'true'
