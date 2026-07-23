@@ -1,8 +1,7 @@
 name: Intraday paper loop
 on:
   workflow_dispatch:
-  schedule:
-    - cron: '*/15 14-20 * * 1-5'
+# Automatic SPY dry-run bursts are disabled. Run manually only for diagnostics.
 concurrency:
   group: extrapcap-ops-writer
   cancel-in-progress: false

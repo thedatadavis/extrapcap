@@ -1,8 +1,7 @@
 name: Score Sniper model
 on:
   workflow_dispatch:
-  schedule:
-    - cron: '45 4 * * 1-5'
+# Standalone feature scoring is a research artifact and is not consumed by live paper workflows.
 concurrency:
   group: extrapcap-ops-writer
   cancel-in-progress: false

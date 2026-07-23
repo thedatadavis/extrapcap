@@ -1,8 +1,7 @@
 name: Generate features
 on:
   workflow_dispatch:
-  schedule:
-    - cron: '30 4 * * 1-5'
+# Feature generation is a research artifact and is not consumed by live paper workflows.
 concurrency:
   group: extrapcap-ops-writer
   cancel-in-progress: false

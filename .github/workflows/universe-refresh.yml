@@ -1,8 +1,7 @@
 name: Refresh Greenlist
 on:
   workflow_dispatch:
-  schedule:
-    - cron: '30 5 * * 1'
+# The live bar refresh and streak screen own Greenlist refreshes; keep this as a manual utility.
 concurrency:
   group: extrapcap-ops-writer
   cancel-in-progress: false
