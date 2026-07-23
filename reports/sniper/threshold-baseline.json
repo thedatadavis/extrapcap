@@ -1,0 +1,750 @@
+{
+  "generated_at": "2026-07-23T23:15:34.320773+00:00",
+  "input": "data/normalized/bars.csv",
+  "model": "models/sniper.cbm",
+  "model_version": "sniper-v1",
+  "label": "next_relative_return_nonnegative",
+  "data_scope": "reconstructed_one_step_option_proxy",
+  "proxy_assumption": {
+    "variant": "improved",
+    "credit_pct_width": 0.22,
+    "position_risk_fraction": 0.01,
+    "win_return_on_nav": 0.0028205128205128207,
+    "loss_return_on_nav": -0.01
+  },
+  "constraints": {
+    "z_threshold": -2.0,
+    "minimum_observations": 50,
+    "maximum_drawdown": -0.1
+  },
+  "validation": {
+    "split": "validation",
+    "observations_before_gate": 74757,
+    "observations_after_gate": 1492,
+    "base_rate_after_gate": 0.5294906166219839,
+    "calibration": {
+      "brier": 0.26236436758172105,
+      "ece": 0.07988776823804626,
+      "histogram": [
+        {
+          "low": 0.0,
+          "high": 0.1,
+          "count": 50,
+          "confidence": 0.0825716275816378,
+          "accuracy": 0.6
+        },
+        {
+          "low": 0.1,
+          "high": 0.2,
+          "count": 493,
+          "confidence": 0.16273008835179942,
+          "accuracy": 0.4949290060851927
+        },
+        {
+          "low": 0.2,
+          "high": 0.30000000000000004,
+          "count": 1788,
+          "confidence": 0.2579398602286095,
+          "accuracy": 0.5156599552572707
+        },
+        {
+          "low": 0.30000000000000004,
+          "high": 0.4,
+          "count": 6140,
+          "confidence": 0.3620488232209854,
+          "accuracy": 0.49560260586319216
+        },
+        {
+          "low": 0.4,
+          "high": 0.5,
+          "count": 26112,
+          "confidence": 0.4567250039537671,
+          "accuracy": 0.49356617647058826
+        },
+        {
+          "low": 0.5,
+          "high": 0.6000000000000001,
+          "count": 28016,
+          "confidence": 0.5450079135998819,
+          "accuracy": 0.49875071387778414
+        },
+        {
+          "low": 0.6000000000000001,
+          "high": 0.7000000000000001,
+          "count": 8648,
+          "confidence": 0.6350579246803746,
+          "accuracy": 0.49479648473635524
+        },
+        {
+          "low": 0.7000000000000001,
+          "high": 0.8,
+          "count": 2624,
+          "confidence": 0.7440841742480682,
+          "accuracy": 0.48323170731707316
+        },
+        {
+          "low": 0.8,
+          "high": 0.9,
+          "count": 845,
+          "confidence": 0.8361870561836173,
+          "accuracy": 0.4532544378698225
+        },
+        {
+          "low": 0.9,
+          "high": 1.0,
+          "count": 41,
+          "confidence": 0.9201555429818629,
+          "accuracy": 0.36585365853658536
+        }
+      ]
+    },
+    "thresholds": [
+      {
+        "threshold": 0.5,
+        "observations": 524,
+        "positives": 254,
+        "precision": 0.4847328244274809,
+        "proxy_expectancy": -0.0037854766099040906,
+        "proxy_expectancy_lcb95": -0.004334610285530471,
+        "proxy_max_drawdown": -1.99769230769232
+      },
+      {
+        "threshold": 0.51,
+        "observations": 473,
+        "positives": 224,
+        "precision": 0.47357293868921774,
+        "proxy_expectancy": -0.003928552068086952,
+        "proxy_expectancy_lcb95": -0.00450605342809893,
+        "proxy_max_drawdown": -1.8666666666666778
+      },
+      {
+        "threshold": 0.52,
+        "observations": 427,
+        "positives": 204,
+        "precision": 0.477751756440281,
+        "proxy_expectancy": -0.0038749774815348584,
+        "proxy_expectancy_lcb95": -0.004483107314849893,
+        "proxy_max_drawdown": -1.6658974358974457
+      },
+      {
+        "threshold": 0.53,
+        "observations": 390,
+        "positives": 184,
+        "precision": 0.4717948717948718,
+        "proxy_expectancy": -0.003951347797501643,
+        "proxy_expectancy_lcb95": -0.004587358732625622,
+        "proxy_max_drawdown": -1.552307692307701
+      },
+      {
+        "threshold": 0.54,
+        "observations": 334,
+        "positives": 159,
+        "precision": 0.47604790419161674,
+        "proxy_expectancy": -0.0038968217411331184,
+        "proxy_expectancy_lcb95": -0.0045845398679723575,
+        "proxy_max_drawdown": -1.31282051282052
+      },
+      {
+        "threshold": 0.55,
+        "observations": 299,
+        "positives": 140,
+        "precision": 0.4682274247491639,
+        "proxy_expectancy": -0.003997084298087642,
+        "proxy_expectancy_lcb95": -0.004723432270099188,
+        "proxy_max_drawdown": -1.2064102564102626
+      },
+      {
+        "threshold": 0.56,
+        "observations": 267,
+        "positives": 122,
+        "precision": 0.45692883895131087,
+        "proxy_expectancy": -0.00414193796216268,
+        "proxy_expectancy_lcb95": -0.004909428986948566,
+        "proxy_max_drawdown": -1.1115384615384667
+      },
+      {
+        "threshold": 0.57,
+        "observations": 227,
+        "positives": 107,
+        "precision": 0.4713656387665198,
+        "proxy_expectancy": -0.0039568507850446175,
+        "proxy_expectancy_lcb95": -0.0047912308200397805,
+        "proxy_max_drawdown": -0.9123076923076966
+      },
+      {
+        "threshold": 0.58,
+        "observations": 212,
+        "positives": 100,
+        "precision": 0.4716981132075472,
+        "proxy_expectancy": -0.003952588292210933,
+        "proxy_expectancy_lcb95": -0.00481615002962666,
+        "proxy_max_drawdown": -0.852051282051286
+      },
+      {
+        "threshold": 0.59,
+        "observations": 189,
+        "positives": 86,
+        "precision": 0.455026455026455,
+        "proxy_expectancy": -0.004166327499660834,
+        "proxy_expectancy_lcb95": -0.005078944548822336,
+        "proxy_max_drawdown": -0.8128205128205158
+      },
+      {
+        "threshold": 0.6,
+        "observations": 174,
+        "positives": 84,
+        "precision": 0.4827586206896552,
+        "proxy_expectancy": -0.00381078691423519,
+        "proxy_expectancy_lcb95": -0.0047654498607908186,
+        "proxy_max_drawdown": -0.6912820512820538
+      },
+      {
+        "threshold": 0.61,
+        "observations": 153,
+        "positives": 73,
+        "precision": 0.477124183006536,
+        "proxy_expectancy": -0.0038830232947880006,
+        "proxy_expectancy_lcb95": -0.004901039443961334,
+        "proxy_max_drawdown": -0.6166666666666683
+      },
+      {
+        "threshold": 0.62,
+        "observations": 139,
+        "positives": 68,
+        "precision": 0.4892086330935252,
+        "proxy_expectancy": -0.0037280944475189073,
+        "proxy_expectancy_lcb95": -0.004797372753945147,
+        "proxy_max_drawdown": -0.5407692307692311
+      },
+      {
+        "threshold": 0.63,
+        "observations": 130,
+        "positives": 65,
+        "precision": 0.5,
+        "proxy_expectancy": -0.0035897435897435897,
+        "proxy_expectancy_lcb95": -0.004695951138716809,
+        "proxy_max_drawdown": -0.4892307692307695
+      },
+      {
+        "threshold": 0.64,
+        "observations": 120,
+        "positives": 60,
+        "precision": 0.5,
+        "proxy_expectancy": -0.0035897435897435897,
+        "proxy_expectancy_lcb95": -0.0047414929834457015,
+        "proxy_max_drawdown": -0.44769230769230794
+      },
+      {
+        "threshold": 0.65,
+        "observations": 111,
+        "positives": 55,
+        "precision": 0.4954954954954955,
+        "proxy_expectancy": -0.003647493647493648,
+        "proxy_expectancy_lcb95": -0.0048453852089828135,
+        "proxy_max_drawdown": -0.421794871794872
+      },
+      {
+        "threshold": 0.66,
+        "observations": 103,
+        "positives": 52,
+        "precision": 0.5048543689320388,
+        "proxy_expectancy": -0.0035275080906148875,
+        "proxy_expectancy_lcb95": -0.004771480986637025,
+        "proxy_max_drawdown": -0.38025641025641044
+      },
+      {
+        "threshold": 0.67,
+        "observations": 100,
+        "positives": 51,
+        "precision": 0.51,
+        "proxy_expectancy": -0.003461538461538462,
+        "proxy_expectancy_lcb95": -0.004724025707486609,
+        "proxy_max_drawdown": -0.36307692307692324
+      },
+      {
+        "threshold": 0.68,
+        "observations": 91,
+        "positives": 47,
+        "precision": 0.5164835164835165,
+        "proxy_expectancy": -0.0033784164553395325,
+        "proxy_expectancy_lcb95": -0.004702069274124362,
+        "proxy_max_drawdown": -0.31871794871794884
+      },
+      {
+        "threshold": 0.69,
+        "observations": 83,
+        "positives": 44,
+        "precision": 0.5301204819277109,
+        "proxy_expectancy": -0.0032035835650293483,
+        "proxy_expectancy_lcb95": -0.004588536745190631,
+        "proxy_max_drawdown": -0.27717948717948726
+      },
+      {
+        "threshold": 0.7,
+        "observations": 79,
+        "positives": 42,
+        "precision": 0.5316455696202531,
+        "proxy_expectancy": -0.003184031158714703,
+        "proxy_expectancy_lcb95": -0.00460378346639462,
+        "proxy_max_drawdown": -0.2628205128205129
+      },
+      {
+        "threshold": 0.71,
+        "observations": 73,
+        "positives": 40,
+        "precision": 0.547945205479452,
+        "proxy_expectancy": -0.002975061468212153,
+        "proxy_expectancy_lcb95": -0.004448931966642293,
+        "proxy_max_drawdown": -0.2256410256410257
+      },
+      {
+        "threshold": 0.72,
+        "observations": 66,
+        "positives": 38,
+        "precision": 0.5757575757575758,
+        "proxy_expectancy": -0.002618492618492618,
+        "proxy_expectancy_lcb95": -0.004158886088062155,
+        "proxy_max_drawdown": -0.1812820512820513
+      },
+      {
+        "threshold": 0.73,
+        "observations": 62,
+        "positives": 36,
+        "precision": 0.5806451612903226,
+        "proxy_expectancy": -0.002555831265508685,
+        "proxy_expectancy_lcb95": -0.004143437464646714,
+        "proxy_max_drawdown": -0.16692307692307695
+      },
+      {
+        "threshold": 0.74,
+        "observations": 56,
+        "positives": 32,
+        "precision": 0.5714285714285714,
+        "proxy_expectancy": -0.002673992673992674,
+        "proxy_expectancy_lcb95": -0.004350759630648262,
+        "proxy_max_drawdown": -0.15820512820512822
+      },
+      {
+        "threshold": 0.75,
+        "observations": 47,
+        "positives": 26,
+        "precision": 0.5531914893617021,
+        "proxy_expectancy": -0.0029078014184397163,
+        "proxy_expectancy_lcb95": -0.004749764902293164,
+        "proxy_max_drawdown": -0.14230769230769227
+      },
+      {
+        "threshold": 0.76,
+        "observations": 38,
+        "positives": 21,
+        "precision": 0.5526315789473685,
+        "proxy_expectancy": -0.0029149797570850195,
+        "proxy_expectancy_lcb95": -0.00496903026324479,
+        "proxy_max_drawdown": -0.11641025641025636
+      },
+      {
+        "threshold": 0.77,
+        "observations": 34,
+        "positives": 17,
+        "precision": 0.5,
+        "proxy_expectancy": -0.0035897435897435897,
+        "proxy_expectancy_lcb95": -0.005776873113289536,
+        "proxy_max_drawdown": -0.12769230769230763
+      },
+      {
+        "threshold": 0.78,
+        "observations": 30,
+        "positives": 15,
+        "precision": 0.5,
+        "proxy_expectancy": -0.003589743589743589,
+        "proxy_expectancy_lcb95": -0.005922838864275779,
+        "proxy_max_drawdown": -0.1133333333333333
+      },
+      {
+        "threshold": 0.79,
+        "observations": 24,
+        "positives": 12,
+        "precision": 0.5,
+        "proxy_expectancy": -0.0035897435897435897,
+        "proxy_expectancy_lcb95": -0.006209540074050427,
+        "proxy_max_drawdown": -0.09589743589743588
+      },
+      {
+        "threshold": 0.8,
+        "observations": 20,
+        "positives": 12,
+        "precision": 0.6,
+        "proxy_expectancy": -0.0023076923076923075,
+        "proxy_expectancy_lcb95": -0.005131858754923261,
+        "proxy_max_drawdown": -0.05871794871794873
+      }
+    ],
+    "selected": null,
+    "selection_error": "no threshold satisfies the baseline constraints"
+  },
+  "test": {
+    "split": "test",
+    "observations_before_gate": 74758,
+    "observations_after_gate": 1437,
+    "base_rate_after_gate": 0.5407098121085595,
+    "calibration": {
+      "brier": 0.2627973473142291,
+      "ece": 0.08295170964707958,
+      "histogram": [
+        {
+          "low": 0.0,
+          "high": 0.1,
+          "count": 49,
+          "confidence": 0.0849191732400831,
+          "accuracy": 0.6530612244897959
+        },
+        {
+          "low": 0.1,
+          "high": 0.2,
+          "count": 483,
+          "confidence": 0.1630907909633217,
+          "accuracy": 0.5300207039337475
+        },
+        {
+          "low": 0.2,
+          "high": 0.30000000000000004,
+          "count": 1680,
+          "confidence": 0.2578654234542169,
+          "accuracy": 0.4982142857142857
+        },
+        {
+          "low": 0.30000000000000004,
+          "high": 0.4,
+          "count": 6336,
+          "confidence": 0.3623154975287219,
+          "accuracy": 0.49763257575757575
+        },
+        {
+          "low": 0.4,
+          "high": 0.5,
+          "count": 25935,
+          "confidence": 0.4567466397460138,
+          "accuracy": 0.49581646423751685
+        },
+        {
+          "low": 0.5,
+          "high": 0.6000000000000001,
+          "count": 28139,
+          "confidence": 0.5449576046045477,
+          "accuracy": 0.49369202885674685
+        },
+        {
+          "low": 0.6000000000000001,
+          "high": 0.7000000000000001,
+          "count": 8582,
+          "confidence": 0.6351631794480682,
+          "accuracy": 0.4875320438126311
+        },
+        {
+          "low": 0.7000000000000001,
+          "high": 0.8,
+          "count": 2636,
+          "confidence": 0.7443784752531272,
+          "accuracy": 0.5003793626707133
+        },
+        {
+          "low": 0.8,
+          "high": 0.9,
+          "count": 879,
+          "confidence": 0.8365676600922728,
+          "accuracy": 0.44368600682593856
+        },
+        {
+          "low": 0.9,
+          "high": 1.0,
+          "count": 39,
+          "confidence": 0.9166597666492455,
+          "accuracy": 0.3076923076923077
+        }
+      ]
+    },
+    "thresholds": [
+      {
+        "threshold": 0.5,
+        "observations": 529,
+        "positives": 289,
+        "precision": 0.5463137996219282,
+        "proxy_expectancy": -0.0029959769279239976,
+        "proxy_expectancy_lcb95": -0.0035404085942822745,
+        "proxy_max_drawdown": -1.5848717948718067
+      },
+      {
+        "threshold": 0.51,
+        "observations": 478,
+        "positives": 265,
+        "precision": 0.5543933054393305,
+        "proxy_expectancy": -0.0028923935200085827,
+        "proxy_expectancy_lcb95": -0.0034642500981525264,
+        "proxy_max_drawdown": -1.3825641025641129
+      },
+      {
+        "threshold": 0.52,
+        "observations": 439,
+        "positives": 245,
+        "precision": 0.5580865603644647,
+        "proxy_expectancy": -0.002845044097891478,
+        "proxy_expectancy_lcb95": -0.0034413152525341545,
+        "proxy_max_drawdown": -1.251794871794881
+      },
+      {
+        "threshold": 0.53,
+        "observations": 388,
+        "positives": 212,
+        "precision": 0.5463917525773195,
+        "proxy_expectancy": -0.002994977531060005,
+        "proxy_expectancy_lcb95": -0.003630891734020102,
+        "proxy_max_drawdown": -1.1648717948718028
+      },
+      {
+        "threshold": 0.54,
+        "observations": 322,
+        "positives": 177,
+        "precision": 0.5496894409937888,
+        "proxy_expectancy": -0.002952699474438605,
+        "proxy_expectancy_lcb95": -0.0036504878255688568,
+        "proxy_max_drawdown": -0.9535897435897492
+      },
+      {
+        "threshold": 0.55,
+        "observations": 275,
+        "positives": 145,
+        "precision": 0.5272727272727272,
+        "proxy_expectancy": -0.0032400932400932403,
+        "proxy_expectancy_lcb95": -0.003997988464790016,
+        "proxy_max_drawdown": -0.8938461538461585
+      },
+      {
+        "threshold": 0.56,
+        "observations": 242,
+        "positives": 127,
+        "precision": 0.5247933884297521,
+        "proxy_expectancy": -0.003271879635515999,
+        "proxy_expectancy_lcb95": -0.00408020901151974,
+        "proxy_max_drawdown": -0.8002564102564144
+      },
+      {
+        "threshold": 0.57,
+        "observations": 199,
+        "positives": 102,
+        "precision": 0.5125628140703518,
+        "proxy_expectancy": -0.003428681870892926,
+        "proxy_expectancy_lcb95": -0.004321291875338331,
+        "proxy_max_drawdown": -0.6879487179487204
+      },
+      {
+        "threshold": 0.58,
+        "observations": 176,
+        "positives": 92,
+        "precision": 0.5227272727272727,
+        "proxy_expectancy": -0.0032983682983682983,
+        "proxy_expectancy_lcb95": -0.004247143518142158,
+        "proxy_max_drawdown": -0.5861538461538474
+      },
+      {
+        "threshold": 0.59,
+        "observations": 163,
+        "positives": 86,
+        "precision": 0.5276073619631901,
+        "proxy_expectancy": -0.0032358030517539724,
+        "proxy_expectancy_lcb95": -0.004221426314522887,
+        "proxy_max_drawdown": -0.5330769230769239
+      },
+      {
+        "threshold": 0.6,
+        "observations": 148,
+        "positives": 76,
+        "precision": 0.5135135135135135,
+        "proxy_expectancy": -0.0034164934164934158,
+        "proxy_expectancy_lcb95": -0.0044523845843966615,
+        "proxy_max_drawdown": -0.5112820512820517
+      },
+      {
+        "threshold": 0.61,
+        "observations": 137,
+        "positives": 70,
+        "precision": 0.5109489051094891,
+        "proxy_expectancy": -0.0034493730114168062,
+        "proxy_expectancy_lcb95": -0.004526477581760415,
+        "proxy_max_drawdown": -0.4782051282051285
+      },
+      {
+        "threshold": 0.62,
+        "observations": 125,
+        "positives": 63,
+        "precision": 0.504,
+        "proxy_expectancy": -0.0035384615384615385,
+        "proxy_expectancy_lcb95": -0.0046667151504733734,
+        "proxy_max_drawdown": -0.4479487179487182
+      },
+      {
+        "threshold": 0.63,
+        "observations": 111,
+        "positives": 54,
+        "precision": 0.4864864864864865,
+        "proxy_expectancy": -0.003762993762993763,
+        "proxy_expectancy_lcb95": -0.0049604963354934585,
+        "proxy_max_drawdown": -0.4233333333333336
+      },
+      {
+        "threshold": 0.64,
+        "observations": 97,
+        "positives": 45,
+        "precision": 0.4639175257731959,
+        "proxy_expectancy": -0.004052339413164155,
+        "proxy_expectancy_lcb95": -0.005331314387058477,
+        "proxy_max_drawdown": -0.3987179487179489
+      },
+      {
+        "threshold": 0.65,
+        "observations": 85,
+        "positives": 38,
+        "precision": 0.4470588235294118,
+        "proxy_expectancy": -0.004268476621417798,
+        "proxy_expectancy_lcb95": -0.005631626556429256,
+        "proxy_max_drawdown": -0.3656410256410258
+      },
+      {
+        "threshold": 0.66,
+        "observations": 79,
+        "positives": 35,
+        "precision": 0.4430379746835443,
+        "proxy_expectancy": -0.004320025965595586,
+        "proxy_expectancy_lcb95": -0.005733368523575435,
+        "proxy_max_drawdown": -0.34410256410256423
+      },
+      {
+        "threshold": 0.67,
+        "observations": 72,
+        "positives": 30,
+        "precision": 0.4166666666666667,
+        "proxy_expectancy": -0.004658119658119658,
+        "proxy_expectancy_lcb95": -0.006128348947755173,
+        "proxy_max_drawdown": -0.3382051282051283
+      },
+      {
+        "threshold": 0.68,
+        "observations": 64,
+        "positives": 24,
+        "precision": 0.375,
+        "proxy_expectancy": -0.005192307692307692,
+        "proxy_expectancy_lcb95": -0.0067249712684127605,
+        "proxy_max_drawdown": -0.3351282051282053
+      },
+      {
+        "threshold": 0.69,
+        "observations": 60,
+        "positives": 22,
+        "precision": 0.36666666666666664,
+        "proxy_expectancy": -0.0052991452991453004,
+        "proxy_expectancy_lcb95": -0.006875621254392045,
+        "proxy_max_drawdown": -0.3207692307692309
+      },
+      {
+        "threshold": 0.7,
+        "observations": 54,
+        "positives": 20,
+        "precision": 0.37037037037037035,
+        "proxy_expectancy": -0.005251661918328585,
+        "proxy_expectancy_lcb95": -0.006918464753080342,
+        "proxy_max_drawdown": -0.2864102564102565
+      },
+      {
+        "threshold": 0.71,
+        "observations": 50,
+        "positives": 18,
+        "precision": 0.36,
+        "proxy_expectancy": -0.005384615384615384,
+        "proxy_expectancy_lcb95": -0.007107692307692308,
+        "proxy_max_drawdown": -0.27205128205128215
+      },
+      {
+        "threshold": 0.72,
+        "observations": 45,
+        "positives": 15,
+        "precision": 0.3333333333333333,
+        "proxy_expectancy": -0.005726495726495727,
+        "proxy_expectancy_lcb95": -0.007512279504517079,
+        "proxy_max_drawdown": -0.2605128205128206
+      },
+      {
+        "threshold": 0.73,
+        "observations": 41,
+        "positives": 12,
+        "precision": 0.2926829268292683,
+        "proxy_expectancy": -0.0062476547842401494,
+        "proxy_expectancy_lcb95": -0.008055400072505011,
+        "proxy_max_drawdown": -0.25897435897435905
+      },
+      {
+        "threshold": 0.74,
+        "observations": 38,
+        "positives": 12,
+        "precision": 0.3157894736842105,
+        "proxy_expectancy": -0.005951417004048583,
+        "proxy_expectancy_lcb95": -0.007871651675703691,
+        "proxy_max_drawdown": -0.22897435897435905
+      },
+      {
+        "threshold": 0.75,
+        "observations": 36,
+        "positives": 11,
+        "precision": 0.3055555555555556,
+        "proxy_expectancy": -0.006082621082621083,
+        "proxy_expectancy_lcb95": -0.008039172622399431,
+        "proxy_max_drawdown": -0.21897435897435905
+      },
+      {
+        "threshold": 0.76,
+        "observations": 29,
+        "positives": 10,
+        "precision": 0.3448275862068966,
+        "proxy_expectancy": -0.005579133510167993,
+        "proxy_expectancy_lcb95": -0.007836287846183437,
+        "proxy_max_drawdown": -0.17025641025641028
+      },
+      {
+        "threshold": 0.77,
+        "observations": 26,
+        "positives": 8,
+        "precision": 0.3076923076923077,
+        "proxy_expectancy": -0.006055226824457593,
+        "proxy_expectancy_lcb95": -0.008374753451676528,
+        "proxy_max_drawdown": -0.17153846153846156
+      },
+      {
+        "threshold": 0.78,
+        "observations": 22,
+        "positives": 7,
+        "precision": 0.3181818181818182,
+        "proxy_expectancy": -0.005920745920745921,
+        "proxy_expectancy_lcb95": -0.008474762957983443,
+        "proxy_max_drawdown": -0.14153846153846153
+      },
+      {
+        "threshold": 0.79,
+        "observations": 17,
+        "positives": 6,
+        "precision": 0.35294117647058826,
+        "proxy_expectancy": -0.005475113122171946,
+        "proxy_expectancy_lcb95": -0.008477208761894135,
+        "proxy_max_drawdown": -0.10153846153846154
+      },
+      {
+        "threshold": 0.8,
+        "observations": 11,
+        "positives": 4,
+        "precision": 0.36363636363636365,
+        "proxy_expectancy": -0.005337995337995338,
+        "proxy_expectancy_lcb95": -0.009160498023325846,
+        "proxy_max_drawdown": -0.06717948717948719
+      }
+    ],
+    "selected": null,
+    "selection_error": null
+  }
+}
