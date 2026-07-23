@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-07-23T23:15:34.320773+00:00",
+  "generated_at": "2026-07-23T23:20:30.858035+00:00",
   "input": "data/normalized/bars.csv",
   "model": "models/sniper.cbm",
   "model_version": "sniper-v1",
@@ -14,8 +14,9 @@
   },
   "constraints": {
     "z_threshold": -2.0,
-    "minimum_observations": 50,
-    "maximum_drawdown": -0.1
+    "minimum_observations": 20,
+    "maximum_drawdown": -0.1,
+    "selection_mode": "best_point_estimate_with_constraints"
   },
   "validation": {
     "split": "validation",
@@ -379,8 +380,16 @@
         "proxy_max_drawdown": -0.05871794871794873
       }
     ],
-    "selected": null,
-    "selection_error": "no threshold satisfies the baseline constraints"
+    "selected": {
+      "threshold": 0.8,
+      "observations": 20,
+      "positives": 12,
+      "precision": 0.6,
+      "proxy_expectancy": -0.0023076923076923075,
+      "proxy_expectancy_lcb95": -0.005131858754923261,
+      "proxy_max_drawdown": -0.05871794871794873
+    },
+    "selection_error": null
   },
   "test": {
     "split": "test",
@@ -745,6 +754,15 @@
       }
     ],
     "selected": null,
-    "selection_error": null
+    "selection_error": null,
+    "selected_threshold_result": {
+      "threshold": 0.8,
+      "observations": 11,
+      "positives": 4,
+      "precision": 0.36363636363636365,
+      "proxy_expectancy": -0.005337995337995338,
+      "proxy_expectancy_lcb95": -0.009160498023325846,
+      "proxy_max_drawdown": -0.06717948717948719
+    }
   }
 }
