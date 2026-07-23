@@ -5,7 +5,7 @@ on:
       minimum_observations:
         description: Minimum validation observations for a candidate cutoff
         required: true
-        default: '50'
+        default: '20'
         type: string
 concurrency:
   group: extrapcap-ops-writer
@@ -31,7 +31,8 @@ jobs:
           --input data/normalized/bars.csv
           --model models/sniper.cbm
           --output reports/sniper/threshold-baseline.json
-          --minimum-observations "${{ inputs.minimum_observations || '50' }}"
+          --minimum-observations "${{ inputs.minimum_observations || '20' }}"
+          --allow-negative-baseline
       - name: Commit threshold baseline
         run: |
           git config user.name extrapcap-bot

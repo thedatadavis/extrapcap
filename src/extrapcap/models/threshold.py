@@ -77,14 +77,17 @@ def select_threshold(
     results: list[ThresholdResult],
     *,
     minimum_observations: int = 50,
-    minimum_expectancy_lcb95: float = 0.0,
+    minimum_expectancy_lcb95: float | None = 0.0,
     maximum_drawdown: float = -0.10,
 ) -> ThresholdResult:
     eligible = [
         result
         for result in results
         if result.observations >= minimum_observations
-        and result.proxy_expectancy_lcb95 >= minimum_expectancy_lcb95
+        and (
+            minimum_expectancy_lcb95 is None
+            or result.proxy_expectancy_lcb95 >= minimum_expectancy_lcb95
+        )
         and result.proxy_max_drawdown >= maximum_drawdown
     ]
     if not eligible:

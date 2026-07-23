@@ -51,10 +51,10 @@ class SniperModel:
         return cls(model, feature_names)
 
     @staticmethod
-    def bucket(probability: float) -> str:
+    def bucket(probability: float, trap_high: float = 0.80) -> str:
         if probability < 0.50:
             return "crash_protocol"
-        if probability < 0.65:
+        if probability < trap_high:
             return "trap"
         return "premium_candidate"
 

@@ -47,7 +47,7 @@ def test_intraday_modes_apply_session_window_and_duplicate_gates():
     )
     frame = pd.DataFrame(rows)
     benchmark = frame.loc[frame.symbol == "SPY"].set_index("date")["close"]
-    cfg = AppConfig(strategy=StrategyConfig(z_window=5, z_threshold=-0.5))
+    cfg = AppConfig(strategy=StrategyConfig(z_window=5, z_threshold=-0.5, trap_high=0.60))
     hybrid = run_backtest(frame[frame.symbol != "SPY"], benchmark, "improved", cfg, mode="hybrid")
     intraday = run_backtest(frame[frame.symbol != "SPY"], benchmark, "improved", cfg, mode="intraday_loop")
     assert hybrid.trades == 0

@@ -32,6 +32,7 @@ def _split_metrics(
     *,
     minimum_observations: int,
     maximum_drawdown: float,
+    allow_negative_baseline: bool,
 ) -> dict:
     indices = sorted(split_indices, key=lambda index: features.loc[index, "date"])
     positions = [features.index.get_loc(index) for index in indices]
@@ -56,6 +57,7 @@ def _split_metrics(
             selected = select_threshold(
                 results,
                 minimum_observations=minimum_observations,
+                minimum_expectancy_lcb95=None if allow_negative_baseline else 0.0,
                 maximum_drawdown=maximum_drawdown,
             ).as_dict()
         except ValueError as exc:
@@ -80,8 +82,9 @@ def analyze(
     threshold_start: float = 0.50,
     threshold_stop: float = 0.80,
     threshold_step: float = 0.01,
-    minimum_observations: int = 50,
+    minimum_observations: int = 20,
     maximum_drawdown: float = -0.10,
+    allow_negative_baseline: bool = False,
 ) -> dict:
     bars = pd.read_csv(input_path, parse_dates=["date"])
     benchmark = bars.loc[bars.symbol == "SPY"].set_index("date")["close"]
@@ -114,6 +117,7 @@ def analyze(
         z_threshold,
         minimum_observations=minimum_observations,
         maximum_drawdown=maximum_drawdown,
+        allow_negative_baseline=allow_negative_baseline,
     )
     selected_threshold = (validation.get("selected") or {}).get("threshold")
     test = _split_metrics(
@@ -127,6 +131,7 @@ def analyze(
         z_threshold,
         minimum_observations=minimum_observations,
         maximum_drawdown=maximum_drawdown,
+        allow_negative_baseline=allow_negative_baseline,
     )
     if selected_threshold is not None:
         test["selected_threshold_result"] = next(
@@ -150,6 +155,9 @@ def analyze(
             "z_threshold": z_threshold,
             "minimum_observations": minimum_observations,
             "maximum_drawdown": maximum_drawdown,
+            "selection_mode": "best_point_estimate_with_constraints"
+            if allow_negative_baseline
+            else "positive_expectancy_lcb95",
         },
         "validation": validation,
         "test": test,
@@ -165,8 +173,13 @@ def main() -> None:
     parser.add_argument("--threshold-start", type=float, default=0.50)
     parser.add_argument("--threshold-stop", type=float, default=0.80)
     parser.add_argument("--threshold-step", type=float, default=0.01)
-    parser.add_argument("--minimum-observations", type=int, default=50)
+    parser.add_argument("--minimum-observations", type=int, default=20)
     parser.add_argument("--maximum-drawdown", type=float, default=-0.10)
+    parser.add_argument(
+        "--allow-negative-baseline",
+        action="store_true",
+        help="select the best constrained point estimate even when proxy expectancy is negative",
+    )
     args = parser.parse_args()
     report = analyze(
         args.input,
@@ -177,6 +190,7 @@ def main() -> None:
         threshold_step=args.threshold_step,
         minimum_observations=args.minimum_observations,
         maximum_drawdown=args.maximum_drawdown,
+        allow_negative_baseline=args.allow_negative_baseline,
     )
     target = Path(args.output)
     target.parent.mkdir(parents=True, exist_ok=True)

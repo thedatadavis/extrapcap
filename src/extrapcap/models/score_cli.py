@@ -6,6 +6,7 @@ from pathlib import Path
 
 import pandas as pd
 
+from ..config import AppConfig
 from .sniper import SniperModel
 from ..signals import SNIPER_FEATURES
 
@@ -18,9 +19,10 @@ def score_features(input_path: str | Path, model_path: str | Path, output_path: 
     model = SniperModel.load(model_path, SNIPER_FEATURES)
     scored = features.copy()
     scored["sniper_probability"] = model.predict_probability(scored[SNIPER_FEATURES].astype(float))
+    trap_high = AppConfig().strategy.trap_high
     scored["sniper_bucket"] = pd.cut(
         scored["sniper_probability"],
-        bins=[-float("inf"), 0.50, 0.65, float("inf")],
+        bins=[-float("inf"), 0.50, trap_high, float("inf")],
         labels=["crash_protocol", "trap", "premium_candidate"],
         right=False,
     ).astype(str)

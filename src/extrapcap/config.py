@@ -40,7 +40,7 @@ class StrategyConfig(BaseModel):
     max_option_spread_pct: float = Field(0.25, gt=0, le=1)
     premium_funding_pct: float = Field(0.15, gt=0, le=0.20)
     trap_low: float = Field(0.50, ge=0, le=1)
-    trap_high: float = Field(0.65, ge=0, le=1)
+    trap_high: float = Field(0.80, ge=0, le=1)
 
 
 class AppConfig(BaseModel):

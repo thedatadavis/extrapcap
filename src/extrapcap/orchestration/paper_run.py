@@ -19,7 +19,7 @@ from ..options_data import (
 )
 from ..risk import PortfolioRiskState, RiskDecision, approve_candidate
 from ..execution.reconcile import reconcile
-from ..config import RiskConfig
+from ..config import RiskConfig, StrategyConfig
 
 
 PAPER_ORDER_ACCEPTED_STATUSES = {
@@ -117,7 +117,8 @@ def build_candidate(
     else:
         sector_risk = (risk_state.sector_open_risk or {}).get(sector, 0.0)
         risk_decision = approve_candidate(spread, risk_state, risk_config, sector_risk)
-    bucket = "crash_protocol" if model_probability < 0.50 else "trap" if model_probability < 0.65 else "premium_candidate"
+    trap_high = StrategyConfig().trap_high
+    bucket = "crash_protocol" if model_probability < 0.50 else "trap" if model_probability < trap_high else "premium_candidate"
     envelope = OrderEnvelope(str(trading_day), underlying, "sell_to_open", selected.order_legs(), "core", limit_price=spread.credit)
     return PaperCandidate(
         envelope=envelope,
