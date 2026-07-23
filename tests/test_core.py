@@ -156,6 +156,21 @@ def test_market_bars_isolates_a_bad_symbol_from_a_batch():
     assert any(request["symbols"] == "BAD" for request in requests)
 
 
+def test_market_bars_uses_provider_share_class_aliases_and_restores_source_symbol():
+    client = AlpacaMarketData(api_key="paper-key", secret_key="paper-secret")
+    requests = []
+
+    def fake_get(path, params, base_url=None):
+        requests.append(params.copy())
+        return {"bars": {"BRK.B": [{"t": "bar"}]}}
+
+    client._get = fake_get
+    result = client.stock_bars(["BRK-B"], "start", "end")
+
+    assert requests[0]["symbols"] == "BRK.B"
+    assert result == {"bars": {"BRK-B": [{"t": "bar"}]}}
+
+
 def test_nebius_without_key_escalates():
     assert NebiusReviewer(api_key=None).review({})["decision"] == "escalate"
 
