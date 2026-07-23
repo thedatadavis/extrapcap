@@ -1,0 +1,41 @@
+name: Analyze Sniper threshold
+on:
+  workflow_dispatch:
+    inputs:
+      minimum_observations:
+        description: Minimum validation observations for a candidate cutoff
+        required: true
+        default: '50'
+        type: string
+concurrency:
+  group: extrapcap-ops-writer
+  cancel-in-progress: false
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ops
+          fetch-depth: 0
+      - name: Sync source branch
+        run: .github/scripts/sync-ops.sh
+      - uses: actions/setup-python@v6
+        with: {python-version: '3.11'}
+      - run: pip install -e '.[research]'
+      - name: Run walk-forward threshold analysis
+        run: >-
+          python -m extrapcap.models.threshold_cli
+          --input data/normalized/bars.csv
+          --model models/sniper.cbm
+          --output reports/sniper/threshold-baseline.json
+          --minimum-observations "${{ inputs.minimum_observations || '50' }}"
+      - name: Commit threshold baseline
+        run: |
+          git config user.name extrapcap-bot
+          git config user.email extrapcap-bot@users.noreply.github.com
+          git add reports/sniper/threshold-baseline.json
+          git diff --cached --quiet || git commit -m "research: baseline Sniper threshold $(date -u +%F)"
+          .github/scripts/push-ops.sh
