@@ -22,6 +22,7 @@
 - broker-clock, persistent order-count/cooldown, and completed-signal idempotency gates
 - options buying-power/approval, quote-quality, ticker, and sector risk gates
 - provider-backed 1-minute intraday scan bursts with dynamic expiration windows
+- empirical execution-gate evaluation: measure time-of-day spreads, depth, slippage, fill quality, and outcomes, then replace hard-coded gates with data-driven rules and A/B/C ticker classes that can carry different execution hurdles
 - scheduled normalized-bar refresh and versioned Sniper artifact publication
 - Nebius structured review and immutable daily ledger commits
 - credential injection from the operator's secret manager (keys were intentionally not persisted by the agent)
