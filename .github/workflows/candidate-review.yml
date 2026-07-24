@@ -9,7 +9,9 @@ on:
         type: choice
         options: [dry-run, paper-submit]
   schedule:
-    - cron: '0 15-20 * * 1-5'
+    # 15:00 and 19:00 UTC = 11:00 AM and 3:00 PM EDT during daylight time.
+    # These are inside the currently permitted new-entry liquidity windows.
+    - cron: '0 15,19 * * 1-5'
 concurrency:
   group: extrapcap-ops-writer
   cancel-in-progress: false
