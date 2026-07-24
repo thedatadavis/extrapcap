@@ -9,7 +9,9 @@ on:
         type: choice
         options: [dry-run, paper-submit]
   schedule:
-    - cron: '*/15 14-20 * * 1-5'
+    # Cover the full regular session across UTC daylight/standard-time shifts;
+    # the broker clock gate skips the extra pre/post-market invocations.
+    - cron: '*/15 13-21 * * 1-5'
 concurrency:
   group: extrapcap-ops-writer
   cancel-in-progress: false
