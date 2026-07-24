@@ -7,9 +7,16 @@ from datetime import datetime, timezone
 from urllib.parse import urlsplit
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
-from ..secrets import optional_paper_credentials, require_paper_credentials, require_paper_submit_enabled
+from ..secrets import (
+    optional_paper_credentials,
+    require_live_credentials,
+    require_live_submit_enabled,
+    require_paper_credentials,
+    require_paper_submit_enabled,
+)
 
 PAPER_API_ROOT = "https://paper-api.alpaca.markets/v2"
+LIVE_API_ROOT = "https://api.alpaca.markets/v2"
 
 
 def normalize_paper_api_root(value: str) -> str:
@@ -31,35 +38,58 @@ def normalize_paper_api_root(value: str) -> str:
     return PAPER_API_ROOT
 
 
+def normalize_live_api_root(value: str) -> str:
+    """Return the one permitted Alpaca live v2 API root."""
+    parsed = urlsplit(value.rstrip("/"))
+    path = parsed.path.rstrip("/")
+    if (
+        parsed.scheme != "https"
+        or parsed.netloc != "api.alpaca.markets"
+        or path not in {"", "/v2"}
+        or parsed.query
+        or parsed.fragment
+    ):
+        raise RuntimeError("refusing non-live Alpaca v2 API root")
+    return LIVE_API_ROOT
+
+
 @dataclass
 class AlpacaPaperClient:
-    """Small fail-closed Alpaca adapter. No live URL is accepted."""
+    """Small fail-closed Alpaca adapter for paper and explicitly enabled live modes."""
 
     base_url: str = PAPER_API_ROOT
     api_key: str | None = None
     secret_key: str | None = None
     dry_run: bool = True
+    live: bool = False
 
     @classmethod
     def from_env(cls) -> "AlpacaPaperClient":
-        if os.getenv("ALPACA_PAPER", "true").lower() != "true":
-            raise RuntimeError("Alpaca integration is paper-only: set ALPACA_PAPER=true")
-        base_url = normalize_paper_api_root(os.getenv("ALPACA_BASE_URL", PAPER_API_ROOT))
         mode = os.getenv("EXTRAPCAP_EXECUTION_MODE", "dry-run")
-        if mode not in {"dry-run", "paper-submit"}:
-            raise RuntimeError("EXTRAPCAP_EXECUTION_MODE must be dry-run or paper-submit")
+        if mode not in {"dry-run", "paper-submit", "live-submit"}:
+            raise RuntimeError("EXTRAPCAP_EXECUTION_MODE must be dry-run, paper-submit, or live-submit")
+        if mode == "live-submit":
+            if os.getenv("ALPACA_PAPER", "true").lower() == "true":
+                raise RuntimeError("live-submit requires ALPACA_PAPER=false")
+            require_live_submit_enabled()
+            base_url = normalize_live_api_root(os.getenv("ALPACA_BASE_URL", LIVE_API_ROOT))
+            key, secret = require_live_credentials()
+            return cls(base_url, key, secret, False, True)
+        if os.getenv("ALPACA_PAPER", "true").lower() != "true":
+            raise RuntimeError("paper mode requires ALPACA_PAPER=true")
+        base_url = normalize_paper_api_root(os.getenv("ALPACA_BASE_URL", PAPER_API_ROOT))
         if mode == "paper-submit":
             require_paper_submit_enabled()
             key, secret = require_paper_credentials()
         else:
             key, secret = optional_paper_credentials()
-        return cls(base_url, key, secret, mode != "paper-submit")
+        return cls(base_url, key, secret, mode != "paper-submit", False)
 
     def submit_order(self, order: dict) -> dict:
         if self.dry_run:
             return {"status": "dry_run", "order": order}
         if not self.api_key or not self.secret_key:
-            raise RuntimeError("missing Alpaca paper credentials")
+            raise RuntimeError("missing Alpaca credentials for the selected account")
         request = Request(
             f"{self.base_url}/orders",
             data=json.dumps(order).encode(),
@@ -71,14 +101,14 @@ class AlpacaPaperClient:
 
     def _get(self, path: str) -> dict | list:
         if not self.api_key or not self.secret_key:
-            raise RuntimeError("missing Alpaca paper credentials")
+            raise RuntimeError("missing Alpaca credentials for the selected account")
         request = Request(f"{self.base_url}{path}", headers={"APCA-API-KEY-ID": self.api_key, "APCA-API-SECRET-KEY": self.secret_key})
         with urlopen(request, timeout=20) as response:
             return json.loads(response.read())
 
     def _request(self, path: str, method: str) -> dict | list:
         if not self.api_key or not self.secret_key:
-            raise RuntimeError("missing Alpaca paper credentials")
+            raise RuntimeError("missing Alpaca credentials for the selected account")
         request = Request(
             f"{self.base_url}{path}",
             headers={"APCA-API-KEY-ID": self.api_key, "APCA-API-SECRET-KEY": self.secret_key},
@@ -90,6 +120,8 @@ class AlpacaPaperClient:
 
     def reset_paper_account(self) -> dict:
         """Cancel open orders and close positions; never available on a live URL."""
+        if self.live:
+            raise RuntimeError("paper-account reset is unavailable for a live client")
         if self.dry_run:
             return {
                 "status": "dry_run",
@@ -135,3 +167,8 @@ class AlpacaPaperClient:
     def order(self, order_id: str, nested: bool = True) -> dict:
         suffix = "?nested=true" if nested else ""
         return self._get(f"/orders/{order_id}{suffix}")
+
+
+# Keep the existing import name stable while callers migrate to account-neutral
+# terminology. The live path is selected only by EXTRAPCAP_EXECUTION_MODE.
+AlpacaClient = AlpacaPaperClient

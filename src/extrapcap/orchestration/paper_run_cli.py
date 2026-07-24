@@ -28,11 +28,11 @@ def main() -> None:
     parser.add_argument("--model", help="versioned CatBoost Sniper artifact")
     parser.add_argument("--features-json", help="JSON object containing the Sniper feature vector")
     parser.add_argument("--trading-day", default=date.today().isoformat())
-    parser.add_argument("--execution-mode", choices=("dry-run", "paper-submit"), default="dry-run")
+    parser.add_argument("--execution-mode", choices=("dry-run", "paper-submit", "live-submit"), default="dry-run")
     parser.add_argument("--sector", default="Fixture", help="sector metadata for concentration controls")
     args = parser.parse_args()
-    if args.execution_mode == "paper-submit" and not args.model:
-        parser.error("--model is required for paper-submit")
+    if args.execution_mode in {"paper-submit", "live-submit"} and not args.model:
+        parser.error("--model is required for order submission")
     if args.model:
         if not args.features_json:
             parser.error("--features-json is required when --model is supplied")

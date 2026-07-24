@@ -290,7 +290,7 @@ def main() -> None:
     parser.add_argument("--model", default=os.getenv("SNIPER_MODEL_PATH"))
     parser.add_argument("--expiration-gte", required=True)
     parser.add_argument("--expiration-lte")
-    parser.add_argument("--execution-mode", choices=("dry-run", "paper-submit"), default="dry-run")
+    parser.add_argument("--execution-mode", choices=("dry-run", "paper-submit", "live-submit"), default="dry-run")
     parser.add_argument("--timeframe", choices=("1Day", "1Min", "5Min", "15Min", "1Hour"), default="1Day")
     args = parser.parse_args()
     if not args.model:

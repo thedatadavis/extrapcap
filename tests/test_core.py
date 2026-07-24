@@ -5,7 +5,7 @@ from extrapcap.options import DebitSpread, VerticalSpread
 from extrapcap.portfolio import SleeveLedger
 from extrapcap.signals import robust_zscore
 from extrapcap.data.alpaca_market import AlpacaMarketData
-from extrapcap.execution.alpaca import PAPER_API_ROOT, AlpacaPaperClient
+from extrapcap.execution.alpaca import LIVE_API_ROOT, PAPER_API_ROOT, AlpacaPaperClient
 from extrapcap.llm.nebius import NebiusReviewer
 from extrapcap.execution.orders import OrderEnvelope
 from extrapcap.execution.orders import OrderRegistry
@@ -61,7 +61,7 @@ def test_asymmetric_admission_and_time_stop_are_bounded():
 
 def test_alpaca_client_is_fail_closed(monkeypatch):
     monkeypatch.setenv("ALPACA_PAPER", "false")
-    with pytest.raises(RuntimeError, match="paper-only"):
+    with pytest.raises(RuntimeError, match="paper mode requires"):
         AlpacaPaperClient.from_env()
 
 
@@ -87,6 +87,45 @@ def test_alpaca_client_rejects_lookalike_or_non_v2_roots(monkeypatch):
     ):
         monkeypatch.setenv("ALPACA_BASE_URL", value)
         with pytest.raises(RuntimeError, match="paper Alpaca v2"):
+            AlpacaPaperClient.from_env()
+
+
+def test_live_client_is_disabled_by_default(monkeypatch):
+    monkeypatch.setenv("ALPACA_PAPER", "false")
+    monkeypatch.setenv("EXTRAPCAP_EXECUTION_MODE", "live-submit")
+    monkeypatch.setenv("EXTRAPCAP_KEYCHAIN_ENABLED", "false")
+    monkeypatch.delenv("EXTRAPCAP_LIVE_SUBMIT_ENABLED", raising=False)
+    with pytest.raises(RuntimeError, match="live-submit is disabled"):
+        AlpacaPaperClient.from_env()
+
+
+def test_live_client_requires_live_credentials_and_exact_endpoint(monkeypatch):
+    monkeypatch.setenv("ALPACA_PAPER", "false")
+    monkeypatch.setenv("EXTRAPCAP_EXECUTION_MODE", "live-submit")
+    monkeypatch.setenv("EXTRAPCAP_LIVE_SUBMIT_ENABLED", "true")
+    monkeypatch.setenv("EXTRAPCAP_KEYCHAIN_ENABLED", "false")
+    monkeypatch.setenv("ALPACA_LIVE_API_KEY", "live-key")
+    monkeypatch.setenv("ALPACA_LIVE_SECRET_KEY", "live-secret")
+    monkeypatch.setenv("ALPACA_BASE_URL", "https://api.alpaca.markets")
+    client = AlpacaPaperClient.from_env()
+    assert client.base_url == LIVE_API_ROOT
+    assert client.live is True
+    assert client.dry_run is False
+
+
+def test_live_client_rejects_paper_or_lookalike_endpoint(monkeypatch):
+    monkeypatch.setenv("ALPACA_PAPER", "false")
+    monkeypatch.setenv("EXTRAPCAP_EXECUTION_MODE", "live-submit")
+    monkeypatch.setenv("EXTRAPCAP_LIVE_SUBMIT_ENABLED", "true")
+    monkeypatch.setenv("EXTRAPCAP_KEYCHAIN_ENABLED", "false")
+    monkeypatch.setenv("ALPACA_LIVE_API_KEY", "live-key")
+    monkeypatch.setenv("ALPACA_LIVE_SECRET_KEY", "live-secret")
+    for value in (
+        "https://paper-api.alpaca.markets/v2",
+        "https://api.alpaca.markets.example.com/v2",
+    ):
+        monkeypatch.setenv("ALPACA_BASE_URL", value)
+        with pytest.raises(RuntimeError, match="live Alpaca v2"):
             AlpacaPaperClient.from_env()
 
 

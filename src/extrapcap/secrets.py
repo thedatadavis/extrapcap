@@ -43,6 +43,23 @@ def require_paper_submit_enabled() -> None:
         )
 
 
+def require_live_submit_enabled() -> None:
+    """Require an independent, explicit switch before live order mutation."""
+    if os.getenv("EXTRAPCAP_LIVE_SUBMIT_ENABLED", "false").lower() != "true":
+        raise RuntimeError(
+            "live-submit is disabled; set EXTRAPCAP_LIVE_SUBMIT_ENABLED=true only after live readiness review"
+        )
+
+
+def require_live_credentials() -> tuple[str, str]:
+    """Load credentials dedicated to the live account."""
+    key = _secret("ALPACA_LIVE_API_KEY", "extrapcap.alpaca.live_api_key")
+    secret = _secret("ALPACA_LIVE_SECRET_KEY", "extrapcap.alpaca.live_secret_key")
+    if not key or not secret:
+        raise RuntimeError("set ALPACA_LIVE_API_KEY and ALPACA_LIVE_SECRET_KEY through a secret manager")
+    return key, secret
+
+
 def require_nebius_key() -> str:
     key = _secret("NEBIUS_API_KEY", "extrapcap.nebius.api_key")
     if not key:

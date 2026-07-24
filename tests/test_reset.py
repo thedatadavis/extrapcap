@@ -11,6 +11,11 @@ def test_paper_reset_is_dry_run_without_credentials():
     assert result["positions"] == "credentials_not_configured"
 
 
+def test_reset_rejects_live_client():
+    with pytest.raises(RuntimeError, match="unavailable for a live client"):
+        AlpacaPaperClient(api_key="live-key", secret_key="live-secret", live=True).reset_paper_account()
+
+
 def test_reset_cli_requires_exact_confirmation(monkeypatch):
     monkeypatch.setenv("ALPACA_PAPER", "true")
     monkeypatch.setenv("EXTRAPCAP_EXECUTION_MODE", "dry-run")
