@@ -34,7 +34,12 @@ def run_live_cycle(
     execution_mode: str = "dry-run",
     timeframe: str = "1Day",
     selection_context: dict | None = None,
+    review_phase: str = "entry",
 ) -> dict:
+    if review_phase not in {"entry", "opening_prep"}:
+        raise ValueError("unsupported review phase")
+    if review_phase == "opening_prep" and execution_mode != "dry-run":
+        raise ValueError("opening prep must use dry-run execution")
     config = AppConfig.from_env()
     os.environ["EXTRAPCAP_EXECUTION_MODE"] = execution_mode
     client = AlpacaPaperClient.from_env()
@@ -52,9 +57,13 @@ def run_live_cycle(
         symbol,
         end,
         client.orders_after(session_start),
-        market_is_open=market_clock["is_open"],
+        market_is_open=market_clock["is_open"] or review_phase == "opening_prep",
     )
-    intraday_gate = approve_intraday_order(intraday_state, config.risk)
+    intraday_gate = approve_intraday_order(
+        intraday_state,
+        config.risk,
+        is_exit=review_phase == "opening_prep",
+    )
     context["intraday_risk"] = {
         "orders_today": intraday_state.orders_today,
         "last_order_at": intraday_state.last_order_at.isoformat()
@@ -67,6 +76,7 @@ def run_live_cycle(
         "next_open": market_clock.get("next_open"),
         "next_close": market_clock.get("next_close"),
     }
+    context["review_phase"] = review_phase
     if not intraday_gate.allowed:
         result = {
             "kind": "intraday_risk_gate",
@@ -266,7 +276,7 @@ def run_live_cycle(
     context["market_price_as_of"] = current_symbol_bars.sort_values("date").iloc[-1]["date"].isoformat()
     context["crash_protocol_paper_enabled"] = paper_crash_protocol_enabled()
     if (
-        execution_mode == "paper-submit"
+        execution_mode in {"dry-run", "paper-submit"}
         and context["crash_protocol_paper_enabled"]
         and probability < config.strategy.trap_low
     ):

@@ -1,24 +1,14 @@
-name: Review paper candidates
+name: Prepare opening paper candidates
 on:
-  workflow_dispatch:
-    inputs:
-      execution_mode:
-        description: Dry-run or guarded paper submission
-        required: true
-        default: dry-run
-        type: choice
-        options: [dry-run, paper-submit]
   schedule:
-    # 13:45, 18:30, and 19:00 UTC = 9:45 AM, 2:30 PM, and 3:00 PM EDT.
-    # These are the opening, post-lunch, and pre-close entry reviews.
-    - cron: '45 13 * * 1-5'
-    - cron: '30 18 * * 1-5'
-    - cron: '0 19 * * 1-5'
+    # 13:00 UTC = 9:00 AM EDT during daylight time.
+    - cron: '0 13 * * 1-5'
+  workflow_dispatch:
 concurrency:
   group: extrapcap-ops-writer
   cancel-in-progress: false
 jobs:
-  review:
+  prep:
     runs-on: ubuntu-latest
     environment: paper
     permissions:
@@ -34,21 +24,13 @@ jobs:
         with: {python-version: '3.11'}
       - run: pip install -e '.[research]'
       - name: Refresh complete free earnings-blackout window
-        run: python -m extrapcap.earnings --date "$(date -u +%F)"
-      - name: Verify paper-submit readiness
         env:
           ALPACA_PAPER: 'true'
           ALPACA_API_KEY: ${{ secrets.ALPACA_API_KEY }}
           ALPACA_SECRET_KEY: ${{ secrets.ALPACA_SECRET_KEY }}
-          NEBIUS_API_KEY: ${{ secrets.NEBIUS_API_KEY }}
-          EXTRAPCAP_PAPER_SUBMIT_ENABLED: ${{ vars.EXTRAPCAP_PAPER_SUBMIT_ENABLED || 'false' }}
-        run: python -m extrapcap.diagnostics --require-ready --require-paper-submit-ready
-      - name: Assert scheduled paper-submit mode
-        if: ${{ github.event_name == 'schedule' }}
-        env:
-          EXTRAPCAP_EXECUTION_MODE: ${{ github.event_name == 'schedule' && 'paper-submit' || inputs.execution_mode || 'dry-run' }}
-        run: test "$EXTRAPCAP_EXECUTION_MODE" = paper-submit
-      - name: Run provider-backed basket review
+          EXTRAPCAP_CRASH_PROTOCOL_PAPER_ENABLED: ${{ vars.EXTRAPCAP_CRASH_PROTOCOL_PAPER_ENABLED || 'false' }}
+        run: python -m extrapcap.earnings --date "$(date -u +%F)"
+      - name: Prepare candidates without submitting orders
         env:
           ALPACA_PAPER: 'true'
           ALPACA_API_KEY: ${{ secrets.ALPACA_API_KEY }}
@@ -58,9 +40,7 @@ jobs:
           EXTRAPCAP_EARNINGS_CALENDAR: data/events/earnings.csv
           EXTRAPCAP_NEWS_EVENTS: data/events/news.csv
           EXTRAPCAP_NEWS_LLM: 'true'
-          EXTRAPCAP_PAPER_SUBMIT_ENABLED: ${{ vars.EXTRAPCAP_PAPER_SUBMIT_ENABLED || 'false' }}
           EXTRAPCAP_CRASH_PROTOCOL_PAPER_ENABLED: ${{ vars.EXTRAPCAP_CRASH_PROTOCOL_PAPER_ENABLED || 'false' }}
-          EXTRAPCAP_EXECUTION_MODE: ${{ github.event_name == 'schedule' && 'paper-submit' || inputs.execution_mode || 'dry-run' }}
         run: >-
           python -m extrapcap.orchestration.basket_cycle_cli
           --basket data/universe/tradable-basket.csv
@@ -68,11 +48,12 @@ jobs:
           --expiration-gte "$(date -u -d '+2 days' +%F)"
           --expiration-lte "$(date -u -d '+35 days' +%F)"
           --max-candidates 10
-          --execution-mode "$EXTRAPCAP_EXECUTION_MODE"
-      - name: Commit review ledger
+          --review-phase opening_prep
+          --execution-mode dry-run
+      - name: Commit opening-prep ledger
         run: |
           git config user.name extrapcap-bot
           git config user.email extrapcap-bot@users.noreply.github.com
           git add -A logs data/events/earnings.csv data/events/earnings.csv.metadata.json
-          git diff --cached --quiet || git commit -m "ledger: review paper basket $(date -u +%F)"
+          git diff --cached --quiet || git commit -m "ledger: opening paper candidate prep $(date -u +%F)"
           .github/scripts/push-ops.sh

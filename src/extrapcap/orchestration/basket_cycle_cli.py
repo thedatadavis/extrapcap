@@ -114,6 +114,7 @@ def run_basket(
     *,
     execution_mode: str = "dry-run",
     timeframe: str = "1Day",
+    review_phase: str = "entry",
     z_threshold: float = -2.0,
     max_candidates: int = 10,
     runner=run_live_cycle,
@@ -131,7 +132,7 @@ def run_basket(
         z_threshold=z_threshold,
         model_loader=model_loader,
     )
-    crash_enabled = execution_mode == "paper-submit" and paper_crash_protocol_enabled()
+    crash_enabled = execution_mode in {"dry-run", "paper-submit"} and paper_crash_protocol_enabled()
     tradeable_candidates = [
         selection
         for selection in ranked
@@ -215,6 +216,7 @@ def run_basket(
                     execution_mode,
                     timeframe,
                     selection_context=selection,
+                    review_phase=review_phase,
                 )
             )
         except Exception as exc:
@@ -242,6 +244,7 @@ def main() -> None:
     parser.add_argument("--expiration-lte")
     parser.add_argument("--execution-mode", choices=("dry-run", "paper-submit", "live-submit"), default="dry-run")
     parser.add_argument("--timeframe", choices=("1Day", "1Min", "5Min", "15Min", "1Hour"), default="1Day")
+    parser.add_argument("--review-phase", choices=("entry", "opening_prep"), default="entry")
     parser.add_argument("--z-threshold", type=float, default=-2.0)
     parser.add_argument("--max-candidates", type=int, default=10)
     args = parser.parse_args()
@@ -254,6 +257,7 @@ def main() -> None:
         args.expiration_lte,
         execution_mode=args.execution_mode,
         timeframe=args.timeframe,
+        review_phase=args.review_phase,
         z_threshold=args.z_threshold,
         max_candidates=args.max_candidates,
     )
