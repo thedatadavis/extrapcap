@@ -12,12 +12,13 @@ from ..events import EventDecision, decision_from_csv, earnings_decision_from_cs
 from ..execution.account_risk import build_portfolio_risk_state
 from ..execution.alpaca import AlpacaPaperClient
 from ..execution.intraday_state import build_intraday_risk_state
+from ..secrets import paper_crash_protocol_enabled
 from ..ledger import AuditLedger
 from ..fills import FillAssumptions
 from ..llm.nebius import NebiusReviewer
 from ..models.sniper import SniperModel
 from ..options_data import AlpacaOptionsData
-from ..orchestration.paper_run import PaperRunCoordinator, build_candidate
+from ..orchestration.paper_run import PaperRunCoordinator, build_candidate, build_crash_candidate
 from ..risk import approve_intraday_order
 from ..selection import completed_signal_alignment_reason, core_streak_gate
 from ..signals import SNIPER_FEATURES, relative_features
@@ -263,23 +264,46 @@ def run_live_cycle(
         current_symbol_bars.sort_values("date").iloc[-1]["close"]
     )
     context["market_price_as_of"] = current_symbol_bars.sort_values("date").iloc[-1]["date"].isoformat()
-    candidate = build_candidate(
-        underlying=symbol,
-        trading_day=end.date(),
-        underlying_price=current_underlying_price,
-        contracts_payload=contracts_payload,
-        snapshot_payload=snapshot_payload,
-        model_probability=probability,
-        risk_state=risk_state,
-        risk_config=config.risk,
-        event_decision=event_decision,
-        fill_assumptions=FillAssumptions(),
-        selection_context=context,
-        observed_at=end,
-        max_quote_age_seconds=config.strategy.max_option_quote_age_seconds,
-        max_quote_spread_pct=config.strategy.max_option_spread_pct,
-        min_credit_pct_width=config.strategy.min_credit_pct_width,
-    )
+    context["crash_protocol_paper_enabled"] = paper_crash_protocol_enabled()
+    if (
+        execution_mode == "paper-submit"
+        and context["crash_protocol_paper_enabled"]
+        and probability < config.strategy.trap_low
+    ):
+        candidate = build_crash_candidate(
+            underlying=symbol,
+            trading_day=end.date(),
+            underlying_price=current_underlying_price,
+            contracts_payload=contracts_payload,
+            snapshot_payload=snapshot_payload,
+            model_probability=probability,
+            risk_state=risk_state,
+            risk_config=config.risk,
+            event_decision=event_decision,
+            fill_assumptions=FillAssumptions(),
+            selection_context=context,
+            observed_at=end,
+            max_quote_age_seconds=config.strategy.max_option_quote_age_seconds,
+            max_quote_spread_pct=config.strategy.max_option_spread_pct,
+        )
+    else:
+        candidate = build_candidate(
+            underlying=symbol,
+            trading_day=end.date(),
+            underlying_price=current_underlying_price,
+            contracts_payload=contracts_payload,
+            snapshot_payload=snapshot_payload,
+            model_probability=probability,
+            risk_state=risk_state,
+            risk_config=config.risk,
+            event_decision=event_decision,
+            fill_assumptions=FillAssumptions(),
+            selection_context=context,
+            observed_at=end,
+            max_quote_age_seconds=config.strategy.max_option_quote_age_seconds,
+            max_quote_spread_pct=config.strategy.max_option_spread_pct,
+            min_credit_pct_width=config.strategy.min_credit_pct_width,
+        )
     result = PaperRunCoordinator(client, reviewer).execute(candidate)
     return {"ticker": symbol.upper(), "symbol": symbol.upper(), "timeframe": timeframe, "probability": probability, "model": model.version, "result": result}
 

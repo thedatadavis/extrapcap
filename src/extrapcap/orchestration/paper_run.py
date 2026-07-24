@@ -7,17 +7,19 @@ import json
 
 from ..events import EventDecision
 from ..execution.orders import OrderEnvelope, OrderRegistry
-from ..fills import FillAssumptions, credit_fill
+from ..fills import FillAssumptions, credit_fill, debit_fill
 from ..ledger import AuditLedger
-from ..options import VerticalSpread
+from ..options import DebitSpread, VerticalSpread
 from ..options_data import (
     SelectedVertical,
+    SelectedDebitVertical,
     contracts_from_payload,
     normalize_chain,
     select_put_vertical,
+    select_bearish_put_debit_vertical,
     selected_vertical_quote_quality,
 )
-from ..risk import PortfolioRiskState, RiskDecision, approve_candidate
+from ..risk import PortfolioRiskState, RiskDecision, approve_asymmetric, approve_candidate
 from ..execution.reconcile import reconcile
 from ..config import RiskConfig, StrategyConfig
 
@@ -36,8 +38,8 @@ PAPER_ORDER_REJECTED_STATUSES = {"rejected", "canceled", "expired", "suspended"}
 @dataclass(frozen=True)
 class PaperCandidate:
     envelope: OrderEnvelope
-    spread: VerticalSpread
-    selected: SelectedVertical
+    spread: VerticalSpread | DebitSpread
+    selected: SelectedVertical | SelectedDebitVertical
     model_probability: float
     model_bucket: str
     risk_decision: RiskDecision
@@ -135,6 +137,72 @@ def build_candidate(
     )
 
 
+def build_crash_candidate(
+    *,
+    underlying: str,
+    trading_day: date,
+    underlying_price: float,
+    contracts_payload: dict,
+    snapshot_payload: dict,
+    model_probability: float,
+    risk_state: PortfolioRiskState,
+    risk_config: RiskConfig,
+    event_decision: EventDecision,
+    fill_assumptions: FillAssumptions | None = None,
+    delta_min: float = 0.30,
+    delta_max: float = 0.50,
+    width: float = 10.0,
+    strategy_variant: str = "improved",
+    selection_context: dict | None = None,
+    observed_at: datetime | None = None,
+    max_quote_age_seconds: int = 1800,
+    max_quote_spread_pct: float = 0.25,
+) -> PaperCandidate:
+    assumptions = fill_assumptions or FillAssumptions()
+    contracts = contracts_from_payload(contracts_payload)
+    quotes = normalize_chain(snapshot_payload)
+    selected = select_bearish_put_debit_vertical(underlying, contracts, quotes, underlying_price, delta_min, delta_max, width)
+    quote_map = {quote.symbol: quote for quote in quotes}
+    debit_dollars = debit_fill(quote_map[selected.long.symbol].ask, quote_map[selected.short.symbol].bid, 1, assumptions)
+    spread = DebitSpread(underlying, selected.long.strike, selected.short.strike, debit_dollars / 100, sleeve="asymmetric", direction="bearish")
+    sector = str((selection_context or {}).get("sector") or "").strip()
+    market_data_details = {
+        "data_tier": snapshot_payload.get("_data_tier"),
+        "debit_pct_width": spread.debit / spread.width,
+        "reward_multiple": spread.reward_multiple,
+    }
+    quality_reason = None
+    if observed_at is not None:
+        quality_reason, quote_details = selected_vertical_quote_quality(
+            selected,
+            quotes,
+            observed_at,
+            max_age_seconds=max_quote_age_seconds,
+            max_spread_pct=max_quote_spread_pct,
+        )
+        market_data_details.update(quote_details)
+    if quality_reason:
+        risk_decision = RiskDecision(False, quality_reason)
+    elif not sector or sector.upper() == "N/A":
+        risk_decision = RiskDecision(False, "sector metadata required")
+    else:
+        risk_decision = approve_asymmetric(spread, risk_state, risk_config)
+    envelope = OrderEnvelope(str(trading_day), underlying, "buy_to_open", selected.order_legs(), "asymmetric", limit_price=spread.debit)
+    return PaperCandidate(
+        envelope=envelope,
+        spread=spread,
+        selected=selected,
+        model_probability=model_probability,
+        model_bucket="crash_protocol",
+        risk_decision=risk_decision,
+        event_decision=event_decision,
+        risk_state=risk_state,
+        market_data_details=market_data_details,
+        strategy_variant=strategy_variant,
+        selection_context=selection_context,
+    )
+
+
 class PaperRunCoordinator:
     """Runs qualitative review after hard gates; only approved candidates reach execution."""
 
@@ -218,7 +286,8 @@ class PaperRunCoordinator:
             result = {"client_order_id": cid, "status": "vetoed", "reason": candidate.risk_decision.reason, **common}
             self.ledger.append("risk", result, trading_day)
             return result
-        if candidate.model_bucket != "premium_candidate":
+        crash_candidate = candidate.model_bucket == "crash_protocol" and isinstance(candidate.spread, DebitSpread)
+        if candidate.model_bucket != "premium_candidate" and not crash_candidate:
             result = {"client_order_id": cid, "status": "vetoed", "reason": candidate.model_bucket, **common}
             self.ledger.append("signals", result, trading_day)
             return result
@@ -257,16 +326,20 @@ class PaperRunCoordinator:
                 return result
             if provider_status not in PAPER_ORDER_ACCEPTED_STATUSES:
                 raise RuntimeError(f"unrecognized paper order response status: {provider_status or 'missing'}")
+        entry_metadata = {
+            "spread_width": candidate.spread.width,
+            "opened_at": candidate.envelope.trading_day,
+            "strategy_variant": candidate.strategy_variant,
+            "signal_id": signal_id,
+            "contracts": contracts,
+        }
+        if isinstance(candidate.spread, DebitSpread):
+            entry_metadata.update({"entry_debit": candidate.spread.debit, "direction": candidate.spread.direction})
+        else:
+            entry_metadata["entry_credit"] = candidate.spread.credit
         self.registry.record(
             candidate.envelope,
-            {
-                "entry_credit": candidate.spread.credit,
-                "spread_width": candidate.spread.width,
-                "opened_at": candidate.envelope.trading_day,
-                "strategy_variant": candidate.strategy_variant,
-                "signal_id": signal_id,
-                "contracts": contracts,
-            },
+            entry_metadata,
             execution_status="dry_run" if getattr(self.client, "dry_run", True) else "submitted",
         )
         result = {
