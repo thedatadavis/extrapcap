@@ -156,11 +156,12 @@ def build_portfolio_risk_state(
             tracked_active_order_ids.add(client_order_id)
         metadata = record.get("metadata") or {}
         width = _number(metadata.get("spread_width"), -1)
+        entry_debit = _number(metadata.get("entry_debit"), -1)
         credit = _number(metadata.get("entry_credit", record.get("limit_price")), -1)
         quantity = int(_number(record.get("quantity", payload.get("qty", 1)), 1))
-        if width <= 0 or credit <= 0 or credit >= width or quantity < 1:
+        if width <= 0 or quantity < 1 or (entry_debit <= 0 and (credit <= 0 or credit >= width)) or (entry_debit > 0 and entry_debit >= width):
             raise RuntimeError("active paper position is missing valid bounded-risk metadata")
-        max_loss = (width - credit) * 100 * quantity
+        max_loss = (entry_debit if entry_debit > 0 else width - credit) * 100 * quantity
         sleeve = str(record.get("sleeve") or metadata.get("sleeve") or "core")
         ticker = str(record.get("ticker") or record.get("underlying") or "UNKNOWN").upper()
         ticker_open_risk[ticker] = ticker_open_risk.get(ticker, 0.0) + max_loss

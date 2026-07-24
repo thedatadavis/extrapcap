@@ -4,6 +4,8 @@ from dataclasses import dataclass
 from datetime import date
 
 from ..config import RiskConfig
+from ..options import DebitSpread
+from ..risk import asymmetric_exit_reason
 from .orders import OrderEnvelope
 
 
@@ -67,3 +69,17 @@ def build_close_envelope(position: ManagedPosition, decision: ExitDecision) -> O
         limit_price=position.current_debit,
         quantity=position.envelope.quantity,
     )
+
+
+def evaluate_debit_exit(
+    spread: DebitSpread,
+    opened_at: date,
+    as_of: date,
+    current_debit: float,
+    cfg: RiskConfig,
+) -> ExitDecision:
+    held_days = max(0, (as_of - opened_at).days)
+    reason = asymmetric_exit_reason(spread, held_days, current_debit, cfg)
+    if reason:
+        return ExitDecision("close", reason, current_debit, held_days)
+    return ExitDecision("hold", "within_asymmetric_exit_envelope", current_debit, held_days)

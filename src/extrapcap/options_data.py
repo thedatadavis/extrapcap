@@ -84,6 +84,23 @@ class SelectedVertical:
         )
 
 
+@dataclass(frozen=True)
+class SelectedDebitVertical:
+    """A bearish put debit spread: buy the higher-strike put, sell the lower."""
+
+    underlying: str
+    long: OptionContract
+    short: OptionContract
+    debit: float
+    delta: float | None
+
+    def order_legs(self) -> tuple[dict, dict]:
+        return (
+            {"symbol": self.long.symbol, "asset_class": "us_option", "side": "buy", "position_intent": "buy_to_open", "ratio_qty": 1},
+            {"symbol": self.short.symbol, "asset_class": "us_option", "side": "sell", "position_intent": "sell_to_open", "ratio_qty": 1},
+        )
+
+
 def contracts_from_payload(payload: dict) -> list[OptionContract]:
     rows = payload.get("option_contracts", payload.get("contracts", []))
     return [OptionContract(row.get("symbol") or row.get("contract_symbol"), row.get("underlying_symbol") or row.get("underlying"), row["expiration_date"], float(row["strike_price"]), row["type"], row.get("style", "american"), row.get("ppind")) for row in rows]
@@ -109,6 +126,39 @@ def select_put_vertical(underlying: str, contracts: list[OptionContract], quotes
     if long_quote.ask is None or short_quote.bid <= long_quote.ask:
         raise ValueError("quotes do not produce positive vertical credit")
     return SelectedVertical(underlying, short, long, short_quote.bid - long_quote.ask, short_quote.delta)
+
+
+def select_bearish_put_debit_vertical(
+    underlying: str,
+    contracts: list[OptionContract],
+    quotes: list[OptionQuote],
+    underlying_price: float,
+    delta_min: float = 0.30,
+    delta_max: float = 0.50,
+    width: float = 10.0,
+) -> SelectedDebitVertical:
+    """Select a quoted bearish put debit spread from the live option chain."""
+    quote_map = {quote.symbol: quote for quote in quotes}
+    puts = [contract for contract in contracts if contract.underlying == underlying and contract.option_type == "put" and contract.symbol in quote_map]
+    candidates = []
+    for contract in puts:
+        quote = quote_map[contract.symbol]
+        if quote.delta is None or not delta_min <= abs(quote.delta) <= delta_max or quote.ask is None:
+            continue
+        if contract.strike <= underlying_price:
+            continue
+        candidates.append((abs(abs(quote.delta) - (delta_min + delta_max) / 2), contract, quote))
+    if not candidates:
+        raise ValueError("no bearish debit long put meets delta band")
+    _, long, long_quote = min(candidates, key=lambda item: (item[0], item[1].expiration, item[1].strike))
+    shorts = [contract for contract in puts if contract.expiration == long.expiration and abs(contract.strike - (long.strike - width)) < 1e-9 and contract.symbol in quote_map]
+    if not shorts:
+        raise ValueError("no short put contract matches requested bearish debit width")
+    short = shorts[0]
+    short_quote = quote_map[short.symbol]
+    if short_quote.bid is None or long_quote.ask <= short_quote.bid:
+        raise ValueError("quotes do not produce positive bearish debit")
+    return SelectedDebitVertical(underlying, long, short, long_quote.ask - short_quote.bid, long_quote.delta)
 
 
 class AlpacaOptionsData:

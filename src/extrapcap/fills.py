@@ -19,6 +19,13 @@ def credit_fill(short_bid: float, long_ask: float, contracts: int, assumptions: 
     return max(0.0, gross) * 100 * contracts - assumptions.commission_per_contract * 2 * contracts
 
 
+def debit_fill(long_ask: float, short_bid: float, contracts: int, assumptions: FillAssumptions = FillAssumptions()) -> float:
+    if long_ask <= short_bid or long_ask < 0 or short_bid < 0:
+        raise ValueError("debit spread quotes must produce a positive debit")
+    gross = long_ask - short_bid + 2 * assumptions.slippage_per_leg
+    return gross * 100 * contracts + assumptions.commission_per_contract * 2 * contracts
+
+
 def vertical_expiration_pnl(spread: VerticalSpread, underlying_price: float, commissions: float = 0.0) -> float:
     intrinsic = min(spread.width, max(0.0, spread.short_strike - underlying_price))
     return (spread.credit - intrinsic) * 100 * spread.contracts - commissions

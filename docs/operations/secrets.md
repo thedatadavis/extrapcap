@@ -16,6 +16,7 @@ EXTRAPCAP_NEWS_EVENTS=data/events/news.csv
 EXTRAPCAP_EXECUTION_MODE=dry-run
 EXTRAPCAP_PAPER_SUBMIT_ENABLED=false
 EXTRAPCAP_LIVE_SUBMIT_ENABLED=false
+EXTRAPCAP_CRASH_PROTOCOL_PAPER_ENABLED=false
 ```
 
 For local runs, load these from the operator's secret manager or an ignored `.env.local`. For GitHub Actions, add the three credential values as repository/environment secrets and keep the `paper` environment approval gate enabled. Never paste a raw key into an issue, commit, workflow file, report, or chat message.
@@ -25,6 +26,8 @@ The runtime reads environment variables or these optional login-Keychain service
 The Alpaca adapter normalizes the host-only paper value to `https://paper-api.alpaca.markets/v2` and the host-only live value to `https://api.alpaca.markets/v2`; it rejects every other origin or API version. Live mode never falls back to paper credentials, and paper mode never falls back to the live host. The Nebius reviewer escalates when its key is absent. A missing secret is a safe stop, not permission to fall back to another account.
 
 The position-management workflow uses the same paper credentials to read held option legs and current free indicative quotes. It defaults to `dry-run`; selecting `paper-submit` is an explicit workflow input and remains subject to the GitHub `paper` environment approval gate.
+
+The paper crash protocol is separately gated by `EXTRAPCAP_CRASH_PROTOCOL_PAPER_ENABLED`. When enabled for the scheduled candidate-review workflow, sub-`0.50` model-probability candidates can submit bearish put debit spreads after the normal hard gates and reviewer approval. The repository variable is intentionally separate from `EXTRAPCAP_PAPER_SUBMIT_ENABLED`; both must be true for a crash-protocol paper order to be submitted.
 
 When `EXTRAPCAP_NEWS_EVENTS` is set, the live cycle requires a CSV with `date,symbol,structural_risk` columns and applies matching structural-risk rows as hard vetoes. Keep the file dated and versioned; malformed event data fails closed.
 

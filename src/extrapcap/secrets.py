@@ -51,6 +51,10 @@ def require_live_submit_enabled() -> None:
         )
 
 
+def paper_crash_protocol_enabled() -> bool:
+    return os.getenv("EXTRAPCAP_CRASH_PROTOCOL_PAPER_ENABLED", "false").lower() == "true"
+
+
 def require_live_credentials() -> tuple[str, str]:
     """Load credentials dedicated to the live account."""
     key = _secret("ALPACA_LIVE_API_KEY", "extrapcap.alpaca.live_api_key")

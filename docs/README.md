@@ -10,6 +10,8 @@ The short version is:
 The model does not predict a dollar outcome directly. It estimates how likely the next completed observation is to be non-negative on a relative-return basis. That probability is then bucketed:
 
 - below `0.50` means the setup is too weak and goes to `crash_protocol`
+
+When `EXTRAPCAP_CRASH_PROTOCOL_PAPER_ENABLED=true` is supplied to the paper candidate-review workflow, a crash-protocol candidate becomes a bearish defined-risk put debit spread: buy the higher-strike put and sell the lower-strike put. It is still subject to quote freshness, event vetoes, level-3 account approval, asymmetric reward-to-risk, NAV risk, sector/ticker limits, and the qualitative review. The switch is off by default; live mode is not involved.
 - from `0.50` up to the premium cutoff means the setup is interesting but not strong enough to sell premium on
 - at or above the premium cutoff means the setup can be treated as a `premium_candidate`, subject to the rest of the gates
 

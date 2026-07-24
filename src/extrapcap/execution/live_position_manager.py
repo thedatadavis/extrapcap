@@ -7,8 +7,9 @@ from pathlib import Path
 from ..config import RiskConfig
 from ..ledger import AuditLedger
 from ..options_data import AlpacaOptionsData, normalize_chain, parse_occ_option_symbol
+from ..options import DebitSpread
 from .orders import OrderEnvelope
-from .position_manager import ManagedPosition, build_close_envelope, evaluate_credit_exit
+from .position_manager import ManagedPosition, build_close_envelope, evaluate_credit_exit, evaluate_debit_exit
 
 
 def _read_registry(path: str | Path) -> list[dict]:
@@ -115,8 +116,8 @@ def manage_live_positions(
             results.append(result)
             ledger.append("risk", result, as_of)
             continue
-        current_debit = short_quote.ask - long_quote.bid
-        if not metadata.get("opened_at") or metadata.get("entry_credit") is None:
+        opened_at_value = metadata.get("opened_at")
+        if not opened_at_value:
             result = {
                 "client_order_id": record.get("client_order_id"),
                 **position_metadata,
@@ -127,7 +128,56 @@ def manage_live_positions(
             results.append(result)
             ledger.append("risk", result, as_of)
             continue
-        opened_at = date.fromisoformat(metadata["opened_at"])
+        opened_at = date.fromisoformat(opened_at_value)
+        entry_debit = metadata.get("entry_debit")
+        if entry_debit is not None:
+            current_debit = long_quote.bid - short_quote.ask
+            if current_debit < 0:
+                result = {"client_order_id": record.get("client_order_id"), **position_metadata, "status": "skipped", "reason": "invalid_negative_mark", "data_tier": tier.value}
+                results.append(result)
+                ledger.append("risk", result, as_of)
+                continue
+            spread = DebitSpread(parsed[0].underlying, long.strike, short.strike, float(entry_debit), sleeve="asymmetric", direction="bearish")
+            decision = evaluate_debit_exit(spread, opened_at, as_of, current_debit, cfg)
+            result = {
+                "client_order_id": record.get("client_order_id"),
+                **position_metadata,
+                "status": decision.action,
+                "reason": decision.reason,
+                "current_debit": current_debit,
+                "data_tier": tier.value,
+            }
+            if decision.action == "close":
+                close_order = build_close_envelope(
+                    ManagedPosition(
+                        OrderEnvelope(opened_at.isoformat(), parsed[0].underlying, "buy_to_open", legs, "asymmetric", payload.get("limit_price"), int(payload.get("qty", 1))),
+                        float(entry_debit),
+                        current_debit,
+                        float(metadata.get("spread_width", abs(long.strike - short.strike))),
+                        opened_at,
+                        as_of,
+                    ),
+                    decision,
+                )
+                result["order"] = close_order.alpaca_payload()
+                result["provider_response"] = client.submit_order(result["order"])
+                ledger.append("orders", result, as_of)
+            else:
+                ledger.append("signals", result, as_of)
+            results.append(result)
+            continue
+        current_debit = short_quote.ask - long_quote.bid
+        if metadata.get("entry_credit") is None:
+            result = {
+                "client_order_id": record.get("client_order_id"),
+                **position_metadata,
+                "status": "skipped",
+                "reason": "missing_entry_metadata",
+                "data_tier": tier.value,
+            }
+            results.append(result)
+            ledger.append("risk", result, as_of)
+            continue
         position = ManagedPosition(
             OrderEnvelope(
                 opened_at.isoformat(),

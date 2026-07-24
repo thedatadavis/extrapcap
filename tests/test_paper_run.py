@@ -6,7 +6,7 @@ from extrapcap.events import EventDecision
 from extrapcap.fills import FillAssumptions
 from extrapcap.execution.orders import OrderRegistry
 from extrapcap.ledger import AuditLedger
-from extrapcap.orchestration.paper_run import PaperRunCoordinator, build_candidate
+from extrapcap.orchestration.paper_run import PaperRunCoordinator, build_candidate, build_crash_candidate
 from extrapcap.risk import PortfolioRiskState
 
 
@@ -53,6 +53,45 @@ def test_build_candidate_resolves_real_option_legs(tmp_path):
     assert signal["contract_ids"] == ["ABC-LONG", "ABC-SHORT"]
     assert signal["contracts"][0]["role"] == "short"
     assert signal["strategy_variant"] == "improved"
+
+
+def test_crash_candidate_is_a_guarded_bearish_debit_order(tmp_path):
+    candidate = build_crash_candidate(
+        underlying="ABC", trading_day=date(2026, 7, 24), underlying_price=100,
+        contracts_payload={"option_contracts": [
+            {"symbol": "ABC-long", "underlying_symbol": "ABC", "expiration_date": "2026-08-21", "strike_price": 105, "type": "put"},
+            {"symbol": "ABC-short", "underlying_symbol": "ABC", "expiration_date": "2026-08-21", "strike_price": 95, "type": "put"},
+        ]},
+        snapshot_payload={"snapshots": {
+            "ABC-long": {"latestQuote": {"bp": 2.0, "ap": 2.5}, "greeks": {"delta": -0.40}},
+            "ABC-short": {"latestQuote": {"bp": 0.9, "ap": 1.0}, "greeks": {"delta": -0.20}},
+        }},
+        model_probability=0.42,
+        risk_state=PortfolioRiskState(nav=100_000),
+        risk_config=RiskConfig(),
+        event_decision=EventDecision("noise_or_opinion", True, "none"),
+        fill_assumptions=FillAssumptions(slippage_per_leg=0),
+        selection_context={"sector": "Technology"},
+    )
+    assert candidate.envelope.side == "buy_to_open"
+    assert candidate.envelope.legs[0]["position_intent"] == "buy_to_open"
+    assert candidate.risk_decision.allowed is True
+
+    class FakeClient:
+        dry_run = True
+
+        def submit_order(self, order):
+            return {"status": "dry_run", "order": order}
+
+    result = PaperRunCoordinator(
+        FakeClient(),
+        type("Reviewer", (), {"review": lambda _self, _candidate: {"decision": "go", "provider": "test"}})(),
+        AuditLedger(tmp_path / "logs"),
+        OrderRegistry(tmp_path / "ids.jsonl"),
+    ).execute(candidate)
+    assert result["status"] == "dry_run"
+    record = json.loads((tmp_path / "ids.jsonl").read_text().splitlines()[0])
+    assert record["metadata"]["entry_debit"] == 1.6
 
 
 def test_coordinator_rejects_a_second_order_for_same_signal(tmp_path):
