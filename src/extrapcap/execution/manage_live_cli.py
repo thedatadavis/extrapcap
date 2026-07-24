@@ -11,9 +11,9 @@ from ..options_data import AlpacaOptionsData
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Manage held Extrapcap verticals from Alpaca paper state")
+    parser = argparse.ArgumentParser(description="Manage held Extrapcap verticals from Alpaca account state")
     parser.add_argument("--registry", default="logs/orders/ids.jsonl")
-    parser.add_argument("--execution-mode", choices=("dry-run", "paper-submit"), default="dry-run")
+    parser.add_argument("--execution-mode", choices=("dry-run", "paper-submit", "live-submit"), default="dry-run")
     parser.add_argument("--as-of", default=date.today().isoformat())
     args = parser.parse_args()
     os.environ["EXTRAPCAP_EXECUTION_MODE"] = args.execution_mode

@@ -1,8 +1,8 @@
-# ADR 0001: paper-only provider boundary
+# ADR 0001: paper-first provider boundary
 
 ## Decision
 
-Alpaca execution is permitted only through the paper base URL and only when `ALPACA_PAPER=true`. Provider credentials are environment inputs, never repository data. Nebius is advisory and structured; a missing key produces `escalate`.
+Paper Alpaca execution remains the default and is permitted only through the paper base URL when `ALPACA_PAPER=true`. A separate manual live route is permitted only through the exact live base URL, separate live credentials, `ALPACA_PAPER=false`, and `EXTRAPCAP_LIVE_SUBMIT_ENABLED=true`; scheduled workflows never select it. Provider credentials are environment inputs, never repository data. Nebius is advisory and structured; a missing key produces `escalate`.
 
 ## Rationale
 

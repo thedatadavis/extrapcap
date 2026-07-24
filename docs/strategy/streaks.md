@@ -1,12 +1,12 @@
 # Relative streak screening
 
-The original inspiration is Klos, Koehl, and Rottke, *Streaks in Daily Returns* (August 2023, [SSRN 3626770](https://ssrn.com/abstract=3626770)). The paper defines a streak as consecutive daily stock outperformance or underperformance relative to the market. Its main formation buckets use completed streak lengths of 2, 3, 4, and 5 trading days; the next-day portfolio goes long negative streaks and short positive streaks.
+The original inspiration is Klos, Koehl, and Rottke, *Streaks in Daily Returns* (August 2023, [SSRN 3626770](https://ssrn.com/abstract=3626770)). The paper defines a streak as consecutive daily stock outperformance or underperformance relative to the market. Its main formation buckets use completed streak lengths of 2, 3, 4, and 5 trading days; Extrapcap keeps that lower bound but now screens through 7 trading days so the basket can retain the longer negative runs that still show up in the live universe. The next-day portfolio goes long negative streaks and short positive streaks.
 
 Extrapcap uses the signal as a tradable-basket screen, not as permission to bypass the rest of the system:
 
 - `signed_streak` is positive for consecutive relative outperformance and negative for consecutive relative underperformance.
 - A zero relative return breaks the streak.
-- The default screen keeps absolute lengths 2 through 5 and records both directions.
+- The default screen keeps absolute lengths 2 through 7 and records both directions.
 - The implemented bullish core route accepts only negative streaks. Positive streaks are recorded under `bearish_reversal_watch` and deferred until a separately tested defined-risk bearish construction exists.
 - Within the negative 2–5-session set, longer streaks rank first, followed by more negative robust Z. Ranking does not increase position size.
 - The provider-backed core route also requires robust Z at or below the configured entry threshold (default `-2.0`). A streak can be eligible for the research basket yet still be vetoed before option-chain or LLM calls.

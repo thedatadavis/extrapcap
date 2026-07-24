@@ -7,7 +7,7 @@ The system has two sleeves:
 - **Core premium engine:** defined-risk put spreads, with baseline and higher-POP OTM variants.
 - **Asymmetric opportunity engine:** a separately budgeted sleeve funded only from realized core premium.
 
-This repository currently provides the deterministic research core: typed configuration, robust relative-return signals, trade construction, sleeve funding, hard risk checks, and an offline backtest engine. Alpaca and Nebius adapters are intentionally paper-only and environment-driven; no live trading route is supported.
+This repository currently provides the deterministic research core: typed configuration, robust relative-return signals, trade construction, sleeve funding, hard risk checks, and an offline backtest engine. Alpaca and Nebius adapters are environment-driven. Paper trading remains the default; a live Alpaca route exists for controlled validation but cannot submit unless its separate live switch is explicitly enabled.
 
 ## Quick start
 
@@ -46,7 +46,7 @@ The intraday diagnostic uses `python -m extrapcap.orchestration.intraday_cli` fo
 
 The live paper operating chain is split into idempotent GitHub Actions for bar refresh, streak screening, model-scoring and ranking of the screened basket, provider-backed review of the top 10, paper execution, reconciliation, and daily reporting. Standalone research feature generation, model scoring, and Greenlist-only refreshes remain manual utilities. Risk and account thresholds can veto any of the 10 before execution. Repository-writing jobs share one concurrency group, commit deterministic artifact paths, and trigger an Astro rebuild from the resulting logs and reports.
 
-Before every entry path, the system checks Alpaca's paper `/v2/clock`, reconstructs same-day symbol orders from both Alpaca `/v2/orders` and the Git registry, applies cooldown/order-count rules, and rejects a second submission for the same completed signal even if the option contract or limit price changes. The live account gate also requires an active, unblocked account, options trading level 3, sufficient options buying power, bounded aggregate/ticker/sector risk, and a fresh quote on both vertical legs. The versioned basket's streak, relative return, and robust Z must match a fresh provider recomputation.
+Before every entry path, the system checks the selected Alpaca account's `/v2/clock`, reconstructs same-day symbol orders from both Alpaca `/v2/orders` and the Git registry, applies cooldown/order-count rules, and rejects a second submission for the same completed signal even if the option contract or limit price changes. The account gate also requires an active, unblocked account, options trading level 3, sufficient options buying power, bounded aggregate/ticker/sector risk, and a fresh quote on both vertical legs. The versioned basket's streak, relative return, and robust Z must match a fresh provider recomputation.
 
 ## Operating modes
 
@@ -54,7 +54,7 @@ Before every entry path, the system checks Alpaca's paper `/v2/clock`, reconstru
 
 Research results must distinguish reconstructed/approximated option data from historical chain data. Do not treat a high win rate as proof of quality; inspect expectancy, drawdown, tail loss, fill assumptions, and sleeve contribution together. Production matrix runs accept `--basket data/universe/tradable-basket.csv` to keep the streak-screened universe aligned with research.
 
-The tradable-basket screen also uses the completed relative-return streak. A streak is a signed run of stock outperformance or underperformance versus SPY; the default screen retains lengths 2 through 5, records every decision, and is eligible for the next session only after the close. The current bullish core route requires a negative streak and robust Z at or below `-2.0`, ranking longer streaks first. Positive streaks are journaled under a deferred bearish-watch route rather than entering a bull-put spread.
+The tradable-basket screen also uses the completed relative-return streak. A streak is a signed run of stock outperformance or underperformance versus SPY; the default screen retains lengths 2 through 7, records every decision, and is eligible for the next session only after the close. The current bullish core route requires a negative streak and robust Z at or below `-2.0`, ranking longer streaks first. Positive streaks are journaled under a deferred bearish-watch route rather than entering a bull-put spread.
 
 Every dated ledger event carries a stable journal envelope with ticker, OCC
 contract IDs, parsed expiration/type/strike details, strategy and sleeve,
@@ -66,5 +66,5 @@ See `docs/charter.md`, `docs/architecture.md`, `docs/strategy/variants.md`, and 
 
 ## Safety boundary
 
-The execution adapter accepts only `https://paper-api.alpaca.markets/v2` (a host-only paper URL is normalized to this exact root), rejects live or lookalike URLs, and requires `ALPACA_PAPER=true`. Paper submission additionally requires `EXTRAPCAP_PAPER_SUBMIT_ENABLED=true`; scheduled candidate review and position management explicitly use paper-submit, while manual dispatch defaults to dry-run. Short options are represented only as defined-risk verticals. The LLM reviewer can veto or escalate a candidate, but cannot override hard risk controls.
+The execution adapter defaults to `dry-run` against `https://paper-api.alpaca.markets/v2`. Paper submission requires `ALPACA_PAPER=true` and `EXTRAPCAP_PAPER_SUBMIT_ENABLED=true`; scheduled workflows remain paper-only. Manual CLIs also accept `live-submit`, but that path requires `ALPACA_PAPER=false`, the exact `https://api.alpaca.markets/v2` endpoint, separate `ALPACA_LIVE_API_KEY` / `ALPACA_LIVE_SECRET_KEY` credentials, and `EXTRAPCAP_LIVE_SUBMIT_ENABLED=true`. The live switch defaults to false and is checked inside the adapter before any live account is constructed. Short options are represented only as defined-risk verticals. The LLM reviewer can veto or escalate a candidate, but cannot override hard risk controls.
 Daily reports are deterministic by default. GitHub Actions enables the optional Nebius note with the NEBIUS_API_KEY secret; missing or malformed model output escalates and never changes execution state.

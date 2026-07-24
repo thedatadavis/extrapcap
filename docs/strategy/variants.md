@@ -4,7 +4,7 @@ Variant A (`baseline`) uses a closer-to-the-money defined-risk put spread and a 
 
 ## Relative-streak basket screen
 
-The screening layer follows the original paper's operational definition: compare each stock's daily return with the market return, then require consecutive relative outperformance or underperformance over a completed 2-, 3-, 4-, or 5-day run. The `universe.streak_cli` screen records signed streak length, direction, as-of timestamp, and rejection reason for every Greenlist symbol. It does not use the formation day's future return. Negative streaks are the primary core mean-reversion candidates; positive streaks are retained for continuation/Crash Protocol analysis rather than silently discarded.
+The screening layer follows the original paper's operational definition: compare each stock's daily return with the market return, then require consecutive relative outperformance or underperformance over a completed 2-, 3-, 4-, 5-, 6-, or 7-day run. The `universe.streak_cli` screen records signed streak length, direction, as-of timestamp, and rejection reason for every Greenlist symbol. It does not use the formation day's future return. Negative streaks are the primary core mean-reversion candidates; positive streaks are retained for continuation/Crash Protocol analysis rather than silently discarded.
 
 This is a basket-selection input, not a standalone trade rule. Robust-Z, Sniper probability, liquidity, event, and portfolio-risk gates still apply downstream.
 

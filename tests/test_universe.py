@@ -39,15 +39,15 @@ def test_greenlist_snapshot_does_not_truncate_accepted_universe(monkeypatch, tmp
 
 
 def test_streak_screen_uses_signed_completed_relative_streaks():
-    dates = pd.date_range("2026-01-01", periods=6, tz="UTC")
+    dates = pd.date_range("2026-01-01", periods=8, tz="UTC")
     bars = pd.DataFrame(
         [{"date": day, "symbol": "SPY", "close": 100.0 + index} for index, day in enumerate(dates)]
         + [{"date": day, "symbol": "ABC", "close": 100.0 - index * 2} for index, day in enumerate(dates)]
     )
     benchmark = bars[bars.symbol.eq("SPY")].set_index("date")["close"]
-    selected, decisions = screen_streaks(bars, benchmark, {"ABC"}, StreakPolicy(2, 5, ("negative",)))
+    selected, decisions = screen_streaks(bars, benchmark, {"ABC"}, StreakPolicy(2, 7, ("negative",)))
     assert selected.iloc[0]["streak_direction"] == "negative"
-    assert selected.iloc[0]["streak_length"] == 5
+    assert selected.iloc[0]["streak_length"] == 7
     assert decisions[0]["accepted"] is True
 
 

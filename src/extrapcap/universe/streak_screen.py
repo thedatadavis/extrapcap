@@ -14,7 +14,7 @@ class StreakPolicy:
     """Completed-close relative-streak screen inspired by SSRN 3626770."""
 
     min_length: int = 2
-    max_length: int = 5
+    max_length: int = 7
     directions: tuple[str, ...] = ("negative", "positive")
 
     def __post_init__(self) -> None:

@@ -21,7 +21,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Run one provider-backed intraday Extrapcap scan")
     parser.add_argument("--symbol", default="SPY")
     parser.add_argument("--model", default=os.getenv("SNIPER_MODEL_PATH"))
-    parser.add_argument("--execution-mode", choices=("dry-run", "paper-submit"), default="dry-run")
+    parser.add_argument("--execution-mode", choices=("dry-run", "paper-submit", "live-submit"), default="dry-run")
     parser.add_argument("--minimum-expiration-days", type=int, default=2)
     parser.add_argument("--maximum-expiration-days", type=int, default=35)
     args = parser.parse_args()

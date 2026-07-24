@@ -14,7 +14,7 @@ Greenlist snapshots are intentionally versioned under `data/universe`; they are 
 
 Provider adapters expose both single-page and `*_all` methods. Backfill workflows must use the paginated variants and record the resulting page count; silently accepting a `next_page_token` would create an incomplete research dataset.
 
-The chain-backed paper coordinator accepts only resolved option legs. Its ordering is: hard event gate → portfolio risk gate → Sniper bucket → Nebius qualitative review → idempotent Alpaca submission → audit ledger.
+The chain-backed coordinator accepts only resolved option legs. Its ordering is: hard event gate → portfolio risk gate → Sniper bucket → Nebius qualitative review → idempotent Alpaca submission → audit ledger. Paper submission remains the default scheduled path; manual `live-submit` additionally requires the exact live endpoint, separate credentials, and the disabled-by-default live switch.
 
 The earnings event gate consumes a versioned seven-calendar-day snapshot from Nasdaq's free expected-earnings calendar. Its metadata records every queried date, retrieval time, source, and the source's algorithmic-date caveat. Missing, stale, malformed, or incomplete coverage vetoes entry. A returned report date within three calendar days is a hard veto.
 
