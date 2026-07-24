@@ -93,3 +93,39 @@ def test_basket_cycle_scores_then_ranks_model_candidates_before_provider_calls(t
 def test_basket_cycle_fails_closed_when_every_provider_call_errors():
     assert not basket_run_succeeded([])
     assert not basket_run_succeeded([{"ticker": "ABC", "status": "error"}])
+
+
+def test_basket_cycle_routes_crash_candidates_when_paper_switch_is_on(tmp_path, monkeypatch):
+    basket = tmp_path / "basket.csv"
+    basket.write_text(
+        "symbol,sector,streak_length,streak_depth,streak_direction,signed_streak,relative_return,robust_z,stock_return,benchmark_return,turn_of_month\n"
+        "crash,Technology,3,3,negative,-3,-0.04,-2.4,-0.05,0.01,False\n",
+        encoding="utf-8",
+    )
+
+    class CrashModel:
+        def predict_probability(self, _features):
+            return [0.42]
+
+        @staticmethod
+        def bucket(_probability):
+            return "crash_protocol"
+
+    monkeypatch.setenv("EXTRAPCAP_CRASH_PROTOCOL_PAPER_ENABLED", "true")
+    calls = []
+
+    def fake_runner(*args, **kwargs):
+        calls.append((args, kwargs))
+        return {"ticker": args[0], "status": "dry_run"}
+
+    results = run_basket(
+        basket,
+        "model.cbm",
+        "2026-07-24",
+        execution_mode="paper-submit",
+        runner=fake_runner,
+        ledger=AuditLedger(tmp_path / "logs"),
+        model_loader=lambda *_args: CrashModel(),
+    )
+    assert results == [{"ticker": "CRASH", "status": "dry_run"}]
+    assert calls[0][1]["selection_context"]["model_bucket"] == "crash_protocol"
