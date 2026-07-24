@@ -13,6 +13,7 @@ from ..ledger import AuditLedger
 from ..models.sniper import SniperModel
 from ..selection import core_streak_gate, streak_priority_key
 from ..signals import SNIPER_FEATURES
+from ..secrets import paper_crash_protocol_enabled
 from .live_cycle import run_live_cycle
 
 
@@ -130,11 +131,17 @@ def run_basket(
         z_threshold=z_threshold,
         model_loader=model_loader,
     )
-    premium_candidates = [selection for selection in ranked if selection["model_bucket"] == "premium_candidate"]
-    selected_tickers = {selection["ticker"] for selection in premium_candidates[:max_candidates]}
+    crash_enabled = execution_mode == "paper-submit" and paper_crash_protocol_enabled()
+    tradeable_candidates = [
+        selection
+        for selection in ranked
+        if selection["model_bucket"] == "premium_candidate"
+        or (crash_enabled and selection["model_bucket"] == "crash_protocol")
+    ]
+    selected_tickers = {selection["ticker"] for selection in tradeable_candidates[:max_candidates]}
     selection_ranks = {
         selection["ticker"]: rank
-        for rank, selection in enumerate(premium_candidates[:max_candidates], start=1)
+        for rank, selection in enumerate(tradeable_candidates[:max_candidates], start=1)
     }
     for selection in selections:
         ticker = selection["ticker"]
@@ -147,7 +154,8 @@ def run_basket(
             "strategy_route": decision.strategy_route,
             "signal_gate": decision.as_dict(),
         }
-        if not decision.allowed or model_bucket != "premium_candidate" or ticker not in selected_tickers:
+        crash_candidate = model_bucket == "crash_protocol" and crash_enabled
+        if not decision.allowed or (model_bucket != "premium_candidate" and not crash_candidate) or ticker not in selected_tickers:
             if not decision.allowed:
                 reason = decision.reason
             elif model_bucket != "premium_candidate":
