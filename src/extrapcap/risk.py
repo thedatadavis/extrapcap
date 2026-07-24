@@ -45,7 +45,7 @@ def approve_intraday_order(state: IntradayRiskState, cfg: RiskConfig, *, is_exit
     window = execution_window(now)
     if window == "closed":
         return RiskDecision(False, "market closed")
-    if not is_exit and window in {"market_open_guard", "lunch_liquidity", "near_close_guard"}:
+    if not is_exit and window in {"market_open_guard", "near_close_guard"}:
         return RiskDecision(False, f"execution window: {window}")
     if not is_exit and state.orders_today >= cfg.max_orders_per_symbol_per_day:
         return RiskDecision(False, "symbol daily order cap")
