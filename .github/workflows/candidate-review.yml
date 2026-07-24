@@ -10,7 +10,7 @@ on:
         options: [dry-run, paper-submit]
   schedule:
     # 13:45, 18:30, and 19:00 UTC = 9:45 AM, 2:30 PM, and 3:00 PM EDT.
-    # These are the opening, post-lunch, and pre-close entry reviews.
+    # These are the opening, mid-session, and pre-close entry reviews.
     - cron: '45 13 * * 1-5'
     - cron: '30 18 * * 1-5'
     - cron: '0 19 * * 1-5'

@@ -17,10 +17,8 @@ def execution_window(now: datetime) -> str:
     current = local.time()
     if current < time(9, 45):
         return "market_open_guard"
-    if current < time(11, 30):
-        return "open_liquidity"
     if current < time(14, 30):
-        return "lunch_liquidity"
+        return "open_liquidity"
     if current < time(15, 45):
         return "close_positioning"
     if current <= time(16, 0):

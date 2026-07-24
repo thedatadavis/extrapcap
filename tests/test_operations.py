@@ -15,7 +15,7 @@ from extrapcap.execution.orders import OrderEnvelope
 
 def test_execution_windows_have_open_and_close_guards():
     assert execution_window(datetime(2026, 7, 22, 9, 30)) == "market_open_guard"
-    assert execution_window(datetime(2026, 7, 22, 12, 0)) == "lunch_liquidity"
+    assert execution_window(datetime(2026, 7, 22, 12, 0)) == "open_liquidity"
     assert execution_window(datetime(2026, 7, 22, 16, 30)) == "closed"
     assert execution_window(datetime(2026, 7, 22, 14, 0, tzinfo=timezone.utc)) == "open_liquidity"
 
