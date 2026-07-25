@@ -112,3 +112,29 @@ class AlpacaMarketData:
 
     def option_contracts(self, underlying_symbols: list[str], expiration_date_gte: str, expiration_date_lte: str | None = None) -> dict:
         return self._get("/v2/options/contracts", {"underlying_symbols": ",".join(underlying_symbols), "expiration_date_gte": expiration_date_gte, "expiration_date_lte": expiration_date_lte, "status": "active", "limit": 1000}, self.trading_base_url)
+
+    def news(
+        self,
+        symbols: list[str] | str | None = None,
+        start: str | None = None,
+        end: str | None = None,
+        limit: int = 50,
+        page_token: str | None = None,
+        include_content: bool = False,
+    ) -> dict:
+        """Fetch financial news articles from Alpaca's news feed."""
+        symbols_param = None
+        if symbols:
+            if isinstance(symbols, str):
+                symbols_param = symbols
+            else:
+                symbols_param = ",".join(s.upper().strip() for s in symbols if s.strip())
+        params = {
+            "symbols": symbols_param,
+            "start": start,
+            "end": end,
+            "limit": limit,
+            "page_token": page_token,
+            "include_content": "true" if include_content else None,
+        }
+        return self._get("/v1beta1/news", params)
