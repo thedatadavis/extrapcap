@@ -52,6 +52,21 @@ export type PublicReadout = {
   body: string;
 };
 
+export type AccountSnapshot = {
+  date: string;
+  balance: number;
+  cash: number;
+  buyingPower: number;
+};
+
+export type PublicTrade = {
+  action: string;
+  ticker: string;
+  description: string;
+  context: string;
+  status: string;
+};
+
 type JsonRecord = Record<string, any>;
 
 type PriceSnapshot = { price: number; date: string };
@@ -73,6 +88,29 @@ function readPriceSnapshots() {
     }
   });
   return snapshots;
+}
+
+function readAccountHistory(): AccountSnapshot[] {
+  const reportsDir = path.join(logsDir, 'reports');
+  if (!fs.existsSync(reportsDir)) return [];
+  const snapshots = new Map<string, AccountSnapshot>();
+  fs.readdirSync(reportsDir).filter((name) => datedLog.test(name)).forEach((fileName) => {
+    const date = fileName.replace('.jsonl', '');
+    fs.readFileSync(path.join(reportsDir, fileName), 'utf8').split('\n').filter(Boolean).forEach((line) => {
+      const record = JSON.parse(line);
+      const account = record.account ?? {};
+      const balance = Number(account.equity ?? account.portfolio_value ?? account.cash);
+      if (Number.isFinite(balance)) {
+        snapshots.set(date, {
+          date,
+          balance,
+          cash: Number(account.cash ?? balance),
+          buyingPower: Number(account.buying_power ?? 0),
+        });
+      }
+    });
+  });
+  return [...snapshots.values()].sort((left, right) => left.date.localeCompare(right.date));
 }
 
 const priceSnapshots = readPriceSnapshots();
@@ -228,7 +266,7 @@ const ledger = readLedger();
 const executionCategories = new Set(['orders', 'fills', 'executions', 'entries', 'exits', 'positions']);
 
 function isExecutionEvent(item: JournalItem) {
-  return executionCategories.has(item.category) || /(^|_)(order|entry|exit|fill|close)(s?_|$)/.test(item.kind);
+  return executionCategories.has(item.category) || /(^|_)(order|exit|fill|close)(s?_|$)/.test(item.kind) || ['entry', 'fill', 'exit', 'close'].includes(item.kind);
 }
 
 export const journal = ledger
@@ -244,6 +282,8 @@ export const months = journal.reduce<Record<string, JournalEntry[]>>((groups, en
 export const performance = latestPerformance();
 export const totalJournalEvents = journal.reduce((total, entry) => total + entry.entries.length, 0);
 export const latestJournalDate = journal[0]?.date;
+export const accountHistory = readAccountHistory();
+export const latestAccount = accountHistory.at(-1);
 
 function displayName(value: string) {
   return value.replaceAll('_', ' ').replace(/\b\w/g, (letter) => letter.toUpperCase());
@@ -341,6 +381,20 @@ export function readoutFor(item: JournalItem): PublicReadout {
     status: item.kind.includes('exit') || item.kind.includes('close') ? 'exit' : displayName(item.status),
     headline: `${ticker} was recorded in the journal`,
     body: `The system recorded a ${displayName(item.kind).toLowerCase()} involving ${ticker}. This entry documents the research process and does not represent a live trade.`,
+  };
+}
+
+export function tradeFor(item: JournalItem): PublicTrade {
+  const strikes = [...new Set(item.contracts.map((contract) => contract.strike).filter((strike): strike is number => strike !== undefined))].sort((left, right) => right - left);
+  const description = strikes.length > 1
+    ? `Put spread · ${strikes.map((strike) => `$${strike.toFixed(0)}`).join(' / ')}`
+    : displayName(item.kind);
+  return {
+    action: /exit|close/.test(item.kind) ? 'Exit' : 'Entry',
+    ticker: item.ticker ?? '—',
+    description,
+    context: item.marketPrice !== undefined ? `Underlying near $${item.marketPrice.toFixed(2)}` : 'Price not recorded',
+    status: item.status === 'dry_run' ? 'Prepared' : displayName(item.status),
   };
 }
 
