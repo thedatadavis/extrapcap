@@ -132,3 +132,12 @@ def test_earnings_gate_fails_closed_on_stale_or_incomplete_coverage(tmp_path):
         now=datetime(2026, 7, 22, 13, tzinfo=timezone.utc),
     )
     assert incomplete.reason == "earnings_calendar_incomplete"
+
+
+def test_empty_event_csv_handles_dt_accessor(tmp_path):
+    path = tmp_path / "news.csv"
+    path.write_text("date,symbol,structural_risk,headline\n", encoding="utf-8")
+    decision = decision_from_csv(path, "ROL", date(2026, 7, 24))
+    assert decision.allowed is True
+    assert decision.reason == "no dated structural-risk event"
+

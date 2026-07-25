@@ -110,7 +110,7 @@ def run_backtest(
     regime_returns: dict[str, list[float]] = {"positive": [], "negative": [], "neutral": []}
     intraday_available = bool(
         not frame.empty
-        and frame.assign(_session=frame["date"].dt.date).groupby(["symbol", "_session"]).size().max() > 1
+        and frame.assign(_session=pd.to_datetime(frame["date"]).dt.date).groupby(["symbol", "_session"]).size().max() > 1
     )
     intraday_entries: set[tuple[str, object]] = set()
     last_intraday_entry: dict[str, pd.Timestamp] = {}

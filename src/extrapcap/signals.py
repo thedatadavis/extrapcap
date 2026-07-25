@@ -48,12 +48,13 @@ def relative_features(bars: pd.DataFrame, benchmark: pd.Series, window: int = 20
         ["negative", "positive"],
         default="flat",
     )
-    frame["turn_of_month"] = frame["date"].dt.day.le(3) | frame["date"].dt.day.ge(28)
+    dates = pd.to_datetime(frame["date"])
+    frame["turn_of_month"] = dates.dt.day.le(3) | dates.dt.day.ge(28)
     # Additive contextual features for future retraining. The first versioned
     # artifact uses SNIPER_FEATURES below, so these columns do not silently
     # change the production model contract.
-    frame["seasonality_sin"] = np.sin(2 * np.pi * frame["date"].dt.dayofyear / 365.25)
-    frame["seasonality_cos"] = np.cos(2 * np.pi * frame["date"].dt.dayofyear / 365.25)
+    frame["seasonality_sin"] = np.sin(2 * np.pi * dates.dt.dayofyear / 365.25)
+    frame["seasonality_cos"] = np.cos(2 * np.pi * dates.dt.dayofyear / 365.25)
     frame["volatility_context"] = frame.groupby("symbol")["stock_return"].transform(
         lambda s: s.rolling(window, min_periods=2).std() * np.sqrt(252)
     )

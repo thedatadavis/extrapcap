@@ -109,8 +109,11 @@ def earnings_decision_from_csv(
     if missing := required - set(frame.columns):
         details["missing_columns"] = sorted(missing)
         return EventDecision("earnings", False, "earnings_calendar_invalid_columns", details)
+    if frame.empty:
+        return EventDecision("earnings", True, "outside earnings blackout", details)
+    dates = pd.to_datetime(frame["date"])
     matches = frame[
-        frame["date"].dt.date.isin(required_dates)
+        dates.dt.date.isin(required_dates)
         & (frame["symbol"].astype(str).str.upper() == symbol.upper())
     ].sort_values("date")
     if not matches.empty:
@@ -127,8 +130,11 @@ def decision_from_csv(path: str | Path, symbol: str, trading_day: date, reviewer
     missing = required - set(frame.columns)
     if missing:
         raise ValueError(f"event file missing required columns: {sorted(missing)}")
+    if frame.empty:
+        return EventDecision("noise_or_opinion", True, "no dated structural-risk event")
+    dates = pd.to_datetime(frame["date"])
     matches = frame[
-        (frame["date"].dt.date == trading_day)
+        (dates.dt.date == trading_day)
         & (frame["symbol"].astype(str).str.upper() == symbol.upper())
     ]
     for row in matches.itertuples():
