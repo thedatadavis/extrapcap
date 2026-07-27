@@ -1,37 +1,38 @@
 date,symbol,report_time,company_name,fiscal_quarter_ending,eps_forecast,estimate_count
-2026-07-24,AFBI,not-supplied,"Affinity Bancshares, Inc.",Jun/2026,,2
+2026-07-24,AFBI,not-supplied,"Affinity Bancshares, Inc.",Jun/2026,,8
+2026-07-24,AUC,not-supplied,ATIF Holdings Limited,Apr/2026,,8
 2026-07-24,AXP,not-supplied,American Express Company,Jun/2026,$4.41,8
-2026-07-24,AXR,not-supplied,AMREP Corporation,Apr/2026,,N/A
+2026-07-24,AXR,not-supplied,AMREP Corporation,Apr/2026,,8
 2026-07-24,BAH,not-supplied,Booz Allen Hamilton Holding Corporation,Jun/2026,$1.49,5
 2026-07-24,BVFL,not-supplied,"BV Financial, Inc.",Jun/2026,,N/A
-2026-07-24,BXBL,not-supplied,"BOXABL, Inc.",Jun/2026,,2
+2026-07-24,BXBL,not-supplied,"BOXABL, Inc.",Jun/2026,,8
 2026-07-24,CHTR,not-supplied,"Charter Communications, Inc.",Jun/2026,$9.96,8
 2026-07-24,CNI,not-supplied,Canadian National Railway Company,Jun/2026,$1.39,8
 2026-07-24,COFS,not-supplied,"ChoiceOne Financial Services, Inc.",Jun/2026,$0.88,3
 2026-07-24,CPF,not-supplied,CPB Inc.,Jun/2026,$0.78,3
 2026-07-24,CRI,not-supplied,"Carter's, Inc.",Jun/2026,$0.02,2
+2026-07-24,DIT,not-supplied,AMCON Distributing Company,Jun/2026,,8
 2026-07-24,E,not-supplied,ENI S.p.A.,Jun/2026,$1.90,2
 2026-07-24,EAF,not-supplied,GrafTech International Ltd.,Jun/2026,($1.49),2
-2026-07-24,FCAP,not-supplied,"First Capital, Inc.",Jun/2026,,N/A
+2026-07-24,FCAP,not-supplied,"First Capital, Inc.",Jun/2026,,8
 2026-07-24,FHB,not-supplied,"First Hawaiian, Inc.",Jun/2026,$0.60,2
 2026-07-24,FLG,not-supplied,"Flagstar Bank, N.A.",Jun/2026,$0.06,8
 2026-07-24,FRAF,not-supplied,Franklin Financial Services Corporation,Jun/2026,,N/A
 2026-07-24,GNTX,not-supplied,Gentex Corporation,Jun/2026,$0.50,3
 2026-07-24,GRC,not-supplied,Gorman-Rupp Company (The),Jun/2026,$0.69,1
 2026-07-24,HCA,not-supplied,"HCA Healthcare, Inc.",Jun/2026,$7.57,2
-2026-07-24,IMMR,not-supplied,Immersion Corporation,Apr/2026,$0.05,1
 2026-07-24,LBTYA,not-supplied,Liberty Global Ltd.,Jun/2026,($0.31),1
 2026-07-24,LBTYB,not-supplied,Liberty Global Ltd.,Jun/2026,,N/A
 2026-07-24,LBTYK,not-supplied,Liberty Global Ltd.,Jun/2026,,N/A
 2026-07-24,LW,not-supplied,"Lamb Weston Holdings, Inc.",May/2026,$0.62,5
-2026-07-24,MCBS,not-supplied,"MetroCity Bankshares, Inc.",Jun/2026,,N/A
+2026-07-24,MCBS,not-supplied,"MetroCity Bankshares, Inc.",Jun/2026,,8
+2026-07-24,NB,not-supplied,NioCorp Developments Ltd.,Jun/2026,,N/A
 2026-07-24,NDLS,not-supplied,Noodles & Company,Jun/2026,,N/A
 2026-07-24,NECB,not-supplied,"NorthEast Community Bancorp, Inc.",Jun/2026,$0.77,1
 2026-07-24,NEE,not-supplied,"NextEra Energy, Inc.",Jun/2026,$1.09,5
-2026-07-24,NXTT,not-supplied,Next Technology Holding Inc.,Jun/2026,,N/A
 2026-07-24,OPHC,not-supplied,"OptimumBank Holdings, Inc.",Jun/2026,$0.20,1
-2026-07-24,OVBC,not-supplied,Ohio Valley Banc Corp.,Jun/2026,,2
-2026-07-24,PAMT,not-supplied,PAMT CORP,Jun/2026,,2
+2026-07-24,OVBC,not-supplied,Ohio Valley Banc Corp.,Jun/2026,,8
+2026-07-24,PAMT,not-supplied,PAMT CORP,Jun/2026,,8
 2026-07-24,PDLB,not-supplied,"Ponce Financial Group, Inc.",Jun/2026,$0.37,1
 2026-07-24,RBCAA,not-supplied,"Republic Bancorp, Inc.",Jun/2026,$1.55,1
 2026-07-24,SBSI,not-supplied,"Southside Bancshares, Inc.",Jun/2026,$0.88,2
