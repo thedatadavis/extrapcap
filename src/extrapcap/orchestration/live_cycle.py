@@ -275,45 +275,68 @@ def run_live_cycle(
     )
     context["market_price_as_of"] = current_symbol_bars.sort_values("date").iloc[-1]["date"].isoformat()
     context["crash_protocol_paper_enabled"] = paper_crash_protocol_enabled()
-    if (
-        execution_mode in {"dry-run", "paper-submit"}
-        and context["crash_protocol_paper_enabled"]
-        and probability < config.strategy.trap_low
-    ):
-        candidate = build_crash_candidate(
-            underlying=symbol,
-            trading_day=end.date(),
-            underlying_price=current_underlying_price,
-            contracts_payload=contracts_payload,
-            snapshot_payload=snapshot_payload,
-            model_probability=probability,
-            risk_state=risk_state,
-            risk_config=config.risk,
-            event_decision=event_decision,
-            fill_assumptions=FillAssumptions(),
-            selection_context=context,
-            observed_at=end,
-            max_quote_age_seconds=config.strategy.max_option_quote_age_seconds,
-            max_quote_spread_pct=config.strategy.max_option_spread_pct,
-        )
-    else:
-        candidate = build_candidate(
-            underlying=symbol,
-            trading_day=end.date(),
-            underlying_price=current_underlying_price,
-            contracts_payload=contracts_payload,
-            snapshot_payload=snapshot_payload,
-            model_probability=probability,
-            risk_state=risk_state,
-            risk_config=config.risk,
-            event_decision=event_decision,
-            fill_assumptions=FillAssumptions(),
-            selection_context=context,
-            observed_at=end,
-            max_quote_age_seconds=config.strategy.max_option_quote_age_seconds,
-            max_quote_spread_pct=config.strategy.max_option_spread_pct,
-            min_credit_pct_width=config.strategy.min_credit_pct_width,
-        )
+    try:
+        if (
+            execution_mode in {"dry-run", "paper-submit"}
+            and context["crash_protocol_paper_enabled"]
+            and probability < config.strategy.trap_low
+        ):
+            candidate = build_crash_candidate(
+                underlying=symbol,
+                trading_day=end.date(),
+                underlying_price=current_underlying_price,
+                contracts_payload=contracts_payload,
+                snapshot_payload=snapshot_payload,
+                model_probability=probability,
+                risk_state=risk_state,
+                risk_config=config.risk,
+                event_decision=event_decision,
+                fill_assumptions=FillAssumptions(),
+                selection_context=context,
+                observed_at=end,
+                max_quote_age_seconds=config.strategy.max_option_quote_age_seconds,
+                max_quote_spread_pct=config.strategy.max_option_spread_pct,
+            )
+        else:
+            candidate = build_candidate(
+                underlying=symbol,
+                trading_day=end.date(),
+                underlying_price=current_underlying_price,
+                contracts_payload=contracts_payload,
+                snapshot_payload=snapshot_payload,
+                model_probability=probability,
+                risk_state=risk_state,
+                risk_config=config.risk,
+                event_decision=event_decision,
+                fill_assumptions=FillAssumptions(),
+                selection_context=context,
+                observed_at=end,
+                max_quote_age_seconds=config.strategy.max_option_quote_age_seconds,
+                max_quote_spread_pct=config.strategy.max_option_spread_pct,
+                min_credit_pct_width=config.strategy.min_credit_pct_width,
+            )
+    except ValueError as exc:
+        result = {
+            "kind": "option_chain_gate",
+            "ticker": symbol.upper(),
+            "symbol": symbol.upper(),
+            "timeframe": timeframe,
+            "status": "vetoed",
+            "reason": str(exc),
+            "provider": "system",
+            "sleeve": "core",
+            "strategy_variant": "improved",
+            "selection_context": context,
+        }
+        AuditLedger().append("signals", result, end.date(), deduplicate=True)
+        return {
+            "ticker": symbol.upper(),
+            "symbol": symbol.upper(),
+            "timeframe": timeframe,
+            "status": "vetoed",
+            "reason": str(exc),
+            "result": result,
+        }
     result = PaperRunCoordinator(client, reviewer).execute(candidate)
     return {"ticker": symbol.upper(), "symbol": symbol.upper(), "timeframe": timeframe, "probability": probability, "model": model.version, "result": result}
 

@@ -129,3 +129,31 @@ def test_basket_cycle_routes_crash_candidates_when_paper_switch_is_on(tmp_path, 
     )
     assert results == [{"ticker": "CRASH", "status": "dry_run"}]
     assert calls[0][1]["selection_context"]["model_bucket"] == "crash_protocol"
+
+
+def test_basket_cycle_handles_option_selection_value_error_as_vetoed(tmp_path):
+    basket = tmp_path / "basket.csv"
+    basket.write_text(
+        "symbol,sector,streak_length,streak_depth,streak_direction,signed_streak,relative_return,robust_z,stock_return,benchmark_return,turn_of_month\n"
+        "wse,Technology,3,3,negative,-3,-0.06,-3.2,-0.06,0.00,False\n",
+        encoding="utf-8",
+    )
+
+    def failing_runner(*_args, **_kwargs):
+        raise ValueError("no bearish debit long put meets delta band")
+
+    results = run_basket(
+        basket,
+        "model.cbm",
+        "2026-07-24",
+        runner=failing_runner,
+        ledger=AuditLedger(tmp_path / "logs"),
+        model_loader=fake_model_loader,
+    )
+
+    assert len(results) == 1
+    assert results[0]["ticker"] == "WSE"
+    assert results[0]["status"] == "vetoed"
+    assert results[0]["reason"] == "no bearish debit long put meets delta band"
+    assert basket_run_succeeded(results) is True
+

@@ -219,6 +219,19 @@ def run_basket(
                     review_phase=review_phase,
                 )
             )
+        except ValueError as exc:
+            veto = {
+                "kind": "option_chain_gate",
+                "ticker": ticker,
+                "status": "vetoed",
+                "reason": str(exc),
+                "provider": "system",
+                "sleeve": "core",
+                "strategy_variant": "improved",
+                "selection_context": selection,
+            }
+            audit.append("signals", veto, date.today(), deduplicate=True)
+            results.append(veto)
         except Exception as exc:
             failure = {
                 "ticker": ticker,
