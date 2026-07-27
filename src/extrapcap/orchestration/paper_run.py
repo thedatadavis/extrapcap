@@ -287,7 +287,7 @@ class PaperRunCoordinator:
             self.ledger.append("risk", result, trading_day)
             return result
         crash_candidate = candidate.model_bucket == "crash_protocol" and isinstance(candidate.spread, DebitSpread)
-        if candidate.model_bucket != "premium_candidate" and not crash_candidate:
+        if candidate.model_bucket not in {"premium_candidate", "watch_list"} and not crash_candidate:
             result = {"client_order_id": cid, "status": "vetoed", "reason": candidate.model_bucket, **common}
             self.ledger.append("signals", result, trading_day)
             return result

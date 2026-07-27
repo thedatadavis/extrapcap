@@ -9,11 +9,12 @@ from pathlib import Path
 
 from ..llm.nebius import NebiusReviewer
 from ..playback import replay_day
-from .daily_note import build_daily_note, event_status
+from .daily_note import build_daily_note, event_status, filter_step4_passed_events
 
 
 def render_daily_report(root: str | Path, trading_day: str, output: str | Path) -> Path:
-    events = replay_day(root, trading_day)
+    raw_events = replay_day(root, trading_day)
+    events = filter_step4_passed_events(raw_events)
     categories = Counter(event["category"] for event in events)
     statuses = Counter(event_status(event) for event in events)
     report = {
@@ -24,7 +25,7 @@ def render_daily_report(root: str | Path, trading_day: str, output: str | Path) 
         "statuses": dict(sorted(statuses.items())),
         "events": events,
         "portfolio_note": build_daily_note(
-            events,
+            raw_events,
             trading_day,
             NebiusReviewer() if os.getenv("EXTRAPCAP_DAILY_LLM", "false").lower() == "true" else None,
         ),
