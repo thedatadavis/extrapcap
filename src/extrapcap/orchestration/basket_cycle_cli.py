@@ -116,7 +116,7 @@ def run_basket(
     timeframe: str = "1Day",
     review_phase: str = "entry",
     z_threshold: float = -2.0,
-    max_candidates: int = 10,
+    max_candidates: int = 25,
     runner=run_live_cycle,
     ledger: AuditLedger | None = None,
     model_loader=SniperModel.load,
@@ -136,7 +136,7 @@ def run_basket(
     tradeable_candidates = [
         selection
         for selection in ranked
-        if selection["model_bucket"] == "premium_candidate"
+        if selection["model_bucket"] in {"premium_candidate", "watch_list"}
         or (crash_enabled and selection["model_bucket"] == "crash_protocol")
     ]
     selected_tickers = {selection["ticker"] for selection in tradeable_candidates[:max_candidates]}
@@ -156,10 +156,11 @@ def run_basket(
             "signal_gate": decision.as_dict(),
         }
         crash_candidate = model_bucket == "crash_protocol" and crash_enabled
-        if not decision.allowed or (model_bucket != "premium_candidate" and not crash_candidate) or ticker not in selected_tickers:
+        is_tradeable = model_bucket in {"premium_candidate", "watch_list"}
+        if not decision.allowed or (not is_tradeable and not crash_candidate) or ticker not in selected_tickers:
             if not decision.allowed:
                 reason = decision.reason
-            elif model_bucket != "premium_candidate":
+            elif not is_tradeable:
                 reason = model_bucket or "model_score_unavailable"
             else:
                 reason = "candidate_limit"
