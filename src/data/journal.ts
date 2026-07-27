@@ -263,7 +263,7 @@ function latestPerformance() {
 }
 
 const ledger = readLedger();
-const executionCategories = new Set(['orders', 'fills', 'executions', 'entries', 'exits', 'positions']);
+const executionCategories = new Set(['orders', 'fills', 'executions', 'entries', 'exits', 'positions', 'risk', 'signals']);
 
 function isExecutionEvent(item: JournalItem) {
   return executionCategories.has(item.category) || /(^|_)(order|exit|fill|close)(s?_|$)/.test(item.kind) || ['entry', 'fill', 'exit', 'close'].includes(item.kind);
