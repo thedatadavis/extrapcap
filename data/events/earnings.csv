@@ -42,7 +42,7 @@ date,symbol,report_time,company_name,fiscal_quarter_ending,eps_forecast,estimate
 2026-07-24,VZ,not-supplied,Verizon Communications Inc.,Jun/2026,$1.27,8
 2026-07-24,WF,not-supplied,Woori Bank,Jun/2026,,N/A
 2026-07-24,WRLD,not-supplied,World Acceptance Corporation,Jun/2026,,N/A
-2026-07-26,BKR,not-supplied,Baker Hughes Company,Jun/2026,$0.51,6
+2026-07-26,BKR,after-hours,Baker Hughes Company,Jun/2026,$0.51,6
 2026-07-27,AGYS,after-hours,"Agilysys, Inc.",Jun/2026,$0.25,4
 2026-07-27,AMKR,after-hours,"Amkor Technology, Inc.",Jun/2026,$0.47,3
 2026-07-27,APLD,after-hours,Applied Digital Corporation,May/2026,($0.18),3
