@@ -13,15 +13,17 @@ class NebiusReviewer:
     def __init__(self, base_url: str | None = None, api_key: str | None = None, model: str | None = None):
         self.base_url = (base_url or os.getenv("NEBIUS_BASE_URL", "https://api.tokenfactory.nebius.com/v1")).rstrip("/")
         self.api_key = api_key or optional_nebius_key()
-        self.model = model or os.getenv("NEBIUS_MODEL", "Qwen/Qwen3-30B-A3B-Instruct-2507")
+        self.model = model or os.getenv("NEBIUS_MODEL", "glm-5.2")
 
-    def _request_json(self, system: str, user: dict) -> dict:
+    def _request_json(self, system: str, user: dict, thinking_effort: str = "high") -> dict:
         if not self.api_key:
             return {"decision": "escalate", "reason": "NEBIUS_API_KEY is not configured", "provider": "nebius", "model": self.model}
         payload = {
             "model": self.model,
             "temperature": 0,
             "response_format": {"type": "json_object"},
+            "reasoning_effort": thinking_effort,
+            "extra_body": {"reasoning_effort": thinking_effort},
             "messages": [
                 {"role": "system", "content": system},
                 {"role": "user", "content": json.dumps(user)},
@@ -50,6 +52,7 @@ class NebiusReviewer:
         judgment = self._request_json(
             "Return JSON with decision (go/no-go/escalate), reason, and structural_risk.",
             {"candidate": candidate, "context": context},
+            thinking_effort="high",
         )
         if judgment.get("decision") not in {"go", "no-go", "escalate"}:
             return {"decision": "escalate", "reason": "Nebius returned an invalid decision", "provider": "nebius", "model": self.model}
@@ -60,6 +63,7 @@ class NebiusReviewer:
         judgment = self._request_json(
             "Classify this headline as exactly noise_or_opinion or structural_risk. Return JSON with category, structural_risk, and reason. Do not give trading advice.",
             {"symbol": symbol, "headline": headline},
+            thinking_effort="high",
         )
         category = judgment.get("category")
         structural = judgment.get("structural_risk")
@@ -82,6 +86,7 @@ Return JSON with exactly these useful fields: note (string), anomalies (array of
 "risk_posture" (normal/watch/escalate), and reason (string). Do not invent trades, prices,
 performance, or external news. Treat missing data as an anomaly.""",
             {"summary": summary},
+            thinking_effort="max",
         )
         if not isinstance(judgment.get("note"), str) or not isinstance(judgment.get("anomalies"), list):
             return {
@@ -104,6 +109,7 @@ performance, or external news. Treat missing data as an anomaly.""",
 Describe only the supplied order/account/position observation. Do not invent fills,
 prices, performance, or external news. Treat missing fields as an anomaly.""",
             {"observation": observation},
+            thinking_effort="high",
         )
         if not isinstance(judgment.get("commentary"), str) or not isinstance(judgment.get("anomalies"), list):
             return {

@@ -26,7 +26,7 @@ jobs:
         env:
           EXTRAPCAP_DAILY_LLM: 'true'
           NEBIUS_API_KEY: ${{ secrets.NEBIUS_API_KEY }}
-          NEBIUS_MODEL: ${{ vars.NEBIUS_MODEL || 'Qwen/Qwen3-30B-A3B-Instruct-2507' }}
+          NEBIUS_MODEL: ${{ vars.NEBIUS_MODEL || 'glm-5.2' }}
         run: python -m extrapcap.reporting.daily_cli --date "$(date -u +%F)" --output "reports/daily-$(date -u +%F).json"
       - name: Commit report
         run: |

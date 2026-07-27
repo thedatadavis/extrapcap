@@ -15,6 +15,15 @@ if git merge-base --is-ancestor origin/main HEAD; then
   exit 0
 fi
 
-git merge --no-edit --no-ff --no-commit origin/main
-git checkout "$before_merge" -- logs reports data models
-git commit --no-edit
+# Merge main into ops using -X ours to automatically resolve hunk-level conflicts in favor of ops state.
+# If structural conflicts occur, restore ops-owned generated paths and checkout ours for remaining files.
+if ! git merge --no-edit --no-ff --no-commit -X ours origin/main 2>/dev/null; then
+  git checkout "$before_merge" -- logs reports data models 2>/dev/null || true
+  git checkout --ours -- . 2>/dev/null || true
+  git add -A
+else
+  git checkout "$before_merge" -- logs reports data models 2>/dev/null || true
+  git add -A
+fi
+
+git diff --cached --quiet || git commit --no-edit -m "merge: sync source changes from main into ops"
