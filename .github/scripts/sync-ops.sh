@@ -6,7 +6,7 @@ set -euo pipefail
 # are owned by ops and must not be edited by normal code changes. Because main
 # intentionally does not contain generated files, restore the current ops tree
 # after the merge so source synchronization cannot delete runtime state.
-git fetch origin main
+git fetch origin main ops || true
 git config user.name extrapcap-bot
 git config user.email extrapcap-bot@users.noreply.github.com
 
@@ -16,14 +16,19 @@ if git merge-base --is-ancestor origin/main HEAD; then
 fi
 
 # Merge main into ops using -X ours to automatically resolve hunk-level conflicts in favor of ops state.
-# If structural conflicts occur, restore ops-owned generated paths and checkout ours for remaining files.
+# If structural conflicts occur, restore code/config files from main and operational paths from ops.
 if ! git merge --no-edit --no-ff --no-commit -X ours origin/main 2>/dev/null; then
+  git checkout origin/main -- . 2>/dev/null || true
   git checkout "$before_merge" -- logs reports data models 2>/dev/null || true
-  git checkout --ours -- . 2>/dev/null || true
   git add -A
 else
   git checkout "$before_merge" -- logs reports data models 2>/dev/null || true
   git add -A
 fi
 
-git diff --cached --quiet || git commit --no-edit -m "merge: sync source changes from main into ops"
+if git rev-parse -q --verify MERGE_HEAD >/dev/null; then
+  git commit --no-edit -m "merge: sync source changes from main into ops"
+elif ! git diff --cached --quiet; then
+  git commit -m "merge: sync source changes from main into ops"
+fi
+
