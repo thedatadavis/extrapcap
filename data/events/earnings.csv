@@ -30,7 +30,6 @@ date,symbol,report_time,company_name,fiscal_quarter_ending,eps_forecast,estimate
 2026-07-24,NEE,not-supplied,"NextEra Energy, Inc.",Jun/2026,$1.09,5
 2026-07-24,NXTT,not-supplied,Next Technology Holding Inc.,Jun/2026,,N/A
 2026-07-24,OPHC,not-supplied,"OptimumBank Holdings, Inc.",Jun/2026,$0.20,1
-2026-07-24,OVBC,not-supplied,Ohio Valley Banc Corp.,Jun/2026,,2
 2026-07-24,PAMT,not-supplied,PAMT CORP,Jun/2026,,2
 2026-07-24,PDLB,not-supplied,"Ponce Financial Group, Inc.",Jun/2026,$0.37,1
 2026-07-24,RBCAA,not-supplied,"Republic Bancorp, Inc.",Jun/2026,$1.55,1
@@ -63,7 +62,6 @@ date,symbol,report_time,company_name,fiscal_quarter_ending,eps_forecast,estimate
 2026-07-27,CHRN,not-supplied,ChronoScale Holdings Corporation,Jun/2026,($0.06),1
 2026-07-27,CINF,after-hours,Cincinnati Financial Corporation,Jun/2026,$1.82,6
 2026-07-27,CLS,after-hours,"Celestica, Inc.",Jun/2026,$2.12,3
-2026-07-27,CMRE,pre-market,Costamare Inc.,Jun/2026,,4
 2026-07-27,CSBR,after-hours,"Champions Oncology, Inc.",Apr/2026,,4
 2026-07-27,CZWI,not-supplied,"Citizens Community Bancorp, Inc.",Jun/2026,$0.41,2
 2026-07-27,DYN,not-supplied,"Dyne Therapeutics, Inc.",Jun/2026,($0.74),8
