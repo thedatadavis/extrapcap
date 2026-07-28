@@ -31,6 +31,7 @@ jobs:
         run: |
           git config user.name extrapcap-bot
           git config user.email extrapcap-bot@users.noreply.github.com
-          git add logs/proposals/*.json
+          mkdir -p logs/proposals
+          git add logs/proposals/*.json 2>/dev/null || true
           git diff --cached --quiet || git commit -m "policy: GLM 5.2 proposals $(date -u +%F)"
           .github/scripts/push-ops.sh
