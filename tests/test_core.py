@@ -214,6 +214,20 @@ def test_nebius_without_key_escalates():
     assert NebiusReviewer(api_key=None).review({})["decision"] == "escalate"
 
 
+def test_nebius_http_error_escalates(monkeypatch):
+    from urllib.error import HTTPError
+
+    def fake_urlopen(*args, **kwargs):
+        raise HTTPError("https://api.tokenfactory.nebius.com/v1/chat/completions", 404, "Not Found", {}, None)
+
+    monkeypatch.setattr("extrapcap.llm.nebius.urlopen", fake_urlopen)
+    reviewer = NebiusReviewer(api_key="test-key")
+    judgment = reviewer.review({})
+    assert judgment["decision"] == "escalate"
+    assert "HTTPError" in judgment["reason"] or "404" in judgment["reason"]
+
+
+
 def test_order_id_is_deterministic():
     legs = ({"symbol": "ABC240119P00100000", "asset_class": "us_option", "side": "sell", "position_intent": "sell_to_open", "ratio_qty": 1},)
     a = OrderEnvelope("2026-07-22", "ABC", "sell_to_open", legs, "core", limit_price=1.0)
