@@ -1,118 +1,83 @@
 date,symbol,report_time,company_name,fiscal_quarter_ending,eps_forecast,estimate_count
-2026-07-24,AFBI,not-supplied,"Affinity Bancshares, Inc.",Jun/2026,,2
-2026-07-24,AXP,not-supplied,American Express Company,Jun/2026,$4.41,8
-2026-07-24,AXR,not-supplied,AMREP Corporation,Apr/2026,,N/A
-2026-07-24,BAH,not-supplied,Booz Allen Hamilton Holding Corporation,Jun/2026,$1.49,5
-2026-07-24,BVFL,not-supplied,"BV Financial, Inc.",Jun/2026,,N/A
-2026-07-24,BXBL,not-supplied,"BOXABL, Inc.",Jun/2026,,2
-2026-07-24,CHTR,not-supplied,"Charter Communications, Inc.",Jun/2026,$9.96,8
-2026-07-24,CNI,not-supplied,Canadian National Railway Company,Jun/2026,$1.39,8
-2026-07-24,COFS,not-supplied,"ChoiceOne Financial Services, Inc.",Jun/2026,$0.88,3
-2026-07-24,CPF,not-supplied,CPB Inc.,Jun/2026,$0.78,3
-2026-07-24,CRI,not-supplied,"Carter's, Inc.",Jun/2026,$0.02,2
-2026-07-24,E,not-supplied,ENI S.p.A.,Jun/2026,$1.90,2
-2026-07-24,EAF,not-supplied,GrafTech International Ltd.,Jun/2026,($1.49),2
-2026-07-24,FCAP,not-supplied,"First Capital, Inc.",Jun/2026,,N/A
-2026-07-24,FHB,not-supplied,"First Hawaiian, Inc.",Jun/2026,$0.60,2
-2026-07-24,FLG,not-supplied,"Flagstar Bank, N.A.",Jun/2026,$0.06,8
-2026-07-24,FRAF,not-supplied,Franklin Financial Services Corporation,Jun/2026,,N/A
-2026-07-24,GNTX,not-supplied,Gentex Corporation,Jun/2026,$0.50,3
-2026-07-24,GRC,not-supplied,Gorman-Rupp Company (The),Jun/2026,$0.69,1
-2026-07-24,HCA,not-supplied,"HCA Healthcare, Inc.",Jun/2026,$7.57,2
-2026-07-24,IMMR,not-supplied,Immersion Corporation,Apr/2026,$0.05,1
-2026-07-24,LBTYA,not-supplied,Liberty Global Ltd.,Jun/2026,($0.31),1
-2026-07-24,LBTYB,not-supplied,Liberty Global Ltd.,Jun/2026,,N/A
-2026-07-24,LBTYK,not-supplied,Liberty Global Ltd.,Jun/2026,,N/A
-2026-07-24,LW,not-supplied,"Lamb Weston Holdings, Inc.",May/2026,$0.62,5
-2026-07-24,MCBS,not-supplied,"MetroCity Bankshares, Inc.",Jun/2026,,N/A
-2026-07-24,NDLS,not-supplied,Noodles & Company,Jun/2026,,N/A
-2026-07-24,NECB,not-supplied,"NorthEast Community Bancorp, Inc.",Jun/2026,$0.77,1
-2026-07-24,NEE,not-supplied,"NextEra Energy, Inc.",Jun/2026,$1.09,5
-2026-07-24,NXTT,not-supplied,Next Technology Holding Inc.,Jun/2026,,N/A
-2026-07-24,OPHC,not-supplied,"OptimumBank Holdings, Inc.",Jun/2026,$0.20,1
-2026-07-24,PAMT,not-supplied,PAMT CORP,Jun/2026,,2
-2026-07-24,PDLB,not-supplied,"Ponce Financial Group, Inc.",Jun/2026,$0.37,1
-2026-07-24,RBCAA,not-supplied,"Republic Bancorp, Inc.",Jun/2026,$1.55,1
-2026-07-24,SBSI,not-supplied,"Southside Bancshares, Inc.",Jun/2026,$0.88,2
-2026-07-24,SLB,not-supplied,SLB Limited,Jun/2026,$0.51,9
-2026-07-24,SXT,not-supplied,Sensient Technologies Corporation,Jun/2026,$1,1
-2026-07-24,TMP,not-supplied,Tompkins Financial Corporation,Jun/2026,$1.80,1
-2026-07-24,ULH,after-hours,"Universal Logistics Holdings, Inc.",Jun/2026,$0.13,1
-2026-07-24,VZ,not-supplied,Verizon Communications Inc.,Jun/2026,$1.27,8
-2026-07-24,WF,not-supplied,Woori Bank,Jun/2026,,N/A
-2026-07-24,WRLD,not-supplied,World Acceptance Corporation,Jun/2026,,N/A
 2026-07-26,BKR,not-supplied,Baker Hughes Company,Jun/2026,$0.51,6
-2026-07-27,AGYS,after-hours,"Agilysys, Inc.",Jun/2026,$0.25,4
-2026-07-27,AMKR,after-hours,"Amkor Technology, Inc.",Jun/2026,$0.47,3
-2026-07-27,APLD,after-hours,Applied Digital Corporation,May/2026,($0.18),3
-2026-07-27,ARLP,pre-market,"Alliance Resource Partners, L.P.",Jun/2026,$0.62,2
-2026-07-27,AZN,pre-market,AstraZeneca PLC,Jun/2026,$2.50,2
+2026-07-27,AGYS,not-supplied,"Agilysys, Inc.",Jun/2026,$0.25,4
+2026-07-27,AMKR,not-supplied,"Amkor Technology, Inc.",Jun/2026,$0.47,3
+2026-07-27,APLD,not-supplied,Applied Digital Corporation,May/2026,($0.18),3
+2026-07-27,ARLP,not-supplied,"Alliance Resource Partners, L.P.",Jun/2026,$0.62,2
+2026-07-27,AURE,not-supplied,Aurelion Inc.,Jun/2026,,N/A
+2026-07-27,AZN,not-supplied,AstraZeneca PLC,Jun/2026,$2.50,2
 2026-07-27,BCAL,not-supplied,California BanCorp,Jun/2026,$0.41,1
-2026-07-27,BLX,after-hours,"Bladex, Inc.",Jun/2026,,4
-2026-07-27,BMRC,pre-market,Bank of Marin Bancorp,Jun/2026,$0.52,4
-2026-07-27,BOH,pre-market,Bank of Hawaii Corporation,Jun/2026,$1.46,4
-2026-07-27,BRO,after-hours,"Brown & Brown, Inc.",Jun/2026,$1.08,6
-2026-07-27,BRX,after-hours,Brixmor Property Group Inc.,Jun/2026,$0.58,6
+2026-07-27,BLX,not-supplied,"Bladex, Inc.",Jun/2026,,N/A
+2026-07-27,BMRC,not-supplied,Bank of Marin Bancorp,Jun/2026,$0.52,4
+2026-07-27,BOH,not-supplied,Bank of Hawaii Corporation,Jun/2026,$1.46,4
+2026-07-27,BRO,not-supplied,"Brown & Brown, Inc.",Jun/2026,$1.08,6
+2026-07-27,BRX,not-supplied,Brixmor Property Group Inc.,Jun/2026,$0.58,6
 2026-07-27,BSRR,not-supplied,Sierra Bancorp,Jun/2026,$0.89,4
-2026-07-27,CBK,after-hours,"Commercial Bancgroup, Inc.",Jun/2026,,4
+2026-07-27,CBFV,not-supplied,"CB Financial Services, Inc.",Jun/2026,$0.75,2
+2026-07-27,CBK,not-supplied,"Commercial Bancgroup, Inc.",Jun/2026,,N/A
 2026-07-27,CBNA,not-supplied,"Chain Bridge Bancorp, Inc.",Jun/2026,$1.32,2
 2026-07-27,CBNK,not-supplied,"Capital Bancorp, Inc.",Jun/2026,$0.83,1
-2026-07-27,CDNS,after-hours,"Cadence Design Systems, Inc.",Jun/2026,$1.62,7
-2026-07-27,CDP,after-hours,COPT Defense Properties,Jun/2026,$0.68,1
+2026-07-27,CDNS,not-supplied,"Cadence Design Systems, Inc.",Jun/2026,$1.62,7
+2026-07-27,CDP,not-supplied,COPT Defense Properties,Jun/2026,$0.68,1
+2026-07-27,CETY,not-supplied,"Clean Energy Technologies, Inc.",Mar/2026,,N/A
 2026-07-27,CHRN,not-supplied,ChronoScale Holdings Corporation,Jun/2026,($0.06),1
-2026-07-27,CINF,after-hours,Cincinnati Financial Corporation,Jun/2026,$1.82,6
-2026-07-27,CLS,after-hours,"Celestica, Inc.",Jun/2026,$2.12,3
-2026-07-27,CSBR,after-hours,"Champions Oncology, Inc.",Apr/2026,,4
+2026-07-27,CINF,not-supplied,Cincinnati Financial Corporation,Jun/2026,$1.82,6
+2026-07-27,CLS,not-supplied,"Celestica, Inc.",Jun/2026,$2.12,3
+2026-07-27,CMRE,not-supplied,Costamare Inc.,Jun/2026,,N/A
+2026-07-27,CSBR,not-supplied,"Champions Oncology, Inc.",Apr/2026,,N/A
 2026-07-27,CZWI,not-supplied,"Citizens Community Bancorp, Inc.",Jun/2026,$0.41,2
 2026-07-27,DYN,not-supplied,"Dyne Therapeutics, Inc.",Jun/2026,($0.74),8
-2026-07-27,ESI,after-hours,Element Solutions Inc.,Jun/2026,$0.43,3
-2026-07-27,FFIV,after-hours,"F5, Inc.",Jun/2026,$3.04,6
+2026-07-27,ENSG,not-supplied,"The Ensign Group, Inc.",Jun/2026,$1.63,2
+2026-07-27,ESI,not-supplied,Element Solutions Inc.,Jun/2026,$0.43,3
+2026-07-27,FFIV,not-supplied,"F5, Inc.",Jun/2026,$3.04,6
+2026-07-27,FGBI,not-supplied,"First Guaranty Bancshares, Inc.",Jun/2026,$0.09,1
 2026-07-27,FMAO,not-supplied,"Farmers & Merchants Bancorp, Inc.",Jun/2026,$0.67,3
-2026-07-27,FSUN,after-hours,FIRSTSUN CAPITAL BANCORP,Jun/2026,$0.17,2
+2026-07-27,FSUN,not-supplied,FIRSTSUN CAPITAL BANCORP,Jun/2026,$0.17,2
 2026-07-27,GABC,not-supplied,"German American Bancorp, Inc.",Jun/2026,$0.92,4
-2026-07-27,GOVX,not-supplied,"GeoVax Labs, Inc.",Jun/2026,($2.15),2
+2026-07-27,GOVX,not-supplied,"GeoVax Labs, Inc.",Jun/2026,($2.16),2
 2026-07-27,GRFS,not-supplied,"Grifols, S.A.",Jun/2026,$0.28,1
-2026-07-27,HAPN,after-hours,"Happen, Inc.",Jun/2026,$0.42,2
-2026-07-27,HBT,pre-market,"HBT Financial, Inc.",Jun/2026,$0.74,4
-2026-07-27,HIT,not-supplied,"Health In Tech, Inc.",Jun/2026,($0.03),1
+2026-07-27,HAPN,not-supplied,"Happen, Inc.",Jun/2026,$0.42,2
+2026-07-27,HBT,not-supplied,"HBT Financial, Inc.",Jun/2026,$0.74,4
 2026-07-27,HLIT,not-supplied,Harmonic Inc.,Jun/2026,$0.13,5
-2026-07-27,HOPE,pre-market,"Hope Bancorp, Inc.",Jun/2026,$0.26,3
-2026-07-27,HTO,after-hours,H2O America,Jun/2026,$0.70,1
-2026-07-27,INHD,not-supplied,Inno Holdings Inc.,Jun/2026,,4
-2026-07-27,KFRC,after-hours,"Kforce, Inc.",Jun/2026,$0.70,1
-2026-07-27,KOF,pre-market,Coca Cola Femsa S.A.B. de C.V.,Jun/2026,$1.65,1
-2026-07-27,KRC,after-hours,Kilroy Realty Corporation,Jun/2026,$0.90,3
-2026-07-27,LKFN,pre-market,Lakeland Financial Corporation,Jun/2026,$1.07,1
-2026-07-27,NBN,pre-market,Northeast Bank,Jun/2026,$3.40,2
-2026-07-27,NBTB,after-hours,NBT Bancorp Inc.,Jun/2026,$1.02,4
-2026-07-27,NE,after-hours,Noble Corporation plc,Jun/2026,$0.13,2
-2026-07-27,NEWT,not-supplied,"NewtekOne, Inc.",Jun/2026,$0.46,3
-2026-07-27,NRC,not-supplied,NRC Health,Jun/2026,,4
-2026-07-27,NTB,after-hours,Bank of N.T. Butterfield & Son Limited (The),Jun/2026,$1.51,1
-2026-07-27,NUE,after-hours,Nucor Corporation,Jun/2026,$4.57,4
-2026-07-27,NVTS,after-hours,Navitas Semiconductor Corporation,Jun/2026,($0.10),2
-2026-07-27,NWBI,after-hours,"Northwest Bancshares, Inc.",Jun/2026,$0.33,4
+2026-07-27,HOPE,not-supplied,"Hope Bancorp, Inc.",Jun/2026,$0.26,3
+2026-07-27,HTO,not-supplied,H2O America,Jun/2026,$0.70,1
+2026-07-27,HYMC,not-supplied,Hycroft Mining Holding Corporation,Jun/2026,,N/A
+2026-07-27,INHD,not-supplied,Inno Holdings Inc.,Jun/2026,,2
+2026-07-27,KFRC,not-supplied,"Kforce, Inc.",Jun/2026,$0.70,1
+2026-07-27,KOF,not-supplied,Coca Cola Femsa S.A.B. de C.V.,Jun/2026,$1.65,1
+2026-07-27,KRC,not-supplied,Kilroy Realty Corporation,Jun/2026,$0.90,3
+2026-07-27,LKFN,not-supplied,Lakeland Financial Corporation,Jun/2026,$1.07,1
+2026-07-27,NBN,not-supplied,Northeast Bank,Jun/2026,$3.40,2
+2026-07-27,NBTB,not-supplied,NBT Bancorp Inc.,Jun/2026,$1.02,4
+2026-07-27,NE,not-supplied,Noble Corporation plc,Jun/2026,$0.13,2
+2026-07-27,NRC,not-supplied,NRC Health,Jun/2026,,2
+2026-07-27,NTB,not-supplied,Bank of N.T. Butterfield & Son Limited (The),Jun/2026,$1.51,1
+2026-07-27,NUE,not-supplied,Nucor Corporation,Jun/2026,$4.57,4
+2026-07-27,NVTS,not-supplied,Navitas Semiconductor Corporation,Jun/2026,($0.10),2
+2026-07-27,NWBI,not-supplied,"Northwest Bancshares, Inc.",Jun/2026,$0.33,4
 2026-07-27,OMAB,not-supplied,Grupo Aeroportuario del Centro Norte S.A.B. de C.V.,Jun/2026,$1.69,3
-2026-07-27,OPK,after-hours,"Opko Health, Inc.",Jun/2026,($0.08),5
-2026-07-27,PERF,pre-market,Perfect Corp.,Jun/2026,$0.01,3
-2026-07-27,PFG,after-hours,Principal Financial Group Inc,Jun/2026,$2.33,5
-2026-07-27,PGC,after-hours,Peapack-Gladstone Financial Corporation,Jun/2026,$0.87,3
+2026-07-27,OPK,not-supplied,"Opko Health, Inc.",Jun/2026,($0.08),5
+2026-07-27,OVBC,not-supplied,Ohio Valley Banc Corp.,Jun/2026,,N/A
+2026-07-27,PDLB,not-supplied,"Ponce Financial Group, Inc.",Jun/2026,$0.37,1
+2026-07-27,PERF,not-supplied,Perfect Corp.,Jun/2026,$0.01,3
+2026-07-27,PFG,not-supplied,Principal Financial Group Inc,Jun/2026,$2.33,5
+2026-07-27,PGC,not-supplied,Peapack-Gladstone Financial Corporation,Jun/2026,$0.87,3
 2026-07-27,PRK,not-supplied,Park National Corporation,Jun/2026,$3.01,3
-2026-07-27,RMBS,after-hours,"Rambus, Inc.",Jun/2026,$0.58,1
-2026-07-27,RNGR,after-hours,"Ranger Energy Services, Inc.",Jun/2026,$0.30,2
-2026-07-27,SANM,after-hours,Sanmina Corporation,Jun/2026,$2.31,3
-2026-07-27,SSD,after-hours,"Simpson Manufacturing Company, Inc.",Jun/2026,$2.72,5
-2026-07-27,SUI,after-hours,"Sun Communities, Inc.",Jun/2026,$1.76,3
-2026-07-27,TFII,after-hours,TFI International Inc.,Jun/2026,$1.59,5
-2026-07-27,TIMB,after-hours,TIM S.A.,Jun/2026,$0.37,2
+2026-07-27,RMBI,not-supplied,"Richmond Mutual Bancorporation, Inc.",Jun/2026,,N/A
+2026-07-27,RMBS,not-supplied,"Rambus, Inc.",Jun/2026,$0.58,1
+2026-07-27,RNGR,not-supplied,"Ranger Energy Services, Inc.",Jun/2026,$0.30,2
+2026-07-27,SANM,not-supplied,Sanmina Corporation,Jun/2026,$2.31,3
+2026-07-27,SSD,not-supplied,"Simpson Manufacturing Company, Inc.",Jun/2026,$2.72,5
+2026-07-27,SUI,not-supplied,"Sun Communities, Inc.",Jun/2026,$1.76,3
+2026-07-27,TFII,not-supplied,TFI International Inc.,Jun/2026,$1.59,5
+2026-07-27,TIMB,not-supplied,TIM S.A.,Jun/2026,$0.37,2
 2026-07-27,TWO,not-supplied,Two Harbors Investments Corp,Jun/2026,$0.16,1
-2026-07-27,UDR,after-hours,"UDR, Inc.",Jun/2026,$0.63,6
-2026-07-27,UHS,after-hours,"Universal Health Services, Inc.",Jun/2026,$5.66,6
-2026-07-27,UHT,not-supplied,Universal Health Realty Income Trust,Jun/2026,,4
+2026-07-27,UDR,not-supplied,"UDR, Inc.",Jun/2026,$0.63,6
+2026-07-27,UHS,not-supplied,"Universal Health Services, Inc.",Jun/2026,$5.66,6
+2026-07-27,UHT,not-supplied,Universal Health Realty Income Trust,Jun/2026,,N/A
 2026-07-27,VIV,not-supplied,Telefonica Brasil S.A.,Jun/2026,$0.23,3
-2026-07-27,VOD,pre-market,Vodafone Group Plc,Jun/2026,,4
-2026-07-27,WELL,after-hours,Welltower Inc.,Jun/2026,$1.55,5
-2026-07-27,WHR,after-hours,Whirlpool Corporation,Jun/2026,($0.20),3
+2026-07-27,VOD,pre-market,Vodafone Group Plc,Jun/2026,,2
+2026-07-27,WELL,not-supplied,Welltower Inc.,Jun/2026,$1.55,5
 2026-07-28,AAT,after-hours,"American Assets Trust, Inc.",Jun/2026,$0.51,2
 2026-07-28,AB,pre-market,AllianceBernstein Holding L.P.,Jun/2026,$0.86,2
 2026-07-28,ABG,pre-market,Asbury Automotive Group Inc,Jun/2026,$6.30,4
@@ -123,7 +88,6 @@ date,symbol,report_time,company_name,fiscal_quarter_ending,eps_forecast,estimate
 2026-07-28,AMT,pre-market,American Tower Corporation (REIT),Jun/2026,$2.65,4
 2026-07-28,APAM,after-hours,Artisan Partners Asset Management Inc.,Jun/2026,$0.92,1
 2026-07-28,ASH,after-hours,Ashland Inc.,Jun/2026,$1.03,4
-2026-07-28,AUBN,not-supplied,"Auburn National Bancorporation, Inc.",Jun/2026,,2
 2026-07-28,AWI,pre-market,Armstrong World Industries Inc,Jun/2026,$2.33,3
 2026-07-28,AXS,after-hours,Axis Capital Holdings Limited,Jun/2026,$3.23,3
 2026-07-28,AXTA,pre-market,Axalta Coating Systems Ltd.,Jun/2026,$0.65,5
@@ -137,12 +101,11 @@ date,symbol,report_time,company_name,fiscal_quarter_ending,eps_forecast,estimate
 2026-07-28,CAKE,after-hours,The Cheesecake Factory Incorporated,Jun/2026,$1.17,9
 2026-07-28,CAR,after-hours,"Avis Budget Group, Inc.",Jun/2026,$2.14,4
 2026-07-28,CARR,pre-market,Carrier Global Corporation,Jun/2026,$0.83,5
-2026-07-28,CBFV,not-supplied,"CB Financial Services, Inc.",Jun/2026,$0.75,2
 2026-07-28,CBU,pre-market,"Community Financial System, Inc.",Jun/2026,$1.19,3
-2026-07-28,CGAU,after-hours,Centerra Gold Inc.,Jun/2026,$0.36,3
+2026-07-28,CGAU,after-hours,Centerra Gold Inc.,Jun/2026,$0.38,4
 2026-07-28,CHE,after-hours,Chemed Corp.,Jun/2026,$5.12,2
 2026-07-28,CLW,after-hours,Clearwater Paper Corporation,Jun/2026,($1.40),1
-2026-07-28,CMS,pre-market,CMS Energy Corporation,Jun/2026,$0.45,5
+2026-07-28,CMS,pre-market,CMS Energy Corporation,Jun/2026,$0.37,4
 2026-07-28,CNC,pre-market,Centene Corporation,Jun/2026,$0.89,5
 2026-07-28,CNP,pre-market,"CenterPoint Energy, Inc.",Jun/2026,$0.37,5
 2026-07-28,CR,after-hours,Crane Company,Jun/2026,$1.66,4
@@ -174,8 +137,7 @@ date,symbol,report_time,company_name,fiscal_quarter_ending,eps_forecast,estimate
 2026-07-28,HRI,pre-market,Herc Holdings Inc.,Jun/2026,$0.76,3
 2026-07-28,HUBB,pre-market,Hubbell Inc,Jun/2026,$5.31,3
 2026-07-28,HURN,after-hours,Huron Consulting Group Inc.,Jun/2026,$2.13,3
-2026-07-28,INCY,pre-market,Incyte Corporation,Jun/2026,$1.63,7
-2026-07-28,INIO,pre-market,INNIO N.V.,Jun/2026,$0.05,2
+2026-07-28,INCY,pre-market,Incyte Corporation,Jun/2026,$1.76,7
 2026-07-28,IQV,pre-market,"IQVIA Holdings, Inc.",Jun/2026,$2.72,6
 2026-07-28,ITRI,pre-market,"Itron, Inc.",Jun/2026,$1.30,6
 2026-07-28,ITW,pre-market,Illinois Tool Works Inc.,Jun/2026,$2.80,6
@@ -193,7 +155,6 @@ date,symbol,report_time,company_name,fiscal_quarter_ending,eps_forecast,estimate
 2026-07-28,MEOH,after-hours,Methanex Corporation,Jun/2026,$4,4
 2026-07-28,MIR,after-hours,"Mirion Technologies, Inc.",Jun/2026,$0.10,5
 2026-07-28,MVBF,after-hours,MVB Financial Corp.,Jun/2026,$0.33,1
-2026-07-28,NAUT,pre-market,"Nautilus Biotechnology, Inc.",Jun/2026,,2
 2026-07-28,NBR,after-hours,Nabors Industries Ltd.,Jun/2026,($1.54),2
 2026-07-28,NEO,after-hours,"NeoGenomics, Inc.",Jun/2026,($0.06),3
 2026-07-28,NOV,after-hours,NOV Inc.,Jun/2026,$0.16,8
@@ -268,7 +229,7 @@ date,symbol,report_time,company_name,fiscal_quarter_ending,eps_forecast,estimate
 2026-07-29,ADPT,after-hours,Adaptive Biotechnologies Corporation,Jun/2026,($0.13),4
 2026-07-29,AEM,after-hours,Agnico Eagle Mines Limited,Jun/2026,$2.89,5
 2026-07-29,AER,pre-market,AerCap Holdings N.V.,Jun/2026,$3.94,3
-2026-07-29,AGI,after-hours,Alamos Gold Inc.,Jun/2026,$0.53,2
+2026-07-29,AGI,after-hours,Alamos Gold Inc.,Jun/2026,$0.52,3
 2026-07-29,AHT,not-supplied,Ashford Hospitality Trust Inc,Jun/2026,$0.69,1
 2026-07-29,ALGN,after-hours,"Align Technology, Inc.",Jun/2026,$2.08,4
 2026-07-29,ALKT,after-hours,"Alkami Technology, Inc.",Jun/2026,$0.01,2
@@ -303,7 +264,7 @@ date,symbol,report_time,company_name,fiscal_quarter_ending,eps_forecast,estimate
 2026-07-29,BG,pre-market,Bunge Global SA,Jun/2026,$2.03,2
 2026-07-29,BHC,after-hours,Bausch Health Companies Inc.,Jun/2026,$0.96,2
 2026-07-29,BHE,after-hours,"Benchmark Electronics, Inc.",Jun/2026,,1
-2026-07-29,BIIB,pre-market,Biogen Inc.,Jun/2026,$0.98,11
+2026-07-29,BIIB,pre-market,Biogen Inc.,Jun/2026,$1.09,12
 2026-07-29,BLCO,pre-market,Bausch + Lomb Corporation,Jun/2026,$0.16,5
 2026-07-29,BLKB,pre-market,"Blackbaud, Inc.",Jun/2026,$0.79,2
 2026-07-29,BNL,after-hours,"Broadstone Net Lease, Inc.",Jun/2026,$0.37,3
@@ -313,7 +274,7 @@ date,symbol,report_time,company_name,fiscal_quarter_ending,eps_forecast,estimate
 2026-07-29,BSX,pre-market,Boston Scientific Corporation,Jun/2026,$0.83,7
 2026-07-29,BTU,pre-market,Peabody Energy Corporation,Jun/2026,($0.31),1
 2026-07-29,CBRE,pre-market,"CBRE Group, Inc.",Jun/2026,$1.47,4
-2026-07-29,CBZ,after-hours,"CBIZ, Inc.",Jun/2026,$0.74,4
+2026-07-29,CBZ,after-hours,"CBIZ, Inc.",Jun/2026,$0.73,4
 2026-07-29,CCEC,pre-market,Capital Clean Energy Carriers Corp.,Jun/2026,$0.20,2
 2026-07-29,CFFN,pre-market,"Capitol Federal Financial, Inc.",Jun/2026,$0.17,1
 2026-07-29,CHDN,after-hours,"Churchill Downs, Incorporated",Jun/2026,$3.51,2
@@ -330,7 +291,7 @@ date,symbol,report_time,company_name,fiscal_quarter_ending,eps_forecast,estimate
 2026-07-29,CNMD,after-hours,CONMED Corporation,Jun/2026,$1.10,3
 2026-07-29,CNXN,after-hours,"PC Connection, Inc.",Jun/2026,$1.04,2
 2026-07-29,CORT,after-hours,Corcept Therapeutics Incorporated,Jun/2026,($0.04),3
-2026-07-29,COUR,after-hours,"Coursera, Inc.",Jun/2026,($0.03),3
+2026-07-29,COUR,after-hours,"Coursera, Inc.",Jun/2026,($0.03),4
 2026-07-29,CP,after-hours,Canadian Pacific Kansas City Limited,Jun/2026,$0.89,7
 2026-07-29,CPSH,not-supplied,CPS Technologies Corp.,Jun/2026,$0,1
 2026-07-29,CRK,after-hours,"Comstock Resources, Inc.",Jun/2026,$0.02,4
@@ -356,7 +317,7 @@ date,symbol,report_time,company_name,fiscal_quarter_ending,eps_forecast,estimate
 2026-07-29,ESRT,after-hours,"Empire State Realty Trust, Inc.",Jun/2026,,N/A
 2026-07-29,ESS,after-hours,"Essex Property Trust, Inc.",Jun/2026,$4.03,7
 2026-07-29,ETD,after-hours,Ethan Allen Interiors Inc.,Jun/2026,$0.35,1
-2026-07-29,ETR,pre-market,Entergy Corporation,Jun/2026,$0.96,7
+2026-07-29,ETR,pre-market,Entergy Corporation,Jun/2026,$0.94,7
 2026-07-29,EVR,pre-market,Evercore Inc.,Jun/2026,$3.02,4
 2026-07-29,EXP,pre-market,Eagle Materials Inc,Jun/2026,$3.26,2
 2026-07-29,FBRT,after-hours,"Franklin BSP Realty Trust, Inc.",Jun/2026,$0.20,2
@@ -368,7 +329,6 @@ date,symbol,report_time,company_name,fiscal_quarter_ending,eps_forecast,estimate
 2026-07-29,FMC,after-hours,FMC Corporation,Jun/2026,$0.21,4
 2026-07-29,FORM,after-hours,"FormFactor, Inc.",Jun/2026,$0.51,4
 2026-07-29,FPI,after-hours,Farmland Partners Inc.,Jun/2026,$0.02,1
-2026-07-29,FRMM,not-supplied,"Forum Markets, Incorporated",Jun/2026,($0.21),1
 2026-07-29,FTAI,after-hours,FTAI Aviation Ltd.,Jun/2026,$1.32,1
 2026-07-29,FTNT,after-hours,"Fortinet, Inc.",Jun/2026,$0.66,11
 2026-07-29,FTRE,pre-market,Fortrea Holdings Inc.,Jun/2026,$0.18,3
@@ -390,7 +350,7 @@ date,symbol,report_time,company_name,fiscal_quarter_ending,eps_forecast,estimate
 2026-07-29,GTX,pre-market,Garrett Motion Inc.,Jun/2026,$0.46,4
 2026-07-29,HAYW,pre-market,"Hayward Holdings, Inc.",Jun/2026,$0.24,3
 2026-07-29,HBB,not-supplied,Hamilton Beach Brands Holding Company,Jun/2026,,1
-2026-07-29,HBM,pre-market,Hudbay Minerals Inc.,Jun/2026,$0.33,13
+2026-07-29,HBM,pre-market,Hudbay Minerals Inc.,Jun/2026,$0.31,10
 2026-07-29,HLI,after-hours,"Houlihan Lokey, Inc.",Jun/2026,$1.64,4
 2026-07-29,HLX,not-supplied,"Helix Energy Solutions Group, Inc.",Jun/2026,$0.07,1
 2026-07-29,HOOD,after-hours,"Robinhood Markets, Inc.",Jun/2026,$0.39,6
@@ -411,7 +371,7 @@ date,symbol,report_time,company_name,fiscal_quarter_ending,eps_forecast,estimate
 2026-07-29,JCI,pre-market,Johnson Controls International plc,Jun/2026,$1.32,6
 2026-07-29,JOE,after-hours,St. Joe Company (The),Jun/2026,,1
 2026-07-29,KEX,pre-market,Kirby Corporation,Jun/2026,$1.70,2
-2026-07-29,KGC,after-hours,Kinross Gold Corporation,Jun/2026,$0.67,6
+2026-07-29,KGC,after-hours,Kinross Gold Corporation,Jun/2026,$0.66,7
 2026-07-29,LAD,pre-market,"Lithia Motors, Inc.",Jun/2026,$8.67,5
 2026-07-29,LARK,after-hours,Landmark Bancorp Inc.,Jun/2026,,1
 2026-07-29,LENZ,not-supplied,"LENZ Therapeutics, Inc.",Jun/2026,($1.21),4
@@ -423,8 +383,9 @@ date,symbol,report_time,company_name,fiscal_quarter_ending,eps_forecast,estimate
 2026-07-29,LUNG,after-hours,Pulmonx Corporation,Jun/2026,($0.28),2
 2026-07-29,LXP,pre-market,LXP Industrial Trust,Jun/2026,$0.83,3
 2026-07-29,LXU,after-hours,Lsb Industries Inc.,Jun/2026,,N/A
+2026-07-29,LZM,pre-market,Lifezone Metals Limited,Jun/2026,,1
 2026-07-29,MAA,after-hours,"Mid-America Apartment Communities, Inc.",Jun/2026,$2.08,8
-2026-07-29,MAS,pre-market,Masco Corporation,Jun/2026,$1.29,6
+2026-07-29,MAS,pre-market,Masco Corporation,Jun/2026,$1.30,6
 2026-07-29,MAX,after-hours,"MediaAlpha, Inc.",Jun/2026,$0.21,1
 2026-07-29,MC,after-hours,Moelis & Company,Jun/2026,$0.62,6
 2026-07-29,MCHB,pre-market,Mechanics Bancorp,Jun/2026,$0.25,1
@@ -435,7 +396,7 @@ date,symbol,report_time,company_name,fiscal_quarter_ending,eps_forecast,estimate
 2026-07-29,MGPI,pre-market,"MGP Ingredients, Inc.",Jun/2026,$0.49,1
 2026-07-29,MGRC,after-hours,McGrath RentCorp,Jun/2026,$1.46,3
 2026-07-29,MHO,pre-market,"M/I Homes, Inc.",Jun/2026,$3.17,1
-2026-07-29,MKL,not-supplied,Markel Group Inc.,Jun/2026,$29.94,1
+2026-07-29,MKL,after-hours,Markel Group Inc.,Jun/2026,$29.94,1
 2026-07-29,MNRO,pre-market,"Monro, Inc.",Jun/2026,$0.04,1
 2026-07-29,MOD,after-hours,Modine Manufacturing Company,Jun/2026,$1.38,5
 2026-07-29,MORN,after-hours,"Morningstar, Inc.",Jun/2026,,1
@@ -487,15 +448,14 @@ date,symbol,report_time,company_name,fiscal_quarter_ending,eps_forecast,estimate
 2026-07-29,PUMP,pre-market,ProPetro Holding Corp.,Jun/2026,($0.01),5
 2026-07-29,QCOM,after-hours,QUALCOMM Incorporated,Jun/2026,$1.54,8
 2026-07-29,QTWO,after-hours,"Q2 Holdings, Inc.",Jun/2026,$0.42,3
-2026-07-29,QURE,pre-market,uniQure N.V.,Jun/2026,($0.89),3
+2026-07-29,QURE,pre-market,uniQure N.V.,Jun/2026,($0.81),2
 2026-07-29,RDWR,pre-market,Radware Ltd.,Jun/2026,,1
 2026-07-29,REG,after-hours,Regency Centers Corporation,Jun/2026,$1.20,6
 2026-07-29,REYN,pre-market,Reynolds Consumer Products Inc.,Jun/2026,$0.41,1
 2026-07-29,RGR,after-hours,"Sturm, Ruger & Company, Inc.",Jun/2026,,N/A
 2026-07-29,RM,after-hours,Regional Management Corp.,Jun/2026,,1
-2026-07-29,RMBI,not-supplied,"Richmond Mutual Bancorporation, Inc.",Jun/2026,,1
 2026-07-29,RRBI,not-supplied,"Red River Bancshares, Inc.",Jun/2026,$1.77,2
-2026-07-29,RSI,after-hours,"Rush Street Interactive, Inc.",Jun/2026,$0.11,2
+2026-07-29,RSI,after-hours,"Rush Street Interactive, Inc.",Jun/2026,$0.12,2
 2026-07-29,RYZ,after-hours,Ryerson Holding Corporation,Jun/2026,$0.40,1
 2026-07-29,SBUX,after-hours,Starbucks Corporation,Jun/2026,$0.66,11
 2026-07-29,SCI,after-hours,Service Corporation International,Jun/2026,$0.89,4
@@ -511,6 +471,7 @@ date,symbol,report_time,company_name,fiscal_quarter_ending,eps_forecast,estimate
 2026-07-29,SMHI,not-supplied,SEACOR Marine Holdings Inc.,Jun/2026,($1.24),1
 2026-07-29,SOFI,pre-market,"SoFi Technologies, Inc.",Jun/2026,$0.11,5
 2026-07-29,SONO,after-hours,"Sonos, Inc.",Jun/2026,$0.05,1
+2026-07-29,SPNT,after-hours,SiriusPoint Ltd.,Jun/2026,$0.65,3
 2026-07-29,SPOK,after-hours,"Spok Holdings, Inc.",Jun/2026,$0.15,1
 2026-07-29,ST,after-hours,Sensata Technologies Holding plc,Jun/2026,$0.93,2
 2026-07-29,STRA,pre-market,"Strategic Education, Inc.",Jun/2026,$1.79,2
@@ -532,8 +493,7 @@ date,symbol,report_time,company_name,fiscal_quarter_ending,eps_forecast,estimate
 2026-07-29,UFPI,after-hours,"UFP Industries, Inc.",Jun/2026,$1.44,3
 2026-07-29,UIS,after-hours,Unisys Corporation,Jun/2026,($0.02),2
 2026-07-29,ULCC,pre-market,"Frontier Group Holdings, Inc.",Jun/2026,($0.47),6
-2026-07-29,UMC,pre-market,United Microelectronics Corporation,Jun/2026,$0.15,1
-2026-07-29,UROY,not-supplied,Uranium Royalty Corp.,Apr/2026,($0.01),1
+2026-07-29,UMC,pre-market,United Microelectronics Corporation,Jun/2026,$0.16,2
 2026-07-29,USLM,not-supplied,"United States Lime & Minerals, Inc.",Jun/2026,,1
 2026-07-29,VET,after-hours,Vermilion Energy Inc.,Jun/2026,,N/A
 2026-07-29,VFC,pre-market,V.F. Corporation,Jun/2026,($0.22),7
@@ -570,7 +530,7 @@ date,symbol,report_time,company_name,fiscal_quarter_ending,eps_forecast,estimate
 2026-07-30,ALHC,after-hours,"Alignment Healthcare, Inc.",Jun/2026,$0.13,4
 2026-07-30,ALNY,pre-market,"Alnylam Pharmaceuticals, Inc.",Jun/2026,$1.44,8
 2026-07-30,AMCX,pre-market,AMC Global Media Inc.,Jun/2026,($0.01),2
-2026-07-30,AMG,not-supplied,"Affiliated Managers Group, Inc.",Jun/2026,$7.85,5
+2026-07-30,AMG,pre-market,"Affiliated Managers Group, Inc.",Jun/2026,$7.85,5
 2026-07-30,AMH,after-hours,American Homes 4 Rent,Jun/2026,$0.47,5
 2026-07-30,AMRX,pre-market,"Amneal Pharmaceuticals, Inc.",Jun/2026,$0.24,1
 2026-07-30,AMZN,after-hours,"Amazon.com, Inc.",Jun/2026,$1.81,13
@@ -579,11 +539,10 @@ date,symbol,report_time,company_name,fiscal_quarter_ending,eps_forecast,estimate
 2026-07-30,APG,pre-market,APi Group Corporation,Jun/2026,$0.44,4
 2026-07-30,AQMS,after-hours,"Aqua Metals, Inc.",Jun/2026,,1
 2026-07-30,ASUR,after-hours,Asure Software Inc,Jun/2026,$0.04,3
-2026-07-30,ASX,not-supplied,"ASE Technology Holding Co., Ltd.",Jun/2026,$0.17,2
+2026-07-30,ASX,pre-market,"ASE Technology Holding Co., Ltd.",Jun/2026,$0.17,2
 2026-07-30,ATHM,not-supplied,Autohome Inc.,Jun/2026,$0.26,2
 2026-07-30,ATR,after-hours,"AptarGroup, Inc.",Jun/2026,$1.34,4
 2026-07-30,AUPH,not-supplied,Aurinia Pharmaceuticals Inc,Jun/2026,$0.18,2
-2026-07-30,AURE,not-supplied,Aurelion Inc.,Jun/2026,,1
 2026-07-30,AVD,not-supplied,American Vanguard Corporation,Jun/2026,,1
 2026-07-30,AVY,pre-market,Avery Dennison Corporation,Jun/2026,$2.47,5
 2026-07-30,AX,after-hours,"Axos Financial, Inc.",Jun/2026,$2.15,4
@@ -621,6 +580,7 @@ date,symbol,report_time,company_name,fiscal_quarter_ending,eps_forecast,estimate
 2026-07-30,CI,pre-market,The Cigna Group,Jun/2026,$7.58,6
 2026-07-30,CIGI,pre-market,Colliers International Group Inc.,Jun/2026,$1.63,1
 2026-07-30,CLAR,not-supplied,Clarus Corporation,Jun/2026,($0.08),2
+2026-07-30,CLST,not-supplied,"Catalyst Bancorp, Inc.",Jun/2026,,1
 2026-07-30,CMCO,pre-market,Columbus McKinnon Corporation,Jun/2026,$0.28,2
 2026-07-30,CMPS,not-supplied,COMPASS Pathways Plc,Jun/2026,($0.46),6
 2026-07-30,CNK,pre-market,Cinemark Holdings Inc,Jun/2026,$0.99,7
@@ -665,7 +625,7 @@ date,symbol,report_time,company_name,fiscal_quarter_ending,eps_forecast,estimate
 2026-07-30,EMN,after-hours,Eastman Chemical Company,Jun/2026,$1.80,6
 2026-07-30,EPD,pre-market,Enterprise Products Partners L.P.,Jun/2026,$0.74,5
 2026-07-30,ERIE,after-hours,Erie Indemnity Company,Jun/2026,$3.35,1
-2026-07-30,ES,after-hours,Eversource Energy,Jun/2026,$0.91,6
+2026-07-30,ES,after-hours,Eversource Energy,Jun/2026,$0.90,6
 2026-07-30,ESCA,pre-market,"Escalade, Incorporated",Jun/2026,,N/A
 2026-07-30,EXC,pre-market,Exelon Corporation,Jun/2026,$0.43,5
 2026-07-30,EXPO,after-hours,"Exponent, Inc.",Jun/2026,$0.55,2
@@ -677,6 +637,7 @@ date,symbol,report_time,company_name,fiscal_quarter_ending,eps_forecast,estimate
 2026-07-30,FHI,after-hours,"Federated Hermes, Inc.",Jun/2026,$1.19,2
 2026-07-30,FLGT,after-hours,"Fulgent Genetics, Inc.",Jun/2026,($0.79),1
 2026-07-30,FND,after-hours,"Floor & Decor Holdings, Inc.",Jun/2026,$0.57,6
+2026-07-30,FNWB,not-supplied,First Northwest Bancorp,Jun/2026,$0.01,1
 2026-07-30,FORR,after-hours,"Forrester Research, Inc.",Jun/2026,$0.17,2
 2026-07-30,FRBT,pre-market,"Forbright, Inc.",Jun/2026,$0.13,1
 2026-07-30,FSLR,after-hours,"First Solar, Inc.",Jun/2026,$2.74,8
@@ -688,7 +649,7 @@ date,symbol,report_time,company_name,fiscal_quarter_ending,eps_forecast,estimate
 2026-07-30,GH,after-hours,"Guardant Health, Inc.",Jun/2026,($0.74),3
 2026-07-30,GIGM,not-supplied,GigaMedia Limited,Jun/2026,,1
 2026-07-30,GIL,pre-market,"Gildan Activewear, Inc.",Jun/2026,$1.11,2
-2026-07-30,GLPI,after-hours,"Gaming and Leisure Properties, Inc.",Jun/2026,$1,5
+2026-07-30,GLPI,after-hours,"Gaming and Leisure Properties, Inc.",Jun/2026,$1,6
 2026-07-30,GOOS,pre-market,Canada Goose Holdings Inc.,Jun/2026,($0.63),1
 2026-07-30,GPI,pre-market,"Group 1 Automotive, Inc.",Jun/2026,$10.79,5
 2026-07-30,GSIT,after-hours,"GSI Technology, Inc.",Jun/2026,,1
@@ -703,12 +664,14 @@ date,symbol,report_time,company_name,fiscal_quarter_ending,eps_forecast,estimate
 2026-07-30,HR,after-hours,Healthcare Realty Trust Incorporated,Jun/2026,$0.40,3
 2026-07-30,HSY,pre-market,Hershey Company (The),Jun/2026,$1.45,7
 2026-07-30,HTGC,after-hours,"Hercules Capital, Inc.",Jun/2026,$0.50,1
+2026-07-30,HTLD,not-supplied,"Heartland Express, Inc.",Jun/2026,$0,2
 2026-07-30,HUBG,not-supplied,"Hub Group, Inc.",Jun/2026,$0.52,3
 2026-07-30,HUN,after-hours,Huntsman Corporation,Jun/2026,$0.06,7
 2026-07-30,ICE,pre-market,Intercontinental Exchange Inc.,Jun/2026,$1.84,7
 2026-07-30,IDA,pre-market,"IDACORP, Inc.",Jun/2026,$1.79,2
 2026-07-30,IDCC,pre-market,"InterDigital, Inc.",Jun/2026,$1.28,2
 2026-07-30,ILMN,after-hours,"Illumina, Inc.",Jun/2026,$1.23,5
+2026-07-30,IMA,not-supplied,"ImageneBio, Inc.",Jun/2026,($0.90),2
 2026-07-30,INBK,after-hours,First Internet Bancorp,Jun/2026,$0.03,2
 2026-07-30,ING,pre-market,"ING Group, N.V.",Jun/2026,$0.75,2
 2026-07-30,INGM,after-hours,Ingram Micro Holding Corporation,Jun/2026,$0.73,5
@@ -747,6 +710,7 @@ date,symbol,report_time,company_name,fiscal_quarter_ending,eps_forecast,estimate
 2026-07-30,MO,pre-market,Altria Group,Jun/2026,$1.50,4
 2026-07-30,MPT,not-supplied,"Medical Properties Trust, Inc.",Jun/2026,$0.16,2
 2026-07-30,MPWR,after-hours,"Monolithic Power Systems, Inc.",Jun/2026,$4.84,5
+2026-07-30,MRBK,not-supplied,Meridian Corporation,Jun/2026,$0.51,2
 2026-07-30,MSA,after-hours,MSA Safety Incorporporated,Jun/2026,$2.14,5
 2026-07-30,MSC,not-supplied,Studio City International Holdings Limited,Jun/2026,,1
 2026-07-30,MSEX,after-hours,Middlesex Water Company,Jun/2026,,1
@@ -788,7 +752,7 @@ date,symbol,report_time,company_name,fiscal_quarter_ending,eps_forecast,estimate
 2026-07-30,PWR,pre-market,"Quanta Services, Inc.",Jun/2026,$3.03,7
 2026-07-30,RACE,pre-market,Ferrari N.V.,Jun/2026,$2.83,1
 2026-07-30,RAL,pre-market,Ralliant Corporation,Jun/2026,$0.63,4
-2026-07-30,RBLX,after-hours,Roblox Corporation,Jun/2026,($0.34),7
+2026-07-30,RBLX,after-hours,Roblox Corporation,Jun/2026,($0.33),7
 2026-07-30,RDDT,after-hours,"Reddit, Inc.",Jun/2026,$0.99,10
 2026-07-30,REGN,pre-market,"Regeneron Pharmaceuticals, Inc.",Jun/2026,$8,6
 2026-07-30,RES,pre-market,"RPC, Inc.",Jun/2026,$0.04,1
@@ -803,14 +767,15 @@ date,symbol,report_time,company_name,fiscal_quarter_ending,eps_forecast,estimate
 2026-07-30,SAMG,not-supplied,Silvercrest Asset Management Group Inc.,Jun/2026,$0.13,1
 2026-07-30,SCKT,after-hours,"Socket Mobile, Inc.",Jun/2026,,1
 2026-07-30,SHEL,pre-market,Shell PLC,Jun/2026,$3.02,3
-2026-07-30,SHOO,pre-market,"Steven Madden, Ltd.",Jun/2026,$0.32,3
+2026-07-30,SHIP,pre-market,Seanergy Maritime Holdings Corp.,Jun/2026,$1,2
+2026-07-30,SHOO,pre-market,"Steven Madden, Ltd.",Jun/2026,$0.33,3
 2026-07-30,SIRI,pre-market,SiriusXM Holdings Inc.,Jun/2026,$0.78,6
 2026-07-30,SLSN,not-supplied,"Solesence, Inc.",Jun/2026,,1
 2026-07-30,SNDR,after-hours,"Schneider National, Inc.",Jun/2026,$0.22,6
 2026-07-30,SNY,pre-market,Sanofi,Jun/2026,$1.09,5
 2026-07-30,SO,pre-market,Southern Company (The),Jun/2026,$1,6
 2026-07-30,SOLS,pre-market,Solstice Advanced Materials Inc.,Jun/2026,$0.79,1
-2026-07-30,SPHR,pre-market,Sphere Entertainment Co.,Jun/2026,($1.61),3
+2026-07-30,SPHR,pre-market,Sphere Entertainment Co.,Jun/2026,($1.60),3
 2026-07-30,SPSC,after-hours,"SPS Commerce, Inc.",Jun/2026,$0.72,5
 2026-07-30,SPXC,after-hours,"SPX Technologies, Inc.",Jun/2026,$1.85,6
 2026-07-30,SRBK,not-supplied,"SR Bancorp, Inc.",Jun/2026,,1
@@ -836,6 +801,7 @@ date,symbol,report_time,company_name,fiscal_quarter_ending,eps_forecast,estimate
 2026-07-30,UNIT,pre-market,Uniti Group Inc.,Jun/2026,($0.43),3
 2026-07-30,UPBD,pre-market,"Upbound Group, Inc.",Jun/2026,$1.07,2
 2026-07-30,UPLD,not-supplied,"Upland Software, Inc.",Jun/2026,,1
+2026-07-30,USEA,pre-market,United Maritime Corporation,Jun/2026,,1
 2026-07-30,UTZ,not-supplied,Utz Brands Inc,Jun/2026,$0.19,2
 2026-07-30,VALE,not-supplied,VALE S.A.,Jun/2026,$0.39,2
 2026-07-30,VCEL,pre-market,Vericel Corporation,Jun/2026,($0.04),1
@@ -856,3 +822,61 @@ date,symbol,report_time,company_name,fiscal_quarter_ending,eps_forecast,estimate
 2026-07-30,XRX,pre-market,Xerox Holdings Corporation,Jun/2026,$0.06,2
 2026-07-30,YUM,pre-market,"Yum! Brands, Inc.",Jun/2026,$1.59,7
 2026-07-30,YUMC,pre-market,"Yum China Holdings, Inc.",Jun/2026,$0.69,3
+2026-07-31,ABBV,pre-market,AbbVie Inc.,Jun/2026,$3.66,5
+2026-07-31,ABR,pre-market,Arbor Realty Trust,Jun/2026,$0.07,3
+2026-07-31,AFBI,not-supplied,"Affinity Bancshares, Inc.",Jun/2026,,5
+2026-07-31,AN,pre-market,"AutoNation, Inc.",Jun/2026,$5.43,6
+2026-07-31,ARES,pre-market,Ares Management Corporation,Jun/2026,$1.29,7
+2026-07-31,AUC,not-supplied,ATIF Holdings Limited,Apr/2026,,5
+2026-07-31,BBUC,pre-market,Brookfield Business Corporation,Jun/2026,,5
+2026-07-31,BCPC,pre-market,Balchem Corporation,Jun/2026,$1.42,2
+2026-07-31,BEN,pre-market,"Franklin Resources, Inc.",Jun/2026,$0.66,6
+2026-07-31,BEP,pre-market,Brookfield Renewable Partners L.P.,Jun/2026,($0.35),4
+2026-07-31,BEPC,pre-market,Brookfield Renewable Corporation,Jun/2026,($0.82),1
+2026-07-31,BLDP,pre-market,"Ballard Power Systems, Inc.",Jun/2026,($0.04),3
+2026-07-31,BSAC,pre-market,Banco Santander Chile,Jun/2026,$0.67,2
+2026-07-31,BTSG,pre-market,"BrightSpring Health Services, Inc.",Jun/2026,$0.37,4
+2026-07-31,BXBL,not-supplied,"BOXABL, Inc.",Jun/2026,,5
+2026-07-31,CBOE,pre-market,"Cboe Global Markets, Inc.",Jun/2026,$3.45,8
+2026-07-31,CCJ,pre-market,Cameco Corporation,Jun/2026,$0.26,4
+2026-07-31,CHD,pre-market,"Church & Dwight Company, Inc.",Jun/2026,$0.89,7
+2026-07-31,CL,pre-market,Colgate-Palmolive Company,Jun/2026,$0.95,8
+2026-07-31,CRI,not-supplied,"Carter's, Inc.",Jun/2026,$0.02,2
+2026-07-31,CVX,pre-market,Chevron Corporation,Jun/2026,$5.81,4
+2026-07-31,D,pre-market,"Dominion Energy, Inc.",Jun/2026,$0.74,6
+2026-07-31,DIT,not-supplied,AMCON Distributing Company,Jun/2026,,5
+2026-07-31,E,not-supplied,ENI S.p.A.,Jun/2026,$1.90,2
+2026-07-31,ENB,pre-market,Enbridge Inc,Jun/2026,$0.43,4
+2026-07-31,ETN,pre-market,"Eaton Corporation, PLC",Jun/2026,$3.08,9
+2026-07-31,FRT,pre-market,Federal Realty Investment Trust,Jun/2026,$1.85,7
+2026-07-31,FTS,pre-market,Fortis Inc.,Jun/2026,$0.55,3
+2026-07-31,GTES,pre-market,Gates Industrial Corporation Ltd.,Jun/2026,$0.38,2
+2026-07-31,IMO,pre-market,Imperial Oil Limited,Jun/2026,$2.99,2
+2026-07-31,IRMD,pre-market,iRadimed Corporation,Jun/2026,$0.42,1
+2026-07-31,ITUB,pre-market,Itau Unibanco Banco Holding SA,Jun/2026,$0.22,3
+2026-07-31,KYIV,pre-market,Kyivstar Group Ltd.,Jun/2026,$0.35,5
+2026-07-31,LEA,pre-market,Lear Corporation,Jun/2026,$3.89,5
+2026-07-31,LIN,pre-market,Linde plc,Jun/2026,$4.49,7
+2026-07-31,LYB,pre-market,LyondellBasell Industries NV,Jun/2026,$3.56,4
+2026-07-31,MGA,pre-market,"Magna International, Inc.",Jun/2026,$1.53,4
+2026-07-31,MOG.A,pre-market,Moog Inc.,Jun/2026,$2.67,3
+2026-07-31,MOG.B,pre-market,Moog Inc.,Jun/2026,,5
+2026-07-31,MRNA,pre-market,"Moderna, Inc.",Jun/2026,($1.97),8
+2026-07-31,NB,not-supplied,NioCorp Developments Ltd.,Jun/2026,($0.02),1
+2026-07-31,NVT,pre-market,nVent Electric plc,Jun/2026,$1.16,4
+2026-07-31,NWG,pre-market,NatWest Group plc,Jun/2026,$0.45,1
+2026-07-31,NWL,pre-market,Newell Brands Inc.,Jun/2026,$0.19,5
+2026-07-31,PAMT,not-supplied,PAMT CORP,Jun/2026,,5
+2026-07-31,PAYP,pre-market,PayPay Corporation,Jun/2026,$0.15,5
+2026-07-31,POR,pre-market,Portland General Electric Company,Jun/2026,$0.63,2
+2026-07-31,PRLB,pre-market,"Proto Labs, Inc.",Jun/2026,$0.39,1
+2026-07-31,PRM,pre-market,"Perimeter Solutions, SA",Jun/2026,$0.43,3
+2026-07-31,PWP,pre-market,Perella Weinberg Partners,Jun/2026,,5
+2026-07-31,RBC,pre-market,RBC Bearings Incorporated,Jun/2026,$3.21,4
+2026-07-31,SMFG,pre-market,Sumitomo Mitsui Financial Group Inc,Jun/2026,$0.44,1
+2026-07-31,TAC,pre-market,TransAlta Corporation,Jun/2026,$0.11,1
+2026-07-31,TROW,pre-market,"T. Rowe Price Group, Inc.",Jun/2026,$2.52,6
+2026-07-31,UBS,pre-market,UBS AG,Jun/2026,$0.90,2
+2026-07-31,VEON,pre-market,VEON Ltd.,Jun/2026,$1.59,1
+2026-07-31,WT,pre-market,"WisdomTree, Inc.",Jun/2026,$0.26,5
+2026-07-31,XOM,pre-market,ExxonMobil Holdings Corporation,Jun/2026,$3.87,5
