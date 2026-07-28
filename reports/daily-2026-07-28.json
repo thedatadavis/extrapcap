@@ -1,0 +1,4062 @@
+{
+  "categories": {
+    "reports": 1,
+    "risk": 7,
+    "signals": 15
+  },
+  "event_count": 23,
+  "events": [
+    {
+      "account": {
+        "account_blocked": false,
+        "accrued_fees": "0",
+        "admin_configurations": {},
+        "balance_asof": "2026-07-27",
+        "buying_power": "400000",
+        "cash": "100000",
+        "created_at": "2026-07-22T13:13:24.408209Z",
+        "crypto_status": "ACTIVE",
+        "crypto_tier": 1,
+        "currency": "USD",
+        "effective_buying_power": "400000",
+        "equity": "100000",
+        "initial_margin": "0",
+        "intraday_adjustments": "0",
+        "last_equity": "100000",
+        "last_maintenance_margin": "0",
+        "long_market_value": "0",
+        "maintenance_margin": "0",
+        "multiplier": "4",
+        "non_marginable_buying_power": "100000",
+        "options_approved_level": 3,
+        "options_buying_power": "100000",
+        "options_trading_level": 3,
+        "pending_reg_taf_fees": "0",
+        "portfolio_value": "100000",
+        "position_market_value": "0",
+        "regt_buying_power": "200000",
+        "short_market_value": "0",
+        "shorting_enabled": true,
+        "sma": "100000",
+        "status": "ACTIVE",
+        "trade_suspended_by_user": false,
+        "trading_blocked": false,
+        "transfers_blocked": false,
+        "user_configurations": null
+      },
+      "category": "reports",
+      "contract_ids": [],
+      "journal": {
+        "category": "reports",
+        "client_order_id": null,
+        "contract_details": [],
+        "contract_ids": [],
+        "data_tier": null,
+        "event_id": "evt-e6ce280db2bcd922d282",
+        "kind": "reconciliation",
+        "model_bucket": null,
+        "model_probability": null,
+        "provider": null,
+        "reason": null,
+        "recorded_at": "2026-07-28T22:34:38.754214+00:00",
+        "schema_version": 1,
+        "selection_context": {},
+        "selection_rank": null,
+        "sleeve": null,
+        "status": "recorded",
+        "strategy_route": null,
+        "strategy_variant": null,
+        "ticker": null,
+        "title": "reconciliation \u00b7 recorded",
+        "trading_day": "2026-07-28"
+      },
+      "kind": "reconciliation",
+      "open_orders": [],
+      "positions": [],
+      "ticker": null
+    },
+    {
+      "category": "risk",
+      "client_order_id": "xpc-cafba4fa454d6af1468bcc5e",
+      "contract_ids": [
+        "CF260828P00113000",
+        "CF260828P00123000"
+      ],
+      "contracts": [
+        {
+          "contract_id": "CF260828P00113000",
+          "expiration": "2026-08-28",
+          "option_type": "put",
+          "role": "short",
+          "strike": 113.0,
+          "ticker": "CF"
+        },
+        {
+          "contract_id": "CF260828P00123000",
+          "expiration": "2026-08-28",
+          "option_type": "put",
+          "role": "long",
+          "strike": 123.0,
+          "ticker": "CF"
+        }
+      ],
+      "data_tier": "indicative",
+      "journal": {
+        "category": "risk",
+        "client_order_id": "xpc-cafba4fa454d6af1468bcc5e",
+        "contract_details": [
+          {
+            "contract_id": "CF260828P00113000",
+            "expiration": "2026-08-28",
+            "option_type": "put",
+            "strike": 113.0,
+            "ticker": "CF"
+          },
+          {
+            "contract_id": "CF260828P00123000",
+            "expiration": "2026-08-28",
+            "option_type": "put",
+            "strike": 123.0,
+            "ticker": "CF"
+          }
+        ],
+        "contract_ids": [
+          "CF260828P00113000",
+          "CF260828P00123000"
+        ],
+        "data_tier": "indicative",
+        "event_id": "evt-f8de440b76ea5667d7d1",
+        "kind": "risk",
+        "model_bucket": null,
+        "model_probability": null,
+        "provider": null,
+        "reason": "option_quote_spread_too_wide",
+        "recorded_at": "2026-07-28T15:17:38.218559+00:00",
+        "schema_version": 1,
+        "selection_context": {
+          "benchmark_return": -6.766815536607407e-05,
+          "crash_protocol_paper_enabled": true,
+          "data_freshness": {
+            "allowed": true,
+            "latest_completed_as_of": "2026-07-27T04:00:00+00:00",
+            "max_age_days": 4,
+            "reason": "completed_formation_aligned"
+          },
+          "data_tier": "indicative",
+          "dollar_volume": 12705013.350000001,
+          "event_checks": {
+            "earnings": {
+              "allowed": true,
+              "category": "earnings",
+              "details": {
+                "age_hours": 0.001,
+                "calendar_days": 3,
+                "calendar_path": "data/events/earnings.csv",
+                "coverage_end": "2026-07-31",
+                "coverage_start": "2026-07-25",
+                "metadata_path": "data/events/earnings.csv.metadata.json",
+                "retrieved_at": "2026-07-28T15:17:33.367106+00:00",
+                "source": "nasdaq.expected_earnings_calendar",
+                "ticker": "CF",
+                "trading_day": "2026-07-28"
+              },
+              "reason": "outside earnings blackout"
+            },
+            "news": {
+              "allowed": true,
+              "category": "noise_or_opinion",
+              "details": null,
+              "reason": "no dated structural-risk event"
+            }
+          },
+          "formation_comparison": {
+            "allowed": true,
+            "basket": {
+              "relative_return": -0.042460010808621274,
+              "robust_z": -2.290739427373728,
+              "streak_direction": "negative",
+              "streak_length": 2
+            },
+            "provider": {
+              "as_of": "2026-07-27T04:00:00+00:00",
+              "relative_return": -0.042460010808621274,
+              "robust_z": -2.290739427373728,
+              "signed_streak": -2,
+              "streak_direction": "negative",
+              "streak_length": 2
+            },
+            "reason": "completed_signal_values_aligned"
+          },
+          "formation_date": "2026-07-27 04:00:00+00:00",
+          "formation_source": "completed_basket_verified_against_provider",
+          "intraday_range_pct": 0.02128991859737016,
+          "intraday_risk": {
+            "allowed": true,
+            "last_order_at": null,
+            "market_is_open": true,
+            "market_timestamp": "2026-07-28T11:17:36.105000535-04:00",
+            "next_close": "2026-07-28T16:00:00-04:00",
+            "next_open": "2026-07-29T09:30:00-04:00",
+            "orders_today": 0,
+            "reason": "approved"
+          },
+          "liquidity_context": 14378221.74,
+          "live_features": {
+            "as_of": "2026-07-27T04:00:00+00:00",
+            "relative_return": -0.042460010808621274,
+            "robust_z": -2.290739427373728,
+            "signed_streak": -2,
+            "streak_direction": "negative",
+            "streak_length": 2
+          },
+          "market_price_as_of": "2026-07-28T04:00:00+00:00",
+          "market_regime": 0.0006709273448549547,
+          "model_bucket": "crash_protocol",
+          "model_probability": 0.49395882163163296,
+          "relative_return": -0.042460010808621274,
+          "review_phase": "opening_prep",
+          "robust_z": -2.290739427373728,
+          "sector": "Basic Materials",
+          "selection_rank": 2,
+          "selection_source": "data/universe/tradable-basket.csv",
+          "signal_gate": {
+            "allowed": true,
+            "reason": "approved",
+            "robust_z": -2.290739427373728,
+            "strategy_route": "core_mean_reversion",
+            "streak_direction": "negative",
+            "streak_length": 2,
+            "z_threshold": -2.0
+          },
+          "signed_streak": -2,
+          "stock_return": -0.04252767896398735,
+          "strategy_route": "core_mean_reversion",
+          "streak_depth": 2,
+          "streak_direction": "negative",
+          "streak_length": 2,
+          "ticker": "CF",
+          "turn_of_month": false,
+          "volatility_context": 0.33515290665530223
+        },
+        "selection_rank": null,
+        "sleeve": "asymmetric",
+        "status": "vetoed",
+        "strategy_route": null,
+        "strategy_variant": "improved",
+        "ticker": "CF",
+        "title": "CF \u00b7 risk \u00b7 vetoed",
+        "trading_day": "2026-07-28"
+      },
+      "market_data": {
+        "data_tier": "indicative",
+        "debit_pct_width": 0.5839,
+        "legs": [
+          {
+            "ask": 3.97,
+            "bid": 2.23,
+            "contract_id": "CF260828P00113000",
+            "role": "short",
+            "spread_pct": 0.5612903225806453,
+            "ticker": "CF",
+            "timestamp": "2026-07-28T15:16:57.209933762Z"
+          }
+        ],
+        "observed_at": "2026-07-28T15:17:35.917473+00:00",
+        "reward_multiple": 0.7126220243192328
+      },
+      "reason": "option_quote_spread_too_wide",
+      "risk_snapshot": {
+        "asymmetric_open_risk": 0.0,
+        "core_open_risk": 0.0,
+        "daily_pnl": 0.0,
+        "drawdown": 0.0,
+        "nav": 100000.0,
+        "open_asymmetric_trades": 0,
+        "options_buying_power": 100000.0,
+        "options_trading_level": 3,
+        "sector_open_risk": {},
+        "ticker_open_risk": {},
+        "trading_blocked": false
+      },
+      "selection_context": {
+        "benchmark_return": -6.766815536607407e-05,
+        "crash_protocol_paper_enabled": true,
+        "data_freshness": {
+          "allowed": true,
+          "latest_completed_as_of": "2026-07-27T04:00:00+00:00",
+          "max_age_days": 4,
+          "reason": "completed_formation_aligned"
+        },
+        "data_tier": "indicative",
+        "dollar_volume": 12705013.350000001,
+        "event_checks": {
+          "earnings": {
+            "allowed": true,
+            "category": "earnings",
+            "details": {
+              "age_hours": 0.001,
+              "calendar_days": 3,
+              "calendar_path": "data/events/earnings.csv",
+              "coverage_end": "2026-07-31",
+              "coverage_start": "2026-07-25",
+              "metadata_path": "data/events/earnings.csv.metadata.json",
+              "retrieved_at": "2026-07-28T15:17:33.367106+00:00",
+              "source": "nasdaq.expected_earnings_calendar",
+              "ticker": "CF",
+              "trading_day": "2026-07-28"
+            },
+            "reason": "outside earnings blackout"
+          },
+          "news": {
+            "allowed": true,
+            "category": "noise_or_opinion",
+            "details": null,
+            "reason": "no dated structural-risk event"
+          }
+        },
+        "formation_comparison": {
+          "allowed": true,
+          "basket": {
+            "relative_return": -0.042460010808621274,
+            "robust_z": -2.290739427373728,
+            "streak_direction": "negative",
+            "streak_length": 2
+          },
+          "provider": {
+            "as_of": "2026-07-27T04:00:00+00:00",
+            "relative_return": -0.042460010808621274,
+            "robust_z": -2.290739427373728,
+            "signed_streak": -2,
+            "streak_direction": "negative",
+            "streak_length": 2
+          },
+          "reason": "completed_signal_values_aligned"
+        },
+        "formation_date": "2026-07-27 04:00:00+00:00",
+        "formation_source": "completed_basket_verified_against_provider",
+        "intraday_range_pct": 0.02128991859737016,
+        "intraday_risk": {
+          "allowed": true,
+          "last_order_at": null,
+          "market_is_open": true,
+          "market_timestamp": "2026-07-28T11:17:36.105000535-04:00",
+          "next_close": "2026-07-28T16:00:00-04:00",
+          "next_open": "2026-07-29T09:30:00-04:00",
+          "orders_today": 0,
+          "reason": "approved"
+        },
+        "liquidity_context": 14378221.74,
+        "live_features": {
+          "as_of": "2026-07-27T04:00:00+00:00",
+          "relative_return": -0.042460010808621274,
+          "robust_z": -2.290739427373728,
+          "signed_streak": -2,
+          "streak_direction": "negative",
+          "streak_length": 2
+        },
+        "market_price_as_of": "2026-07-28T04:00:00+00:00",
+        "market_regime": 0.0006709273448549547,
+        "model_bucket": "crash_protocol",
+        "model_probability": 0.49395882163163296,
+        "relative_return": -0.042460010808621274,
+        "review_phase": "opening_prep",
+        "robust_z": -2.290739427373728,
+        "sector": "Basic Materials",
+        "selection_rank": 2,
+        "selection_source": "data/universe/tradable-basket.csv",
+        "signal_gate": {
+          "allowed": true,
+          "reason": "approved",
+          "robust_z": -2.290739427373728,
+          "strategy_route": "core_mean_reversion",
+          "streak_direction": "negative",
+          "streak_length": 2,
+          "z_threshold": -2.0
+        },
+        "signed_streak": -2,
+        "stock_return": -0.04252767896398735,
+        "strategy_route": "core_mean_reversion",
+        "streak_depth": 2,
+        "streak_direction": "negative",
+        "streak_length": 2,
+        "ticker": "CF",
+        "turn_of_month": false,
+        "volatility_context": 0.33515290665530223
+      },
+      "signal_id": "sig-45e41b36574efa8a392a4fe3",
+      "sleeve": "asymmetric",
+      "status": "vetoed",
+      "strategy_variant": "improved",
+      "ticker": "CF",
+      "underlying": "CF"
+    },
+    {
+      "category": "risk",
+      "client_order_id": "xpc-b54deb584cdd84abb12b3ac1",
+      "contract_ids": [
+        "CF260828P00113000",
+        "CF260828P00123000"
+      ],
+      "contracts": [
+        {
+          "contract_id": "CF260828P00113000",
+          "expiration": "2026-08-28",
+          "option_type": "put",
+          "role": "short",
+          "strike": 113.0,
+          "ticker": "CF"
+        },
+        {
+          "contract_id": "CF260828P00123000",
+          "expiration": "2026-08-28",
+          "option_type": "put",
+          "role": "long",
+          "strike": 123.0,
+          "ticker": "CF"
+        }
+      ],
+      "data_tier": "indicative",
+      "journal": {
+        "category": "risk",
+        "client_order_id": "xpc-b54deb584cdd84abb12b3ac1",
+        "contract_details": [
+          {
+            "contract_id": "CF260828P00113000",
+            "expiration": "2026-08-28",
+            "option_type": "put",
+            "strike": 113.0,
+            "ticker": "CF"
+          },
+          {
+            "contract_id": "CF260828P00123000",
+            "expiration": "2026-08-28",
+            "option_type": "put",
+            "strike": 123.0,
+            "ticker": "CF"
+          }
+        ],
+        "contract_ids": [
+          "CF260828P00113000",
+          "CF260828P00123000"
+        ],
+        "data_tier": "indicative",
+        "event_id": "evt-5649e42c2e4746c52ac6",
+        "kind": "risk",
+        "model_bucket": null,
+        "model_probability": null,
+        "provider": null,
+        "reason": "option_quote_spread_too_wide",
+        "recorded_at": "2026-07-28T15:54:18.376743+00:00",
+        "schema_version": 1,
+        "selection_context": {
+          "benchmark_return": -6.766815536607407e-05,
+          "crash_protocol_paper_enabled": true,
+          "data_freshness": {
+            "allowed": true,
+            "latest_completed_as_of": "2026-07-27T04:00:00+00:00",
+            "max_age_days": 4,
+            "reason": "completed_formation_aligned"
+          },
+          "data_tier": "indicative",
+          "dollar_volume": 12705013.350000001,
+          "event_checks": {
+            "earnings": {
+              "allowed": true,
+              "category": "earnings",
+              "details": {
+                "age_hours": 0.001,
+                "calendar_days": 3,
+                "calendar_path": "data/events/earnings.csv",
+                "coverage_end": "2026-07-31",
+                "coverage_start": "2026-07-25",
+                "metadata_path": "data/events/earnings.csv.metadata.json",
+                "retrieved_at": "2026-07-28T15:54:13.204069+00:00",
+                "source": "nasdaq.expected_earnings_calendar",
+                "ticker": "CF",
+                "trading_day": "2026-07-28"
+              },
+              "reason": "outside earnings blackout"
+            },
+            "news": {
+              "allowed": true,
+              "category": "noise_or_opinion",
+              "details": null,
+              "reason": "no dated structural-risk event"
+            }
+          },
+          "formation_comparison": {
+            "allowed": true,
+            "basket": {
+              "relative_return": -0.042460010808621274,
+              "robust_z": -2.290739427373728,
+              "streak_direction": "negative",
+              "streak_length": 2
+            },
+            "provider": {
+              "as_of": "2026-07-27T04:00:00+00:00",
+              "relative_return": -0.042460010808621274,
+              "robust_z": -2.290739427373728,
+              "signed_streak": -2,
+              "streak_direction": "negative",
+              "streak_length": 2
+            },
+            "reason": "completed_signal_values_aligned"
+          },
+          "formation_date": "2026-07-27 04:00:00+00:00",
+          "formation_source": "completed_basket_verified_against_provider",
+          "intraday_range_pct": 0.02128991859737016,
+          "intraday_risk": {
+            "allowed": true,
+            "last_order_at": null,
+            "market_is_open": true,
+            "market_timestamp": "2026-07-28T11:54:16.265547236-04:00",
+            "next_close": "2026-07-28T16:00:00-04:00",
+            "next_open": "2026-07-29T09:30:00-04:00",
+            "orders_today": 0,
+            "reason": "approved"
+          },
+          "liquidity_context": 14378221.74,
+          "live_features": {
+            "as_of": "2026-07-27T04:00:00+00:00",
+            "relative_return": -0.042460010808621274,
+            "robust_z": -2.290739427373728,
+            "signed_streak": -2,
+            "streak_direction": "negative",
+            "streak_length": 2
+          },
+          "market_price_as_of": "2026-07-28T04:00:00+00:00",
+          "market_regime": 0.0006709273448549547,
+          "model_bucket": "crash_protocol",
+          "model_probability": 0.49395882163163296,
+          "relative_return": -0.042460010808621274,
+          "review_phase": "entry",
+          "robust_z": -2.290739427373728,
+          "sector": "Basic Materials",
+          "selection_rank": 2,
+          "selection_source": "data/universe/tradable-basket.csv",
+          "signal_gate": {
+            "allowed": true,
+            "reason": "approved",
+            "robust_z": -2.290739427373728,
+            "strategy_route": "core_mean_reversion",
+            "streak_direction": "negative",
+            "streak_length": 2,
+            "z_threshold": -2.0
+          },
+          "signed_streak": -2,
+          "stock_return": -0.04252767896398735,
+          "strategy_route": "core_mean_reversion",
+          "streak_depth": 2,
+          "streak_direction": "negative",
+          "streak_length": 2,
+          "ticker": "CF",
+          "turn_of_month": false,
+          "volatility_context": 0.33515290665530223
+        },
+        "selection_rank": null,
+        "sleeve": "asymmetric",
+        "status": "vetoed",
+        "strategy_route": null,
+        "strategy_variant": "improved",
+        "ticker": "CF",
+        "title": "CF \u00b7 risk \u00b7 vetoed",
+        "trading_day": "2026-07-28"
+      },
+      "market_data": {
+        "data_tier": "indicative",
+        "debit_pct_width": 0.5670000000000001,
+        "legs": [
+          {
+            "ask": 4.03,
+            "bid": 2.42,
+            "contract_id": "CF260828P00113000",
+            "role": "short",
+            "spread_pct": 0.49922480620155046,
+            "ticker": "CF",
+            "timestamp": "2026-07-28T15:53:51.868930945Z"
+          }
+        ],
+        "observed_at": "2026-07-28T15:54:16.074972+00:00",
+        "reward_multiple": 0.7636684303350968
+      },
+      "reason": "option_quote_spread_too_wide",
+      "risk_snapshot": {
+        "asymmetric_open_risk": 0.0,
+        "core_open_risk": 0.0,
+        "daily_pnl": 0.0,
+        "drawdown": 0.0,
+        "nav": 100000.0,
+        "open_asymmetric_trades": 0,
+        "options_buying_power": 100000.0,
+        "options_trading_level": 3,
+        "sector_open_risk": {},
+        "ticker_open_risk": {},
+        "trading_blocked": false
+      },
+      "selection_context": {
+        "benchmark_return": -6.766815536607407e-05,
+        "crash_protocol_paper_enabled": true,
+        "data_freshness": {
+          "allowed": true,
+          "latest_completed_as_of": "2026-07-27T04:00:00+00:00",
+          "max_age_days": 4,
+          "reason": "completed_formation_aligned"
+        },
+        "data_tier": "indicative",
+        "dollar_volume": 12705013.350000001,
+        "event_checks": {
+          "earnings": {
+            "allowed": true,
+            "category": "earnings",
+            "details": {
+              "age_hours": 0.001,
+              "calendar_days": 3,
+              "calendar_path": "data/events/earnings.csv",
+              "coverage_end": "2026-07-31",
+              "coverage_start": "2026-07-25",
+              "metadata_path": "data/events/earnings.csv.metadata.json",
+              "retrieved_at": "2026-07-28T15:54:13.204069+00:00",
+              "source": "nasdaq.expected_earnings_calendar",
+              "ticker": "CF",
+              "trading_day": "2026-07-28"
+            },
+            "reason": "outside earnings blackout"
+          },
+          "news": {
+            "allowed": true,
+            "category": "noise_or_opinion",
+            "details": null,
+            "reason": "no dated structural-risk event"
+          }
+        },
+        "formation_comparison": {
+          "allowed": true,
+          "basket": {
+            "relative_return": -0.042460010808621274,
+            "robust_z": -2.290739427373728,
+            "streak_direction": "negative",
+            "streak_length": 2
+          },
+          "provider": {
+            "as_of": "2026-07-27T04:00:00+00:00",
+            "relative_return": -0.042460010808621274,
+            "robust_z": -2.290739427373728,
+            "signed_streak": -2,
+            "streak_direction": "negative",
+            "streak_length": 2
+          },
+          "reason": "completed_signal_values_aligned"
+        },
+        "formation_date": "2026-07-27 04:00:00+00:00",
+        "formation_source": "completed_basket_verified_against_provider",
+        "intraday_range_pct": 0.02128991859737016,
+        "intraday_risk": {
+          "allowed": true,
+          "last_order_at": null,
+          "market_is_open": true,
+          "market_timestamp": "2026-07-28T11:54:16.265547236-04:00",
+          "next_close": "2026-07-28T16:00:00-04:00",
+          "next_open": "2026-07-29T09:30:00-04:00",
+          "orders_today": 0,
+          "reason": "approved"
+        },
+        "liquidity_context": 14378221.74,
+        "live_features": {
+          "as_of": "2026-07-27T04:00:00+00:00",
+          "relative_return": -0.042460010808621274,
+          "robust_z": -2.290739427373728,
+          "signed_streak": -2,
+          "streak_direction": "negative",
+          "streak_length": 2
+        },
+        "market_price_as_of": "2026-07-28T04:00:00+00:00",
+        "market_regime": 0.0006709273448549547,
+        "model_bucket": "crash_protocol",
+        "model_probability": 0.49395882163163296,
+        "relative_return": -0.042460010808621274,
+        "review_phase": "entry",
+        "robust_z": -2.290739427373728,
+        "sector": "Basic Materials",
+        "selection_rank": 2,
+        "selection_source": "data/universe/tradable-basket.csv",
+        "signal_gate": {
+          "allowed": true,
+          "reason": "approved",
+          "robust_z": -2.290739427373728,
+          "strategy_route": "core_mean_reversion",
+          "streak_direction": "negative",
+          "streak_length": 2,
+          "z_threshold": -2.0
+        },
+        "signed_streak": -2,
+        "stock_return": -0.04252767896398735,
+        "strategy_route": "core_mean_reversion",
+        "streak_depth": 2,
+        "streak_direction": "negative",
+        "streak_length": 2,
+        "ticker": "CF",
+        "turn_of_month": false,
+        "volatility_context": 0.33515290665530223
+      },
+      "signal_id": "sig-45e41b36574efa8a392a4fe3",
+      "sleeve": "asymmetric",
+      "status": "vetoed",
+      "strategy_variant": "improved",
+      "ticker": "CF",
+      "underlying": "CF"
+    },
+    {
+      "category": "risk",
+      "client_order_id": "xpc-561ffacc76fa56bdcb24918a",
+      "contract_ids": [
+        "CF260828P00113000",
+        "CF260828P00123000"
+      ],
+      "contracts": [
+        {
+          "contract_id": "CF260828P00113000",
+          "expiration": "2026-08-28",
+          "option_type": "put",
+          "role": "short",
+          "strike": 113.0,
+          "ticker": "CF"
+        },
+        {
+          "contract_id": "CF260828P00123000",
+          "expiration": "2026-08-28",
+          "option_type": "put",
+          "role": "long",
+          "strike": 123.0,
+          "ticker": "CF"
+        }
+      ],
+      "data_tier": "indicative",
+      "journal": {
+        "category": "risk",
+        "client_order_id": "xpc-561ffacc76fa56bdcb24918a",
+        "contract_details": [
+          {
+            "contract_id": "CF260828P00113000",
+            "expiration": "2026-08-28",
+            "option_type": "put",
+            "strike": 113.0,
+            "ticker": "CF"
+          },
+          {
+            "contract_id": "CF260828P00123000",
+            "expiration": "2026-08-28",
+            "option_type": "put",
+            "strike": 123.0,
+            "ticker": "CF"
+          }
+        ],
+        "contract_ids": [
+          "CF260828P00113000",
+          "CF260828P00123000"
+        ],
+        "data_tier": "indicative",
+        "event_id": "evt-25ae689d64e23dcc39c5",
+        "kind": "risk",
+        "model_bucket": null,
+        "model_probability": null,
+        "provider": null,
+        "reason": "option_quote_spread_too_wide",
+        "recorded_at": "2026-07-28T17:48:07.510442+00:00",
+        "schema_version": 1,
+        "selection_context": {
+          "benchmark_return": -6.766815536607407e-05,
+          "crash_protocol_paper_enabled": true,
+          "data_freshness": {
+            "allowed": true,
+            "latest_completed_as_of": "2026-07-27T04:00:00+00:00",
+            "max_age_days": 4,
+            "reason": "completed_formation_aligned"
+          },
+          "data_tier": "indicative",
+          "dollar_volume": 12705013.350000001,
+          "event_checks": {
+            "earnings": {
+              "allowed": true,
+              "category": "earnings",
+              "details": {
+                "age_hours": 0.001,
+                "calendar_days": 3,
+                "calendar_path": "data/events/earnings.csv",
+                "coverage_end": "2026-07-31",
+                "coverage_start": "2026-07-25",
+                "metadata_path": "data/events/earnings.csv.metadata.json",
+                "retrieved_at": "2026-07-28T17:48:00.169439+00:00",
+                "source": "nasdaq.expected_earnings_calendar",
+                "ticker": "CF",
+                "trading_day": "2026-07-28"
+              },
+              "reason": "outside earnings blackout"
+            },
+            "news": {
+              "allowed": true,
+              "category": "noise_or_opinion",
+              "details": null,
+              "reason": "no dated structural-risk event"
+            }
+          },
+          "formation_comparison": {
+            "allowed": true,
+            "basket": {
+              "relative_return": -0.042460010808621274,
+              "robust_z": -2.290739427373728,
+              "streak_direction": "negative",
+              "streak_length": 2
+            },
+            "provider": {
+              "as_of": "2026-07-27T04:00:00+00:00",
+              "relative_return": -0.042460010808621274,
+              "robust_z": -2.290739427373728,
+              "signed_streak": -2,
+              "streak_direction": "negative",
+              "streak_length": 2
+            },
+            "reason": "completed_signal_values_aligned"
+          },
+          "formation_date": "2026-07-27 04:00:00+00:00",
+          "formation_source": "completed_basket_verified_against_provider",
+          "intraday_range_pct": 0.02128991859737016,
+          "intraday_risk": {
+            "allowed": true,
+            "last_order_at": null,
+            "market_is_open": true,
+            "market_timestamp": "2026-07-28T13:48:05.149168578-04:00",
+            "next_close": "2026-07-28T16:00:00-04:00",
+            "next_open": "2026-07-29T09:30:00-04:00",
+            "orders_today": 0,
+            "reason": "approved"
+          },
+          "liquidity_context": 14378221.74,
+          "live_features": {
+            "as_of": "2026-07-27T04:00:00+00:00",
+            "relative_return": -0.042460010808621274,
+            "robust_z": -2.290739427373728,
+            "signed_streak": -2,
+            "streak_direction": "negative",
+            "streak_length": 2
+          },
+          "market_price_as_of": "2026-07-28T04:00:00+00:00",
+          "market_regime": 0.0006709273448549547,
+          "model_bucket": "crash_protocol",
+          "model_probability": 0.49395882163163296,
+          "relative_return": -0.042460010808621274,
+          "review_phase": "entry",
+          "robust_z": -2.290739427373728,
+          "sector": "Basic Materials",
+          "selection_rank": 2,
+          "selection_source": "data/universe/tradable-basket.csv",
+          "signal_gate": {
+            "allowed": true,
+            "reason": "approved",
+            "robust_z": -2.290739427373728,
+            "strategy_route": "core_mean_reversion",
+            "streak_direction": "negative",
+            "streak_length": 2,
+            "z_threshold": -2.0
+          },
+          "signed_streak": -2,
+          "stock_return": -0.04252767896398735,
+          "strategy_route": "core_mean_reversion",
+          "streak_depth": 2,
+          "streak_direction": "negative",
+          "streak_length": 2,
+          "ticker": "CF",
+          "turn_of_month": false,
+          "volatility_context": 0.33515290665530223
+        },
+        "selection_rank": null,
+        "sleeve": "asymmetric",
+        "status": "vetoed",
+        "strategy_route": null,
+        "strategy_variant": "improved",
+        "ticker": "CF",
+        "title": "CF \u00b7 risk \u00b7 vetoed",
+        "trading_day": "2026-07-28"
+      },
+      "market_data": {
+        "data_tier": "indicative",
+        "debit_pct_width": 0.545,
+        "legs": [
+          {
+            "ask": 4.08,
+            "bid": 2.57,
+            "contract_id": "CF260828P00113000",
+            "role": "short",
+            "spread_pct": 0.4541353383458647,
+            "ticker": "CF",
+            "timestamp": "2026-07-28T17:47:56.120605143Z"
+          }
+        ],
+        "observed_at": "2026-07-28T17:48:04.663776+00:00",
+        "reward_multiple": 0.8348623853211009
+      },
+      "reason": "option_quote_spread_too_wide",
+      "risk_snapshot": {
+        "asymmetric_open_risk": 0.0,
+        "core_open_risk": 0.0,
+        "daily_pnl": 0.0,
+        "drawdown": 0.0,
+        "nav": 100000.0,
+        "open_asymmetric_trades": 0,
+        "options_buying_power": 100000.0,
+        "options_trading_level": 3,
+        "sector_open_risk": {},
+        "ticker_open_risk": {},
+        "trading_blocked": false
+      },
+      "selection_context": {
+        "benchmark_return": -6.766815536607407e-05,
+        "crash_protocol_paper_enabled": true,
+        "data_freshness": {
+          "allowed": true,
+          "latest_completed_as_of": "2026-07-27T04:00:00+00:00",
+          "max_age_days": 4,
+          "reason": "completed_formation_aligned"
+        },
+        "data_tier": "indicative",
+        "dollar_volume": 12705013.350000001,
+        "event_checks": {
+          "earnings": {
+            "allowed": true,
+            "category": "earnings",
+            "details": {
+              "age_hours": 0.001,
+              "calendar_days": 3,
+              "calendar_path": "data/events/earnings.csv",
+              "coverage_end": "2026-07-31",
+              "coverage_start": "2026-07-25",
+              "metadata_path": "data/events/earnings.csv.metadata.json",
+              "retrieved_at": "2026-07-28T17:48:00.169439+00:00",
+              "source": "nasdaq.expected_earnings_calendar",
+              "ticker": "CF",
+              "trading_day": "2026-07-28"
+            },
+            "reason": "outside earnings blackout"
+          },
+          "news": {
+            "allowed": true,
+            "category": "noise_or_opinion",
+            "details": null,
+            "reason": "no dated structural-risk event"
+          }
+        },
+        "formation_comparison": {
+          "allowed": true,
+          "basket": {
+            "relative_return": -0.042460010808621274,
+            "robust_z": -2.290739427373728,
+            "streak_direction": "negative",
+            "streak_length": 2
+          },
+          "provider": {
+            "as_of": "2026-07-27T04:00:00+00:00",
+            "relative_return": -0.042460010808621274,
+            "robust_z": -2.290739427373728,
+            "signed_streak": -2,
+            "streak_direction": "negative",
+            "streak_length": 2
+          },
+          "reason": "completed_signal_values_aligned"
+        },
+        "formation_date": "2026-07-27 04:00:00+00:00",
+        "formation_source": "completed_basket_verified_against_provider",
+        "intraday_range_pct": 0.02128991859737016,
+        "intraday_risk": {
+          "allowed": true,
+          "last_order_at": null,
+          "market_is_open": true,
+          "market_timestamp": "2026-07-28T13:48:05.149168578-04:00",
+          "next_close": "2026-07-28T16:00:00-04:00",
+          "next_open": "2026-07-29T09:30:00-04:00",
+          "orders_today": 0,
+          "reason": "approved"
+        },
+        "liquidity_context": 14378221.74,
+        "live_features": {
+          "as_of": "2026-07-27T04:00:00+00:00",
+          "relative_return": -0.042460010808621274,
+          "robust_z": -2.290739427373728,
+          "signed_streak": -2,
+          "streak_direction": "negative",
+          "streak_length": 2
+        },
+        "market_price_as_of": "2026-07-28T04:00:00+00:00",
+        "market_regime": 0.0006709273448549547,
+        "model_bucket": "crash_protocol",
+        "model_probability": 0.49395882163163296,
+        "relative_return": -0.042460010808621274,
+        "review_phase": "entry",
+        "robust_z": -2.290739427373728,
+        "sector": "Basic Materials",
+        "selection_rank": 2,
+        "selection_source": "data/universe/tradable-basket.csv",
+        "signal_gate": {
+          "allowed": true,
+          "reason": "approved",
+          "robust_z": -2.290739427373728,
+          "strategy_route": "core_mean_reversion",
+          "streak_direction": "negative",
+          "streak_length": 2,
+          "z_threshold": -2.0
+        },
+        "signed_streak": -2,
+        "stock_return": -0.04252767896398735,
+        "strategy_route": "core_mean_reversion",
+        "streak_depth": 2,
+        "streak_direction": "negative",
+        "streak_length": 2,
+        "ticker": "CF",
+        "turn_of_month": false,
+        "volatility_context": 0.33515290665530223
+      },
+      "signal_id": "sig-45e41b36574efa8a392a4fe3",
+      "sleeve": "asymmetric",
+      "status": "vetoed",
+      "strategy_variant": "improved",
+      "ticker": "CF",
+      "underlying": "CF"
+    },
+    {
+      "category": "risk",
+      "contract_ids": [],
+      "journal": {
+        "category": "risk",
+        "client_order_id": null,
+        "contract_details": [],
+        "contract_ids": [],
+        "data_tier": null,
+        "event_id": "evt-ee7d5600f06b47dcb028",
+        "kind": "intraday_risk_gate",
+        "model_bucket": null,
+        "model_probability": null,
+        "provider": null,
+        "reason": "broker market clock closed",
+        "recorded_at": "2026-07-28T20:10:27.763671+00:00",
+        "schema_version": 1,
+        "selection_context": {
+          "benchmark_return": -6.766815536607407e-05,
+          "dollar_volume": 12705013.350000001,
+          "formation_date": "2026-07-27 04:00:00+00:00",
+          "intraday_range_pct": 0.02128991859737016,
+          "intraday_risk": {
+            "allowed": false,
+            "last_order_at": null,
+            "market_is_open": false,
+            "market_timestamp": "2026-07-28T16:10:27.705114598-04:00",
+            "next_close": "2026-07-29T16:00:00-04:00",
+            "next_open": "2026-07-29T09:30:00-04:00",
+            "orders_today": 0,
+            "reason": "broker market clock closed"
+          },
+          "liquidity_context": 14378221.74,
+          "market_regime": 0.0006709273448549547,
+          "model_bucket": "crash_protocol",
+          "model_probability": 0.49395882163163296,
+          "relative_return": -0.042460010808621274,
+          "review_phase": "entry",
+          "robust_z": -2.290739427373728,
+          "sector": "Basic Materials",
+          "selection_rank": 2,
+          "selection_source": "data/universe/tradable-basket.csv",
+          "signal_gate": {
+            "allowed": true,
+            "reason": "approved",
+            "robust_z": -2.290739427373728,
+            "strategy_route": "core_mean_reversion",
+            "streak_direction": "negative",
+            "streak_length": 2,
+            "z_threshold": -2.0
+          },
+          "signed_streak": -2,
+          "stock_return": -0.04252767896398735,
+          "strategy_route": "core_mean_reversion",
+          "streak_depth": 2,
+          "streak_direction": "negative",
+          "streak_length": 2,
+          "ticker": "CF",
+          "turn_of_month": false,
+          "volatility_context": 0.33515290665530223
+        },
+        "selection_rank": null,
+        "sleeve": null,
+        "status": "vetoed",
+        "strategy_route": null,
+        "strategy_variant": null,
+        "ticker": "CF",
+        "title": "CF \u00b7 intraday risk gate \u00b7 vetoed",
+        "trading_day": "2026-07-28"
+      },
+      "kind": "intraday_risk_gate",
+      "reason": "broker market clock closed",
+      "selection_context": {
+        "benchmark_return": -6.766815536607407e-05,
+        "dollar_volume": 12705013.350000001,
+        "formation_date": "2026-07-27 04:00:00+00:00",
+        "intraday_range_pct": 0.02128991859737016,
+        "intraday_risk": {
+          "allowed": false,
+          "last_order_at": null,
+          "market_is_open": false,
+          "market_timestamp": "2026-07-28T16:10:27.705114598-04:00",
+          "next_close": "2026-07-29T16:00:00-04:00",
+          "next_open": "2026-07-29T09:30:00-04:00",
+          "orders_today": 0,
+          "reason": "broker market clock closed"
+        },
+        "liquidity_context": 14378221.74,
+        "market_regime": 0.0006709273448549547,
+        "model_bucket": "crash_protocol",
+        "model_probability": 0.49395882163163296,
+        "relative_return": -0.042460010808621274,
+        "review_phase": "entry",
+        "robust_z": -2.290739427373728,
+        "sector": "Basic Materials",
+        "selection_rank": 2,
+        "selection_source": "data/universe/tradable-basket.csv",
+        "signal_gate": {
+          "allowed": true,
+          "reason": "approved",
+          "robust_z": -2.290739427373728,
+          "strategy_route": "core_mean_reversion",
+          "streak_direction": "negative",
+          "streak_length": 2,
+          "z_threshold": -2.0
+        },
+        "signed_streak": -2,
+        "stock_return": -0.04252767896398735,
+        "strategy_route": "core_mean_reversion",
+        "streak_depth": 2,
+        "streak_direction": "negative",
+        "streak_length": 2,
+        "ticker": "CF",
+        "turn_of_month": false,
+        "volatility_context": 0.33515290665530223
+      },
+      "status": "vetoed",
+      "symbol": "CF",
+      "ticker": "CF",
+      "timeframe": "1Day"
+    },
+    {
+      "category": "risk",
+      "contract_ids": [],
+      "journal": {
+        "category": "risk",
+        "client_order_id": null,
+        "contract_details": [],
+        "contract_ids": [],
+        "data_tier": null,
+        "event_id": "evt-5e695ebc2a9180df298b",
+        "kind": "intraday_risk_gate",
+        "model_bucket": null,
+        "model_probability": null,
+        "provider": null,
+        "reason": "broker market clock closed",
+        "recorded_at": "2026-07-28T20:10:27.876406+00:00",
+        "schema_version": 1,
+        "selection_context": {
+          "benchmark_return": -6.766815536607407e-05,
+          "dollar_volume": 4205668.68,
+          "formation_date": "2026-07-27 04:00:00+00:00",
+          "intraday_range_pct": 0.037402718085724394,
+          "intraday_risk": {
+            "allowed": false,
+            "last_order_at": null,
+            "market_is_open": false,
+            "market_timestamp": "2026-07-28T16:10:27.816975027-04:00",
+            "next_close": "2026-07-29T16:00:00-04:00",
+            "next_open": "2026-07-29T09:30:00-04:00",
+            "orders_today": 0,
+            "reason": "broker market clock closed"
+          },
+          "liquidity_context": 5013270.455,
+          "market_regime": 0.0006709273448549547,
+          "model_bucket": "crash_protocol",
+          "model_probability": 0.49852117269849905,
+          "relative_return": -0.04592080702193879,
+          "review_phase": "entry",
+          "robust_z": -2.1903282142062737,
+          "sector": "Energy",
+          "selection_rank": 1,
+          "selection_source": "data/universe/tradable-basket.csv",
+          "signal_gate": {
+            "allowed": true,
+            "reason": "approved",
+            "robust_z": -2.1903282142062737,
+            "strategy_route": "core_mean_reversion",
+            "streak_direction": "negative",
+            "streak_length": 2,
+            "z_threshold": -2.0
+          },
+          "signed_streak": -2,
+          "stock_return": -0.045988475177304866,
+          "strategy_route": "core_mean_reversion",
+          "streak_depth": 2,
+          "streak_direction": "negative",
+          "streak_length": 2,
+          "ticker": "VNOM",
+          "turn_of_month": false,
+          "volatility_context": 0.31399513856212147
+        },
+        "selection_rank": null,
+        "sleeve": null,
+        "status": "vetoed",
+        "strategy_route": null,
+        "strategy_variant": null,
+        "ticker": "VNOM",
+        "title": "VNOM \u00b7 intraday risk gate \u00b7 vetoed",
+        "trading_day": "2026-07-28"
+      },
+      "kind": "intraday_risk_gate",
+      "reason": "broker market clock closed",
+      "selection_context": {
+        "benchmark_return": -6.766815536607407e-05,
+        "dollar_volume": 4205668.68,
+        "formation_date": "2026-07-27 04:00:00+00:00",
+        "intraday_range_pct": 0.037402718085724394,
+        "intraday_risk": {
+          "allowed": false,
+          "last_order_at": null,
+          "market_is_open": false,
+          "market_timestamp": "2026-07-28T16:10:27.816975027-04:00",
+          "next_close": "2026-07-29T16:00:00-04:00",
+          "next_open": "2026-07-29T09:30:00-04:00",
+          "orders_today": 0,
+          "reason": "broker market clock closed"
+        },
+        "liquidity_context": 5013270.455,
+        "market_regime": 0.0006709273448549547,
+        "model_bucket": "crash_protocol",
+        "model_probability": 0.49852117269849905,
+        "relative_return": -0.04592080702193879,
+        "review_phase": "entry",
+        "robust_z": -2.1903282142062737,
+        "sector": "Energy",
+        "selection_rank": 1,
+        "selection_source": "data/universe/tradable-basket.csv",
+        "signal_gate": {
+          "allowed": true,
+          "reason": "approved",
+          "robust_z": -2.1903282142062737,
+          "strategy_route": "core_mean_reversion",
+          "streak_direction": "negative",
+          "streak_length": 2,
+          "z_threshold": -2.0
+        },
+        "signed_streak": -2,
+        "stock_return": -0.045988475177304866,
+        "strategy_route": "core_mean_reversion",
+        "streak_depth": 2,
+        "streak_direction": "negative",
+        "streak_length": 2,
+        "ticker": "VNOM",
+        "turn_of_month": false,
+        "volatility_context": 0.31399513856212147
+      },
+      "status": "vetoed",
+      "symbol": "VNOM",
+      "ticker": "VNOM",
+      "timeframe": "1Day"
+    },
+    {
+      "category": "risk",
+      "contract_ids": [],
+      "journal": {
+        "category": "risk",
+        "client_order_id": null,
+        "contract_details": [],
+        "contract_ids": [],
+        "data_tier": null,
+        "event_id": "evt-f51bedfb8dc88ab59f8d",
+        "kind": "risk",
+        "model_bucket": null,
+        "model_probability": null,
+        "provider": null,
+        "reason": "broker market clock closed",
+        "recorded_at": "2026-07-28T20:59:12.641638+00:00",
+        "schema_version": 1,
+        "selection_context": {},
+        "selection_rank": null,
+        "sleeve": null,
+        "status": "skipped",
+        "strategy_route": null,
+        "strategy_variant": null,
+        "ticker": null,
+        "title": "risk \u00b7 skipped",
+        "trading_day": "2026-07-28"
+      },
+      "reason": "broker market clock closed",
+      "status": "skipped",
+      "ticker": null
+    },
+    {
+      "category": "risk",
+      "contract_ids": [],
+      "journal": {
+        "category": "risk",
+        "client_order_id": null,
+        "contract_details": [],
+        "contract_ids": [],
+        "data_tier": null,
+        "event_id": "evt-f51bedfb8dc88ab59f8d",
+        "kind": "risk",
+        "model_bucket": null,
+        "model_probability": null,
+        "provider": null,
+        "reason": "broker market clock closed",
+        "recorded_at": "2026-07-28T22:04:48.234092+00:00",
+        "schema_version": 1,
+        "selection_context": {},
+        "selection_rank": null,
+        "sleeve": null,
+        "status": "skipped",
+        "strategy_route": null,
+        "strategy_variant": null,
+        "ticker": null,
+        "title": "risk \u00b7 skipped",
+        "trading_day": "2026-07-28"
+      },
+      "reason": "broker market clock closed",
+      "status": "skipped",
+      "ticker": null
+    },
+    {
+      "category": "signals",
+      "contract_ids": [],
+      "journal": {
+        "category": "signals",
+        "client_order_id": null,
+        "contract_details": [],
+        "contract_ids": [],
+        "data_tier": null,
+        "event_id": "evt-513279697673d773f407",
+        "kind": "basket_selection",
+        "model_bucket": null,
+        "model_probability": 0.5518426159960407,
+        "provider": "system",
+        "reason": "trap",
+        "recorded_at": "2026-07-28T15:17:34.443385+00:00",
+        "schema_version": 1,
+        "selection_context": {
+          "benchmark_return": -6.766815536607407e-05,
+          "dollar_volume": 1317419322.14,
+          "formation_date": "2026-07-27 04:00:00+00:00",
+          "intraday_range_pct": 0.06710589911220777,
+          "liquidity_context": 922195371.33,
+          "market_regime": 0.0006709273448549547,
+          "model_bucket": "trap",
+          "model_probability": 0.5518426159960407,
+          "relative_return": -0.05071226133707607,
+          "robust_z": -2.5176447502988846,
+          "sector": "Technology",
+          "selection_rank": null,
+          "selection_source": "data/universe/tradable-basket.csv",
+          "signal_gate": {
+            "allowed": true,
+            "reason": "approved",
+            "robust_z": -2.5176447502988846,
+            "strategy_route": "core_mean_reversion",
+            "streak_direction": "negative",
+            "streak_length": 3,
+            "z_threshold": -2.0
+          },
+          "signed_streak": -3,
+          "stock_return": -0.050779929492442144,
+          "strategy_route": "core_mean_reversion",
+          "streak_depth": 3,
+          "streak_direction": "negative",
+          "streak_length": 3,
+          "ticker": "NVDA",
+          "turn_of_month": false,
+          "volatility_context": 0.40139545382915626
+        },
+        "selection_rank": null,
+        "sleeve": "core",
+        "status": "deferred",
+        "strategy_route": "core_mean_reversion",
+        "strategy_variant": "improved",
+        "ticker": "NVDA",
+        "title": "NVDA \u00b7 basket selection \u00b7 deferred",
+        "trading_day": "2026-07-28"
+      },
+      "kind": "basket_selection",
+      "model_probability": 0.5518426159960407,
+      "provider": "system",
+      "reason": "trap",
+      "selection_context": {
+        "benchmark_return": -6.766815536607407e-05,
+        "dollar_volume": 1317419322.14,
+        "formation_date": "2026-07-27 04:00:00+00:00",
+        "intraday_range_pct": 0.06710589911220777,
+        "liquidity_context": 922195371.33,
+        "market_regime": 0.0006709273448549547,
+        "model_bucket": "trap",
+        "model_probability": 0.5518426159960407,
+        "relative_return": -0.05071226133707607,
+        "robust_z": -2.5176447502988846,
+        "sector": "Technology",
+        "selection_rank": null,
+        "selection_source": "data/universe/tradable-basket.csv",
+        "signal_gate": {
+          "allowed": true,
+          "reason": "approved",
+          "robust_z": -2.5176447502988846,
+          "strategy_route": "core_mean_reversion",
+          "streak_direction": "negative",
+          "streak_length": 3,
+          "z_threshold": -2.0
+        },
+        "signed_streak": -3,
+        "stock_return": -0.050779929492442144,
+        "strategy_route": "core_mean_reversion",
+        "streak_depth": 3,
+        "streak_direction": "negative",
+        "streak_length": 3,
+        "ticker": "NVDA",
+        "turn_of_month": false,
+        "volatility_context": 0.40139545382915626
+      },
+      "selection_rank": null,
+      "sleeve": "core",
+      "status": "deferred",
+      "strategy_route": "core_mean_reversion",
+      "strategy_variant": "improved",
+      "ticker": "NVDA"
+    },
+    {
+      "category": "signals",
+      "contract_ids": [],
+      "journal": {
+        "category": "signals",
+        "client_order_id": null,
+        "contract_details": [],
+        "contract_ids": [],
+        "data_tier": null,
+        "event_id": "evt-9a6c79ca7f819f08a5b6",
+        "kind": "basket_selection",
+        "model_bucket": null,
+        "model_probability": 0.5471453080061701,
+        "provider": "system",
+        "reason": "trap",
+        "recorded_at": "2026-07-28T15:17:35.912831+00:00",
+        "schema_version": 1,
+        "selection_context": {
+          "benchmark_return": -6.766815536607407e-05,
+          "dollar_volume": 9430888.719999999,
+          "formation_date": "2026-07-27 04:00:00+00:00",
+          "intraday_range_pct": 0.04150197628458498,
+          "liquidity_context": 9975933.004999999,
+          "market_regime": 0.0006709273448549547,
+          "model_bucket": "trap",
+          "model_probability": 0.5471453080061701,
+          "relative_return": -0.052366788773472894,
+          "robust_z": -2.4724864881914987,
+          "sector": "Energy",
+          "selection_rank": null,
+          "selection_source": "data/universe/tradable-basket.csv",
+          "signal_gate": {
+            "allowed": true,
+            "reason": "approved",
+            "robust_z": -2.4724864881914987,
+            "strategy_route": "core_mean_reversion",
+            "streak_direction": "negative",
+            "streak_length": 2,
+            "z_threshold": -2.0
+          },
+          "signed_streak": -2,
+          "stock_return": -0.05243445692883897,
+          "strategy_route": "core_mean_reversion",
+          "streak_depth": 2,
+          "streak_direction": "negative",
+          "streak_length": 2,
+          "ticker": "PR",
+          "turn_of_month": false,
+          "volatility_context": 0.35202851923476786
+        },
+        "selection_rank": null,
+        "sleeve": "core",
+        "status": "deferred",
+        "strategy_route": "core_mean_reversion",
+        "strategy_variant": "improved",
+        "ticker": "PR",
+        "title": "PR \u00b7 basket selection \u00b7 deferred",
+        "trading_day": "2026-07-28"
+      },
+      "kind": "basket_selection",
+      "model_probability": 0.5471453080061701,
+      "provider": "system",
+      "reason": "trap",
+      "selection_context": {
+        "benchmark_return": -6.766815536607407e-05,
+        "dollar_volume": 9430888.719999999,
+        "formation_date": "2026-07-27 04:00:00+00:00",
+        "intraday_range_pct": 0.04150197628458498,
+        "liquidity_context": 9975933.004999999,
+        "market_regime": 0.0006709273448549547,
+        "model_bucket": "trap",
+        "model_probability": 0.5471453080061701,
+        "relative_return": -0.052366788773472894,
+        "robust_z": -2.4724864881914987,
+        "sector": "Energy",
+        "selection_rank": null,
+        "selection_source": "data/universe/tradable-basket.csv",
+        "signal_gate": {
+          "allowed": true,
+          "reason": "approved",
+          "robust_z": -2.4724864881914987,
+          "strategy_route": "core_mean_reversion",
+          "streak_direction": "negative",
+          "streak_length": 2,
+          "z_threshold": -2.0
+        },
+        "signed_streak": -2,
+        "stock_return": -0.05243445692883897,
+        "strategy_route": "core_mean_reversion",
+        "streak_depth": 2,
+        "streak_direction": "negative",
+        "streak_length": 2,
+        "ticker": "PR",
+        "turn_of_month": false,
+        "volatility_context": 0.35202851923476786
+      },
+      "selection_rank": null,
+      "sleeve": "core",
+      "status": "deferred",
+      "strategy_route": "core_mean_reversion",
+      "strategy_variant": "improved",
+      "ticker": "PR"
+    },
+    {
+      "category": "signals",
+      "contract_ids": [],
+      "journal": {
+        "category": "signals",
+        "client_order_id": null,
+        "contract_details": [],
+        "contract_ids": [],
+        "data_tier": null,
+        "event_id": "evt-a9a6b9c6b9099f13e2b3",
+        "kind": "basket_selection",
+        "model_bucket": null,
+        "model_probability": 0.5158330203169335,
+        "provider": "system",
+        "reason": "trap",
+        "recorded_at": "2026-07-28T15:17:35.913741+00:00",
+        "schema_version": 1,
+        "selection_context": {
+          "benchmark_return": -6.766815536607407e-05,
+          "dollar_volume": 12828269.14,
+          "formation_date": "2026-07-27 04:00:00+00:00",
+          "intraday_range_pct": 0.01947583553738885,
+          "liquidity_context": 11142304.767500002,
+          "market_regime": 0.0006709273448549547,
+          "model_bucket": "trap",
+          "model_probability": 0.5158330203169335,
+          "relative_return": -0.03182246219845142,
+          "robust_z": -2.3451558762667615,
+          "sector": "Consumer Defensive",
+          "selection_rank": null,
+          "selection_source": "data/universe/tradable-basket.csv",
+          "signal_gate": {
+            "allowed": true,
+            "reason": "approved",
+            "robust_z": -2.3451558762667615,
+            "strategy_route": "core_mean_reversion",
+            "streak_direction": "negative",
+            "streak_length": 2,
+            "z_threshold": -2.0
+          },
+          "signed_streak": -2,
+          "stock_return": -0.03189013035381749,
+          "strategy_route": "core_mean_reversion",
+          "streak_depth": 2,
+          "streak_direction": "negative",
+          "streak_length": 2,
+          "ticker": "ADM",
+          "turn_of_month": false,
+          "volatility_context": 0.23968867144238873
+        },
+        "selection_rank": null,
+        "sleeve": "core",
+        "status": "deferred",
+        "strategy_route": "core_mean_reversion",
+        "strategy_variant": "improved",
+        "ticker": "ADM",
+        "title": "ADM \u00b7 basket selection \u00b7 deferred",
+        "trading_day": "2026-07-28"
+      },
+      "kind": "basket_selection",
+      "model_probability": 0.5158330203169335,
+      "provider": "system",
+      "reason": "trap",
+      "selection_context": {
+        "benchmark_return": -6.766815536607407e-05,
+        "dollar_volume": 12828269.14,
+        "formation_date": "2026-07-27 04:00:00+00:00",
+        "intraday_range_pct": 0.01947583553738885,
+        "liquidity_context": 11142304.767500002,
+        "market_regime": 0.0006709273448549547,
+        "model_bucket": "trap",
+        "model_probability": 0.5158330203169335,
+        "relative_return": -0.03182246219845142,
+        "robust_z": -2.3451558762667615,
+        "sector": "Consumer Defensive",
+        "selection_rank": null,
+        "selection_source": "data/universe/tradable-basket.csv",
+        "signal_gate": {
+          "allowed": true,
+          "reason": "approved",
+          "robust_z": -2.3451558762667615,
+          "strategy_route": "core_mean_reversion",
+          "streak_direction": "negative",
+          "streak_length": 2,
+          "z_threshold": -2.0
+        },
+        "signed_streak": -2,
+        "stock_return": -0.03189013035381749,
+        "strategy_route": "core_mean_reversion",
+        "streak_depth": 2,
+        "streak_direction": "negative",
+        "streak_length": 2,
+        "ticker": "ADM",
+        "turn_of_month": false,
+        "volatility_context": 0.23968867144238873
+      },
+      "selection_rank": null,
+      "sleeve": "core",
+      "status": "deferred",
+      "strategy_route": "core_mean_reversion",
+      "strategy_variant": "improved",
+      "ticker": "ADM"
+    },
+    {
+      "category": "signals",
+      "contract_ids": [],
+      "journal": {
+        "category": "signals",
+        "client_order_id": null,
+        "contract_details": [],
+        "contract_ids": [],
+        "data_tier": null,
+        "event_id": "evt-366a9f89a47831bae981",
+        "kind": "basket_selection",
+        "model_bucket": null,
+        "model_probability": 0.5113308698432876,
+        "provider": "system",
+        "reason": "trap",
+        "recorded_at": "2026-07-28T15:17:35.914616+00:00",
+        "schema_version": 1,
+        "selection_context": {
+          "benchmark_return": -6.766815536607407e-05,
+          "dollar_volume": 10291976.239999998,
+          "formation_date": "2026-07-27 04:00:00+00:00",
+          "intraday_range_pct": 0.022349272349272337,
+          "liquidity_context": 10640259.067499999,
+          "market_regime": 0.0006709273448549547,
+          "model_bucket": "trap",
+          "model_probability": 0.5113308698432876,
+          "relative_return": -0.04627681759432423,
+          "robust_z": -2.3026840580059265,
+          "sector": "Energy",
+          "selection_rank": null,
+          "selection_source": "data/universe/tradable-basket.csv",
+          "signal_gate": {
+            "allowed": true,
+            "reason": "approved",
+            "robust_z": -2.3026840580059265,
+            "strategy_route": "core_mean_reversion",
+            "streak_direction": "negative",
+            "streak_length": 2,
+            "z_threshold": -2.0
+          },
+          "signed_streak": -2,
+          "stock_return": -0.0463444857496903,
+          "strategy_route": "core_mean_reversion",
+          "streak_depth": 2,
+          "streak_direction": "negative",
+          "streak_length": 2,
+          "ticker": "EQNR",
+          "turn_of_month": false,
+          "volatility_context": 0.4513249381674383
+        },
+        "selection_rank": null,
+        "sleeve": "core",
+        "status": "deferred",
+        "strategy_route": "core_mean_reversion",
+        "strategy_variant": "improved",
+        "ticker": "EQNR",
+        "title": "EQNR \u00b7 basket selection \u00b7 deferred",
+        "trading_day": "2026-07-28"
+      },
+      "kind": "basket_selection",
+      "model_probability": 0.5113308698432876,
+      "provider": "system",
+      "reason": "trap",
+      "selection_context": {
+        "benchmark_return": -6.766815536607407e-05,
+        "dollar_volume": 10291976.239999998,
+        "formation_date": "2026-07-27 04:00:00+00:00",
+        "intraday_range_pct": 0.022349272349272337,
+        "liquidity_context": 10640259.067499999,
+        "market_regime": 0.0006709273448549547,
+        "model_bucket": "trap",
+        "model_probability": 0.5113308698432876,
+        "relative_return": -0.04627681759432423,
+        "robust_z": -2.3026840580059265,
+        "sector": "Energy",
+        "selection_rank": null,
+        "selection_source": "data/universe/tradable-basket.csv",
+        "signal_gate": {
+          "allowed": true,
+          "reason": "approved",
+          "robust_z": -2.3026840580059265,
+          "strategy_route": "core_mean_reversion",
+          "streak_direction": "negative",
+          "streak_length": 2,
+          "z_threshold": -2.0
+        },
+        "signed_streak": -2,
+        "stock_return": -0.0463444857496903,
+        "strategy_route": "core_mean_reversion",
+        "streak_depth": 2,
+        "streak_direction": "negative",
+        "streak_length": 2,
+        "ticker": "EQNR",
+        "turn_of_month": false,
+        "volatility_context": 0.4513249381674383
+      },
+      "selection_rank": null,
+      "sleeve": "core",
+      "status": "deferred",
+      "strategy_route": "core_mean_reversion",
+      "strategy_variant": "improved",
+      "ticker": "EQNR"
+    },
+    {
+      "category": "signals",
+      "contract_ids": [],
+      "journal": {
+        "category": "signals",
+        "client_order_id": null,
+        "contract_details": [],
+        "contract_ids": [],
+        "data_tier": null,
+        "event_id": "evt-4b8aecf218fb88bb9ed7",
+        "kind": "basket_selection",
+        "model_bucket": null,
+        "model_probability": 0.5556430798130126,
+        "provider": "system",
+        "reason": "trap",
+        "recorded_at": "2026-07-28T15:17:35.915582+00:00",
+        "schema_version": 1,
+        "selection_context": {
+          "benchmark_return": -6.766815536607407e-05,
+          "dollar_volume": 19842933.39,
+          "formation_date": "2026-07-27 04:00:00+00:00",
+          "intraday_range_pct": 0.10616705698672907,
+          "liquidity_context": 12465208.825,
+          "market_regime": 0.0006709273448549547,
+          "model_bucket": "trap",
+          "model_probability": 0.5556430798130126,
+          "relative_return": -0.10350126116583747,
+          "robust_z": -2.297866809815496,
+          "sector": "Energy",
+          "selection_rank": null,
+          "selection_source": "data/universe/tradable-basket.csv",
+          "signal_gate": {
+            "allowed": true,
+            "reason": "approved",
+            "robust_z": -2.297866809815496,
+            "strategy_route": "core_mean_reversion",
+            "streak_direction": "negative",
+            "streak_length": 2,
+            "z_threshold": -2.0
+          },
+          "signed_streak": -2,
+          "stock_return": -0.10356892932120354,
+          "strategy_route": "core_mean_reversion",
+          "streak_depth": 2,
+          "streak_direction": "negative",
+          "streak_length": 2,
+          "ticker": "VG",
+          "turn_of_month": false,
+          "volatility_context": 0.7778458478874773
+        },
+        "selection_rank": null,
+        "sleeve": "core",
+        "status": "deferred",
+        "strategy_route": "core_mean_reversion",
+        "strategy_variant": "improved",
+        "ticker": "VG",
+        "title": "VG \u00b7 basket selection \u00b7 deferred",
+        "trading_day": "2026-07-28"
+      },
+      "kind": "basket_selection",
+      "model_probability": 0.5556430798130126,
+      "provider": "system",
+      "reason": "trap",
+      "selection_context": {
+        "benchmark_return": -6.766815536607407e-05,
+        "dollar_volume": 19842933.39,
+        "formation_date": "2026-07-27 04:00:00+00:00",
+        "intraday_range_pct": 0.10616705698672907,
+        "liquidity_context": 12465208.825,
+        "market_regime": 0.0006709273448549547,
+        "model_bucket": "trap",
+        "model_probability": 0.5556430798130126,
+        "relative_return": -0.10350126116583747,
+        "robust_z": -2.297866809815496,
+        "sector": "Energy",
+        "selection_rank": null,
+        "selection_source": "data/universe/tradable-basket.csv",
+        "signal_gate": {
+          "allowed": true,
+          "reason": "approved",
+          "robust_z": -2.297866809815496,
+          "strategy_route": "core_mean_reversion",
+          "streak_direction": "negative",
+          "streak_length": 2,
+          "z_threshold": -2.0
+        },
+        "signed_streak": -2,
+        "stock_return": -0.10356892932120354,
+        "strategy_route": "core_mean_reversion",
+        "streak_depth": 2,
+        "streak_direction": "negative",
+        "streak_length": 2,
+        "ticker": "VG",
+        "turn_of_month": false,
+        "volatility_context": 0.7778458478874773
+      },
+      "selection_rank": null,
+      "sleeve": "core",
+      "status": "deferred",
+      "strategy_route": "core_mean_reversion",
+      "strategy_variant": "improved",
+      "ticker": "VG"
+    },
+    {
+      "category": "signals",
+      "contract_ids": [],
+      "journal": {
+        "category": "signals",
+        "client_order_id": null,
+        "contract_details": [],
+        "contract_ids": [],
+        "data_tier": null,
+        "event_id": "evt-ead686a1d3c62593c63f",
+        "kind": "basket_selection",
+        "model_bucket": null,
+        "model_probability": 0.49395882163163296,
+        "provider": "system",
+        "reason": "approved",
+        "recorded_at": "2026-07-28T15:17:35.916517+00:00",
+        "schema_version": 1,
+        "selection_context": {
+          "benchmark_return": -6.766815536607407e-05,
+          "dollar_volume": 12705013.350000001,
+          "formation_date": "2026-07-27 04:00:00+00:00",
+          "intraday_range_pct": 0.02128991859737016,
+          "liquidity_context": 14378221.74,
+          "market_regime": 0.0006709273448549547,
+          "model_bucket": "crash_protocol",
+          "model_probability": 0.49395882163163296,
+          "relative_return": -0.042460010808621274,
+          "robust_z": -2.290739427373728,
+          "sector": "Basic Materials",
+          "selection_rank": 2,
+          "selection_source": "data/universe/tradable-basket.csv",
+          "signal_gate": {
+            "allowed": true,
+            "reason": "approved",
+            "robust_z": -2.290739427373728,
+            "strategy_route": "core_mean_reversion",
+            "streak_direction": "negative",
+            "streak_length": 2,
+            "z_threshold": -2.0
+          },
+          "signed_streak": -2,
+          "stock_return": -0.04252767896398735,
+          "strategy_route": "core_mean_reversion",
+          "streak_depth": 2,
+          "streak_direction": "negative",
+          "streak_length": 2,
+          "ticker": "CF",
+          "turn_of_month": false,
+          "volatility_context": 0.33515290665530223
+        },
+        "selection_rank": 2,
+        "sleeve": "core",
+        "status": "selected",
+        "strategy_route": "core_mean_reversion",
+        "strategy_variant": "improved",
+        "ticker": "CF",
+        "title": "CF \u00b7 basket selection \u00b7 selected",
+        "trading_day": "2026-07-28"
+      },
+      "kind": "basket_selection",
+      "model_probability": 0.49395882163163296,
+      "provider": "system",
+      "reason": "approved",
+      "selection_context": {
+        "benchmark_return": -6.766815536607407e-05,
+        "dollar_volume": 12705013.350000001,
+        "formation_date": "2026-07-27 04:00:00+00:00",
+        "intraday_range_pct": 0.02128991859737016,
+        "liquidity_context": 14378221.74,
+        "market_regime": 0.0006709273448549547,
+        "model_bucket": "crash_protocol",
+        "model_probability": 0.49395882163163296,
+        "relative_return": -0.042460010808621274,
+        "robust_z": -2.290739427373728,
+        "sector": "Basic Materials",
+        "selection_rank": 2,
+        "selection_source": "data/universe/tradable-basket.csv",
+        "signal_gate": {
+          "allowed": true,
+          "reason": "approved",
+          "robust_z": -2.290739427373728,
+          "strategy_route": "core_mean_reversion",
+          "streak_direction": "negative",
+          "streak_length": 2,
+          "z_threshold": -2.0
+        },
+        "signed_streak": -2,
+        "stock_return": -0.04252767896398735,
+        "strategy_route": "core_mean_reversion",
+        "streak_depth": 2,
+        "streak_direction": "negative",
+        "streak_length": 2,
+        "ticker": "CF",
+        "turn_of_month": false,
+        "volatility_context": 0.33515290665530223
+      },
+      "selection_rank": 2,
+      "sleeve": "core",
+      "status": "selected",
+      "strategy_route": "core_mean_reversion",
+      "strategy_variant": "improved",
+      "ticker": "CF"
+    },
+    {
+      "category": "signals",
+      "client_order_id": "xpc-cafba4fa454d6af1468bcc5e",
+      "contract_ids": [
+        "CF260828P00113000",
+        "CF260828P00123000"
+      ],
+      "contracts": [
+        {
+          "contract_id": "CF260828P00113000",
+          "expiration": "2026-08-28",
+          "option_type": "put",
+          "role": "short",
+          "strike": 113.0,
+          "ticker": "CF"
+        },
+        {
+          "contract_id": "CF260828P00123000",
+          "expiration": "2026-08-28",
+          "option_type": "put",
+          "role": "long",
+          "strike": 123.0,
+          "ticker": "CF"
+        }
+      ],
+      "data_tier": "indicative",
+      "event_decision": {
+        "allowed": true,
+        "category": "noise_or_opinion",
+        "details": null,
+        "reason": "no dated structural-risk event"
+      },
+      "journal": {
+        "category": "signals",
+        "client_order_id": "xpc-cafba4fa454d6af1468bcc5e",
+        "contract_details": [
+          {
+            "contract_id": "CF260828P00113000",
+            "expiration": "2026-08-28",
+            "option_type": "put",
+            "strike": 113.0,
+            "ticker": "CF"
+          },
+          {
+            "contract_id": "CF260828P00123000",
+            "expiration": "2026-08-28",
+            "option_type": "put",
+            "strike": 123.0,
+            "ticker": "CF"
+          }
+        ],
+        "contract_ids": [
+          "CF260828P00113000",
+          "CF260828P00123000"
+        ],
+        "data_tier": "indicative",
+        "event_id": "evt-2b626d1f6752196e5f12",
+        "kind": "candidate",
+        "model_bucket": "crash_protocol",
+        "model_probability": 0.49395882163163296,
+        "provider": null,
+        "reason": null,
+        "recorded_at": "2026-07-28T15:17:38.218276+00:00",
+        "schema_version": 1,
+        "selection_context": {
+          "benchmark_return": -6.766815536607407e-05,
+          "crash_protocol_paper_enabled": true,
+          "data_freshness": {
+            "allowed": true,
+            "latest_completed_as_of": "2026-07-27T04:00:00+00:00",
+            "max_age_days": 4,
+            "reason": "completed_formation_aligned"
+          },
+          "data_tier": "indicative",
+          "dollar_volume": 12705013.350000001,
+          "event_checks": {
+            "earnings": {
+              "allowed": true,
+              "category": "earnings",
+              "details": {
+                "age_hours": 0.001,
+                "calendar_days": 3,
+                "calendar_path": "data/events/earnings.csv",
+                "coverage_end": "2026-07-31",
+                "coverage_start": "2026-07-25",
+                "metadata_path": "data/events/earnings.csv.metadata.json",
+                "retrieved_at": "2026-07-28T15:17:33.367106+00:00",
+                "source": "nasdaq.expected_earnings_calendar",
+                "ticker": "CF",
+                "trading_day": "2026-07-28"
+              },
+              "reason": "outside earnings blackout"
+            },
+            "news": {
+              "allowed": true,
+              "category": "noise_or_opinion",
+              "details": null,
+              "reason": "no dated structural-risk event"
+            }
+          },
+          "formation_comparison": {
+            "allowed": true,
+            "basket": {
+              "relative_return": -0.042460010808621274,
+              "robust_z": -2.290739427373728,
+              "streak_direction": "negative",
+              "streak_length": 2
+            },
+            "provider": {
+              "as_of": "2026-07-27T04:00:00+00:00",
+              "relative_return": -0.042460010808621274,
+              "robust_z": -2.290739427373728,
+              "signed_streak": -2,
+              "streak_direction": "negative",
+              "streak_length": 2
+            },
+            "reason": "completed_signal_values_aligned"
+          },
+          "formation_date": "2026-07-27 04:00:00+00:00",
+          "formation_source": "completed_basket_verified_against_provider",
+          "intraday_range_pct": 0.02128991859737016,
+          "intraday_risk": {
+            "allowed": true,
+            "last_order_at": null,
+            "market_is_open": true,
+            "market_timestamp": "2026-07-28T11:17:36.105000535-04:00",
+            "next_close": "2026-07-28T16:00:00-04:00",
+            "next_open": "2026-07-29T09:30:00-04:00",
+            "orders_today": 0,
+            "reason": "approved"
+          },
+          "liquidity_context": 14378221.74,
+          "live_features": {
+            "as_of": "2026-07-27T04:00:00+00:00",
+            "relative_return": -0.042460010808621274,
+            "robust_z": -2.290739427373728,
+            "signed_streak": -2,
+            "streak_direction": "negative",
+            "streak_length": 2
+          },
+          "market_price_as_of": "2026-07-28T04:00:00+00:00",
+          "market_regime": 0.0006709273448549547,
+          "model_bucket": "crash_protocol",
+          "model_probability": 0.49395882163163296,
+          "relative_return": -0.042460010808621274,
+          "review_phase": "opening_prep",
+          "robust_z": -2.290739427373728,
+          "sector": "Basic Materials",
+          "selection_rank": 2,
+          "selection_source": "data/universe/tradable-basket.csv",
+          "signal_gate": {
+            "allowed": true,
+            "reason": "approved",
+            "robust_z": -2.290739427373728,
+            "strategy_route": "core_mean_reversion",
+            "streak_direction": "negative",
+            "streak_length": 2,
+            "z_threshold": -2.0
+          },
+          "signed_streak": -2,
+          "stock_return": -0.04252767896398735,
+          "strategy_route": "core_mean_reversion",
+          "streak_depth": 2,
+          "streak_direction": "negative",
+          "streak_length": 2,
+          "ticker": "CF",
+          "turn_of_month": false,
+          "volatility_context": 0.33515290665530223
+        },
+        "selection_rank": null,
+        "sleeve": "asymmetric",
+        "status": "recorded",
+        "strategy_route": null,
+        "strategy_variant": "improved",
+        "ticker": "CF",
+        "title": "CF \u00b7 candidate \u00b7 recorded",
+        "trading_day": "2026-07-28"
+      },
+      "kind": "candidate",
+      "market_data": {
+        "data_tier": "indicative",
+        "debit_pct_width": 0.5839,
+        "legs": [
+          {
+            "ask": 3.97,
+            "bid": 2.23,
+            "contract_id": "CF260828P00113000",
+            "role": "short",
+            "spread_pct": 0.5612903225806453,
+            "ticker": "CF",
+            "timestamp": "2026-07-28T15:16:57.209933762Z"
+          }
+        ],
+        "observed_at": "2026-07-28T15:17:35.917473+00:00",
+        "reward_multiple": 0.7126220243192328
+      },
+      "model_bucket": "crash_protocol",
+      "model_probability": 0.49395882163163296,
+      "risk_decision": {
+        "allowed": false,
+        "reason": "option_quote_spread_too_wide"
+      },
+      "risk_snapshot": {
+        "asymmetric_open_risk": 0.0,
+        "core_open_risk": 0.0,
+        "daily_pnl": 0.0,
+        "drawdown": 0.0,
+        "nav": 100000.0,
+        "open_asymmetric_trades": 0,
+        "options_buying_power": 100000.0,
+        "options_trading_level": 3,
+        "sector_open_risk": {},
+        "ticker_open_risk": {},
+        "trading_blocked": false
+      },
+      "selection_context": {
+        "benchmark_return": -6.766815536607407e-05,
+        "crash_protocol_paper_enabled": true,
+        "data_freshness": {
+          "allowed": true,
+          "latest_completed_as_of": "2026-07-27T04:00:00+00:00",
+          "max_age_days": 4,
+          "reason": "completed_formation_aligned"
+        },
+        "data_tier": "indicative",
+        "dollar_volume": 12705013.350000001,
+        "event_checks": {
+          "earnings": {
+            "allowed": true,
+            "category": "earnings",
+            "details": {
+              "age_hours": 0.001,
+              "calendar_days": 3,
+              "calendar_path": "data/events/earnings.csv",
+              "coverage_end": "2026-07-31",
+              "coverage_start": "2026-07-25",
+              "metadata_path": "data/events/earnings.csv.metadata.json",
+              "retrieved_at": "2026-07-28T15:17:33.367106+00:00",
+              "source": "nasdaq.expected_earnings_calendar",
+              "ticker": "CF",
+              "trading_day": "2026-07-28"
+            },
+            "reason": "outside earnings blackout"
+          },
+          "news": {
+            "allowed": true,
+            "category": "noise_or_opinion",
+            "details": null,
+            "reason": "no dated structural-risk event"
+          }
+        },
+        "formation_comparison": {
+          "allowed": true,
+          "basket": {
+            "relative_return": -0.042460010808621274,
+            "robust_z": -2.290739427373728,
+            "streak_direction": "negative",
+            "streak_length": 2
+          },
+          "provider": {
+            "as_of": "2026-07-27T04:00:00+00:00",
+            "relative_return": -0.042460010808621274,
+            "robust_z": -2.290739427373728,
+            "signed_streak": -2,
+            "streak_direction": "negative",
+            "streak_length": 2
+          },
+          "reason": "completed_signal_values_aligned"
+        },
+        "formation_date": "2026-07-27 04:00:00+00:00",
+        "formation_source": "completed_basket_verified_against_provider",
+        "intraday_range_pct": 0.02128991859737016,
+        "intraday_risk": {
+          "allowed": true,
+          "last_order_at": null,
+          "market_is_open": true,
+          "market_timestamp": "2026-07-28T11:17:36.105000535-04:00",
+          "next_close": "2026-07-28T16:00:00-04:00",
+          "next_open": "2026-07-29T09:30:00-04:00",
+          "orders_today": 0,
+          "reason": "approved"
+        },
+        "liquidity_context": 14378221.74,
+        "live_features": {
+          "as_of": "2026-07-27T04:00:00+00:00",
+          "relative_return": -0.042460010808621274,
+          "robust_z": -2.290739427373728,
+          "signed_streak": -2,
+          "streak_direction": "negative",
+          "streak_length": 2
+        },
+        "market_price_as_of": "2026-07-28T04:00:00+00:00",
+        "market_regime": 0.0006709273448549547,
+        "model_bucket": "crash_protocol",
+        "model_probability": 0.49395882163163296,
+        "relative_return": -0.042460010808621274,
+        "review_phase": "opening_prep",
+        "robust_z": -2.290739427373728,
+        "sector": "Basic Materials",
+        "selection_rank": 2,
+        "selection_source": "data/universe/tradable-basket.csv",
+        "signal_gate": {
+          "allowed": true,
+          "reason": "approved",
+          "robust_z": -2.290739427373728,
+          "strategy_route": "core_mean_reversion",
+          "streak_direction": "negative",
+          "streak_length": 2,
+          "z_threshold": -2.0
+        },
+        "signed_streak": -2,
+        "stock_return": -0.04252767896398735,
+        "strategy_route": "core_mean_reversion",
+        "streak_depth": 2,
+        "streak_direction": "negative",
+        "streak_length": 2,
+        "ticker": "CF",
+        "turn_of_month": false,
+        "volatility_context": 0.33515290665530223
+      },
+      "signal_id": "sig-45e41b36574efa8a392a4fe3",
+      "sleeve": "asymmetric",
+      "spread": {
+        "contracts": 1,
+        "debit": 5.8389999999999995,
+        "direction": "bearish",
+        "long_strike": 123.0,
+        "short_strike": 113.0,
+        "sleeve": "asymmetric",
+        "symbol": "CF"
+      },
+      "strategy_variant": "improved",
+      "ticker": "CF",
+      "underlying": "CF"
+    },
+    {
+      "category": "signals",
+      "contract_ids": [],
+      "journal": {
+        "category": "signals",
+        "client_order_id": null,
+        "contract_details": [],
+        "contract_ids": [],
+        "data_tier": null,
+        "event_id": "evt-8f703f54a9787377d358",
+        "kind": "basket_selection",
+        "model_bucket": null,
+        "model_probability": 0.5084001673625321,
+        "provider": "system",
+        "reason": "trap",
+        "recorded_at": "2026-07-28T15:17:38.219130+00:00",
+        "schema_version": 1,
+        "selection_context": {
+          "benchmark_return": -6.766815536607407e-05,
+          "dollar_volume": 32798973.38,
+          "formation_date": "2026-07-27 04:00:00+00:00",
+          "intraday_range_pct": 0.0335573091647784,
+          "liquidity_context": 24126828.705,
+          "market_regime": 0.0006709273448549547,
+          "model_bucket": "trap",
+          "model_probability": 0.5084001673625321,
+          "relative_return": -0.05016979103133623,
+          "robust_z": -2.2085338762550113,
+          "sector": "Energy",
+          "selection_rank": null,
+          "selection_source": "data/universe/tradable-basket.csv",
+          "signal_gate": {
+            "allowed": true,
+            "reason": "approved",
+            "robust_z": -2.2085338762550113,
+            "strategy_route": "core_mean_reversion",
+            "streak_direction": "negative",
+            "streak_length": 2,
+            "z_threshold": -2.0
+          },
+          "signed_streak": -2,
+          "stock_return": -0.050237459186702305,
+          "strategy_route": "core_mean_reversion",
+          "streak_depth": 2,
+          "streak_direction": "negative",
+          "streak_length": 2,
+          "ticker": "LNG",
+          "turn_of_month": false,
+          "volatility_context": 0.3275242378670839
+        },
+        "selection_rank": null,
+        "sleeve": "core",
+        "status": "deferred",
+        "strategy_route": "core_mean_reversion",
+        "strategy_variant": "improved",
+        "ticker": "LNG",
+        "title": "LNG \u00b7 basket selection \u00b7 deferred",
+        "trading_day": "2026-07-28"
+      },
+      "kind": "basket_selection",
+      "model_probability": 0.5084001673625321,
+      "provider": "system",
+      "reason": "trap",
+      "selection_context": {
+        "benchmark_return": -6.766815536607407e-05,
+        "dollar_volume": 32798973.38,
+        "formation_date": "2026-07-27 04:00:00+00:00",
+        "intraday_range_pct": 0.0335573091647784,
+        "liquidity_context": 24126828.705,
+        "market_regime": 0.0006709273448549547,
+        "model_bucket": "trap",
+        "model_probability": 0.5084001673625321,
+        "relative_return": -0.05016979103133623,
+        "robust_z": -2.2085338762550113,
+        "sector": "Energy",
+        "selection_rank": null,
+        "selection_source": "data/universe/tradable-basket.csv",
+        "signal_gate": {
+          "allowed": true,
+          "reason": "approved",
+          "robust_z": -2.2085338762550113,
+          "strategy_route": "core_mean_reversion",
+          "streak_direction": "negative",
+          "streak_length": 2,
+          "z_threshold": -2.0
+        },
+        "signed_streak": -2,
+        "stock_return": -0.050237459186702305,
+        "strategy_route": "core_mean_reversion",
+        "streak_depth": 2,
+        "streak_direction": "negative",
+        "streak_length": 2,
+        "ticker": "LNG",
+        "turn_of_month": false,
+        "volatility_context": 0.3275242378670839
+      },
+      "selection_rank": null,
+      "sleeve": "core",
+      "status": "deferred",
+      "strategy_route": "core_mean_reversion",
+      "strategy_variant": "improved",
+      "ticker": "LNG"
+    },
+    {
+      "category": "signals",
+      "contract_ids": [],
+      "journal": {
+        "category": "signals",
+        "client_order_id": null,
+        "contract_details": [],
+        "contract_ids": [],
+        "data_tier": null,
+        "event_id": "evt-dfb113e6723714d9c3ec",
+        "kind": "basket_selection",
+        "model_bucket": null,
+        "model_probability": 0.49852117269849905,
+        "provider": "system",
+        "reason": "approved",
+        "recorded_at": "2026-07-28T15:17:38.220290+00:00",
+        "schema_version": 1,
+        "selection_context": {
+          "benchmark_return": -6.766815536607407e-05,
+          "dollar_volume": 4205668.68,
+          "formation_date": "2026-07-27 04:00:00+00:00",
+          "intraday_range_pct": 0.037402718085724394,
+          "liquidity_context": 5013270.455,
+          "market_regime": 0.0006709273448549547,
+          "model_bucket": "crash_protocol",
+          "model_probability": 0.49852117269849905,
+          "relative_return": -0.04592080702193879,
+          "robust_z": -2.1903282142062737,
+          "sector": "Energy",
+          "selection_rank": 1,
+          "selection_source": "data/universe/tradable-basket.csv",
+          "signal_gate": {
+            "allowed": true,
+            "reason": "approved",
+            "robust_z": -2.1903282142062737,
+            "strategy_route": "core_mean_reversion",
+            "streak_direction": "negative",
+            "streak_length": 2,
+            "z_threshold": -2.0
+          },
+          "signed_streak": -2,
+          "stock_return": -0.045988475177304866,
+          "strategy_route": "core_mean_reversion",
+          "streak_depth": 2,
+          "streak_direction": "negative",
+          "streak_length": 2,
+          "ticker": "VNOM",
+          "turn_of_month": false,
+          "volatility_context": 0.31399513856212147
+        },
+        "selection_rank": 1,
+        "sleeve": "core",
+        "status": "selected",
+        "strategy_route": "core_mean_reversion",
+        "strategy_variant": "improved",
+        "ticker": "VNOM",
+        "title": "VNOM \u00b7 basket selection \u00b7 selected",
+        "trading_day": "2026-07-28"
+      },
+      "kind": "basket_selection",
+      "model_probability": 0.49852117269849905,
+      "provider": "system",
+      "reason": "approved",
+      "selection_context": {
+        "benchmark_return": -6.766815536607407e-05,
+        "dollar_volume": 4205668.68,
+        "formation_date": "2026-07-27 04:00:00+00:00",
+        "intraday_range_pct": 0.037402718085724394,
+        "liquidity_context": 5013270.455,
+        "market_regime": 0.0006709273448549547,
+        "model_bucket": "crash_protocol",
+        "model_probability": 0.49852117269849905,
+        "relative_return": -0.04592080702193879,
+        "robust_z": -2.1903282142062737,
+        "sector": "Energy",
+        "selection_rank": 1,
+        "selection_source": "data/universe/tradable-basket.csv",
+        "signal_gate": {
+          "allowed": true,
+          "reason": "approved",
+          "robust_z": -2.1903282142062737,
+          "strategy_route": "core_mean_reversion",
+          "streak_direction": "negative",
+          "streak_length": 2,
+          "z_threshold": -2.0
+        },
+        "signed_streak": -2,
+        "stock_return": -0.045988475177304866,
+        "strategy_route": "core_mean_reversion",
+        "streak_depth": 2,
+        "streak_direction": "negative",
+        "streak_length": 2,
+        "ticker": "VNOM",
+        "turn_of_month": false,
+        "volatility_context": 0.31399513856212147
+      },
+      "selection_rank": 1,
+      "sleeve": "core",
+      "status": "selected",
+      "strategy_route": "core_mean_reversion",
+      "strategy_variant": "improved",
+      "ticker": "VNOM"
+    },
+    {
+      "category": "signals",
+      "contract_ids": [],
+      "journal": {
+        "category": "signals",
+        "client_order_id": null,
+        "contract_details": [],
+        "contract_ids": [],
+        "data_tier": null,
+        "event_id": "evt-0def473039fca74599a1",
+        "kind": "option_chain_gate",
+        "model_bucket": null,
+        "model_probability": null,
+        "provider": "system",
+        "reason": "no bearish debit long put meets delta band",
+        "recorded_at": "2026-07-28T15:17:40.312628+00:00",
+        "schema_version": 1,
+        "selection_context": {
+          "benchmark_return": -6.766815536607407e-05,
+          "crash_protocol_paper_enabled": true,
+          "data_freshness": {
+            "allowed": true,
+            "latest_completed_as_of": "2026-07-27T04:00:00+00:00",
+            "max_age_days": 4,
+            "reason": "completed_formation_aligned"
+          },
+          "data_tier": "indicative",
+          "dollar_volume": 4205668.68,
+          "event_checks": {
+            "earnings": {
+              "allowed": true,
+              "category": "earnings",
+              "details": {
+                "age_hours": 0.001,
+                "calendar_days": 3,
+                "calendar_path": "data/events/earnings.csv",
+                "coverage_end": "2026-07-31",
+                "coverage_start": "2026-07-25",
+                "metadata_path": "data/events/earnings.csv.metadata.json",
+                "retrieved_at": "2026-07-28T15:17:33.367106+00:00",
+                "source": "nasdaq.expected_earnings_calendar",
+                "ticker": "VNOM",
+                "trading_day": "2026-07-28"
+              },
+              "reason": "outside earnings blackout"
+            },
+            "news": {
+              "allowed": true,
+              "category": "noise_or_opinion",
+              "details": null,
+              "reason": "no dated structural-risk event"
+            }
+          },
+          "formation_comparison": {
+            "allowed": true,
+            "basket": {
+              "relative_return": -0.04592080702193879,
+              "robust_z": -2.1903282142062737,
+              "streak_direction": "negative",
+              "streak_length": 2
+            },
+            "provider": {
+              "as_of": "2026-07-27T04:00:00+00:00",
+              "relative_return": -0.04592080702193879,
+              "robust_z": -2.1903282142062737,
+              "signed_streak": -2,
+              "streak_direction": "negative",
+              "streak_length": 2
+            },
+            "reason": "completed_signal_values_aligned"
+          },
+          "formation_date": "2026-07-27 04:00:00+00:00",
+          "formation_source": "completed_basket_verified_against_provider",
+          "intraday_range_pct": 0.037402718085724394,
+          "intraday_risk": {
+            "allowed": true,
+            "last_order_at": null,
+            "market_is_open": true,
+            "market_timestamp": "2026-07-28T11:17:38.421291683-04:00",
+            "next_close": "2026-07-28T16:00:00-04:00",
+            "next_open": "2026-07-29T09:30:00-04:00",
+            "orders_today": 0,
+            "reason": "approved"
+          },
+          "liquidity_context": 5013270.455,
+          "live_features": {
+            "as_of": "2026-07-27T04:00:00+00:00",
+            "relative_return": -0.04592080702193879,
+            "robust_z": -2.1903282142062737,
+            "signed_streak": -2,
+            "streak_direction": "negative",
+            "streak_length": 2
+          },
+          "market_price_as_of": "2026-07-28T04:00:00+00:00",
+          "market_regime": 0.0006709273448549547,
+          "model_bucket": "crash_protocol",
+          "model_probability": 0.49852117269849905,
+          "relative_return": -0.04592080702193879,
+          "review_phase": "opening_prep",
+          "robust_z": -2.1903282142062737,
+          "sector": "Energy",
+          "selection_rank": 1,
+          "selection_source": "data/universe/tradable-basket.csv",
+          "signal_gate": {
+            "allowed": true,
+            "reason": "approved",
+            "robust_z": -2.1903282142062737,
+            "strategy_route": "core_mean_reversion",
+            "streak_direction": "negative",
+            "streak_length": 2,
+            "z_threshold": -2.0
+          },
+          "signed_streak": -2,
+          "stock_return": -0.045988475177304866,
+          "strategy_route": "core_mean_reversion",
+          "streak_depth": 2,
+          "streak_direction": "negative",
+          "streak_length": 2,
+          "ticker": "VNOM",
+          "turn_of_month": false,
+          "volatility_context": 0.31399513856212147
+        },
+        "selection_rank": null,
+        "sleeve": "core",
+        "status": "vetoed",
+        "strategy_route": null,
+        "strategy_variant": "improved",
+        "ticker": "VNOM",
+        "title": "VNOM \u00b7 option chain gate \u00b7 vetoed",
+        "trading_day": "2026-07-28"
+      },
+      "kind": "option_chain_gate",
+      "provider": "system",
+      "reason": "no bearish debit long put meets delta band",
+      "selection_context": {
+        "benchmark_return": -6.766815536607407e-05,
+        "crash_protocol_paper_enabled": true,
+        "data_freshness": {
+          "allowed": true,
+          "latest_completed_as_of": "2026-07-27T04:00:00+00:00",
+          "max_age_days": 4,
+          "reason": "completed_formation_aligned"
+        },
+        "data_tier": "indicative",
+        "dollar_volume": 4205668.68,
+        "event_checks": {
+          "earnings": {
+            "allowed": true,
+            "category": "earnings",
+            "details": {
+              "age_hours": 0.001,
+              "calendar_days": 3,
+              "calendar_path": "data/events/earnings.csv",
+              "coverage_end": "2026-07-31",
+              "coverage_start": "2026-07-25",
+              "metadata_path": "data/events/earnings.csv.metadata.json",
+              "retrieved_at": "2026-07-28T15:17:33.367106+00:00",
+              "source": "nasdaq.expected_earnings_calendar",
+              "ticker": "VNOM",
+              "trading_day": "2026-07-28"
+            },
+            "reason": "outside earnings blackout"
+          },
+          "news": {
+            "allowed": true,
+            "category": "noise_or_opinion",
+            "details": null,
+            "reason": "no dated structural-risk event"
+          }
+        },
+        "formation_comparison": {
+          "allowed": true,
+          "basket": {
+            "relative_return": -0.04592080702193879,
+            "robust_z": -2.1903282142062737,
+            "streak_direction": "negative",
+            "streak_length": 2
+          },
+          "provider": {
+            "as_of": "2026-07-27T04:00:00+00:00",
+            "relative_return": -0.04592080702193879,
+            "robust_z": -2.1903282142062737,
+            "signed_streak": -2,
+            "streak_direction": "negative",
+            "streak_length": 2
+          },
+          "reason": "completed_signal_values_aligned"
+        },
+        "formation_date": "2026-07-27 04:00:00+00:00",
+        "formation_source": "completed_basket_verified_against_provider",
+        "intraday_range_pct": 0.037402718085724394,
+        "intraday_risk": {
+          "allowed": true,
+          "last_order_at": null,
+          "market_is_open": true,
+          "market_timestamp": "2026-07-28T11:17:38.421291683-04:00",
+          "next_close": "2026-07-28T16:00:00-04:00",
+          "next_open": "2026-07-29T09:30:00-04:00",
+          "orders_today": 0,
+          "reason": "approved"
+        },
+        "liquidity_context": 5013270.455,
+        "live_features": {
+          "as_of": "2026-07-27T04:00:00+00:00",
+          "relative_return": -0.04592080702193879,
+          "robust_z": -2.1903282142062737,
+          "signed_streak": -2,
+          "streak_direction": "negative",
+          "streak_length": 2
+        },
+        "market_price_as_of": "2026-07-28T04:00:00+00:00",
+        "market_regime": 0.0006709273448549547,
+        "model_bucket": "crash_protocol",
+        "model_probability": 0.49852117269849905,
+        "relative_return": -0.04592080702193879,
+        "review_phase": "opening_prep",
+        "robust_z": -2.1903282142062737,
+        "sector": "Energy",
+        "selection_rank": 1,
+        "selection_source": "data/universe/tradable-basket.csv",
+        "signal_gate": {
+          "allowed": true,
+          "reason": "approved",
+          "robust_z": -2.1903282142062737,
+          "strategy_route": "core_mean_reversion",
+          "streak_direction": "negative",
+          "streak_length": 2,
+          "z_threshold": -2.0
+        },
+        "signed_streak": -2,
+        "stock_return": -0.045988475177304866,
+        "strategy_route": "core_mean_reversion",
+        "streak_depth": 2,
+        "streak_direction": "negative",
+        "streak_length": 2,
+        "ticker": "VNOM",
+        "turn_of_month": false,
+        "volatility_context": 0.31399513856212147
+      },
+      "sleeve": "core",
+      "status": "vetoed",
+      "strategy_variant": "improved",
+      "symbol": "VNOM",
+      "ticker": "VNOM",
+      "timeframe": "1Day"
+    },
+    {
+      "category": "signals",
+      "contract_ids": [],
+      "journal": {
+        "category": "signals",
+        "client_order_id": null,
+        "contract_details": [],
+        "contract_ids": [],
+        "data_tier": null,
+        "event_id": "evt-75683420d1c3a3e5c718",
+        "kind": "basket_selection",
+        "model_bucket": null,
+        "model_probability": 0.5079502990887985,
+        "provider": "system",
+        "reason": "trap",
+        "recorded_at": "2026-07-28T15:17:40.314107+00:00",
+        "schema_version": 1,
+        "selection_context": {
+          "benchmark_return": -6.766815536607407e-05,
+          "dollar_volume": 23746624.0,
+          "formation_date": "2026-07-27 04:00:00+00:00",
+          "intraday_range_pct": 0.030490296220633293,
+          "liquidity_context": 22998641.455,
+          "market_regime": 0.0006709273448549547,
+          "model_bucket": "trap",
+          "model_probability": 0.5079502990887985,
+          "relative_return": -0.04329375849664319,
+          "robust_z": -2.0666593635674895,
+          "sector": "Energy",
+          "selection_rank": null,
+          "selection_source": "data/universe/tradable-basket.csv",
+          "signal_gate": {
+            "allowed": true,
+            "reason": "approved",
+            "robust_z": -2.0666593635674895,
+            "strategy_route": "core_mean_reversion",
+            "streak_direction": "negative",
+            "streak_length": 2,
+            "z_threshold": -2.0
+          },
+          "signed_streak": -2,
+          "stock_return": -0.04336142665200926,
+          "strategy_route": "core_mean_reversion",
+          "streak_depth": 2,
+          "streak_direction": "negative",
+          "streak_length": 2,
+          "ticker": "FANG",
+          "turn_of_month": false,
+          "volatility_context": 0.36223904650558253
+        },
+        "selection_rank": null,
+        "sleeve": "core",
+        "status": "deferred",
+        "strategy_route": "core_mean_reversion",
+        "strategy_variant": "improved",
+        "ticker": "FANG",
+        "title": "FANG \u00b7 basket selection \u00b7 deferred",
+        "trading_day": "2026-07-28"
+      },
+      "kind": "basket_selection",
+      "model_probability": 0.5079502990887985,
+      "provider": "system",
+      "reason": "trap",
+      "selection_context": {
+        "benchmark_return": -6.766815536607407e-05,
+        "dollar_volume": 23746624.0,
+        "formation_date": "2026-07-27 04:00:00+00:00",
+        "intraday_range_pct": 0.030490296220633293,
+        "liquidity_context": 22998641.455,
+        "market_regime": 0.0006709273448549547,
+        "model_bucket": "trap",
+        "model_probability": 0.5079502990887985,
+        "relative_return": -0.04329375849664319,
+        "robust_z": -2.0666593635674895,
+        "sector": "Energy",
+        "selection_rank": null,
+        "selection_source": "data/universe/tradable-basket.csv",
+        "signal_gate": {
+          "allowed": true,
+          "reason": "approved",
+          "robust_z": -2.0666593635674895,
+          "strategy_route": "core_mean_reversion",
+          "streak_direction": "negative",
+          "streak_length": 2,
+          "z_threshold": -2.0
+        },
+        "signed_streak": -2,
+        "stock_return": -0.04336142665200926,
+        "strategy_route": "core_mean_reversion",
+        "streak_depth": 2,
+        "streak_direction": "negative",
+        "streak_length": 2,
+        "ticker": "FANG",
+        "turn_of_month": false,
+        "volatility_context": 0.36223904650558253
+      },
+      "selection_rank": null,
+      "sleeve": "core",
+      "status": "deferred",
+      "strategy_route": "core_mean_reversion",
+      "strategy_variant": "improved",
+      "ticker": "FANG"
+    },
+    {
+      "category": "signals",
+      "client_order_id": "xpc-b54deb584cdd84abb12b3ac1",
+      "contract_ids": [
+        "CF260828P00113000",
+        "CF260828P00123000"
+      ],
+      "contracts": [
+        {
+          "contract_id": "CF260828P00113000",
+          "expiration": "2026-08-28",
+          "option_type": "put",
+          "role": "short",
+          "strike": 113.0,
+          "ticker": "CF"
+        },
+        {
+          "contract_id": "CF260828P00123000",
+          "expiration": "2026-08-28",
+          "option_type": "put",
+          "role": "long",
+          "strike": 123.0,
+          "ticker": "CF"
+        }
+      ],
+      "data_tier": "indicative",
+      "event_decision": {
+        "allowed": true,
+        "category": "noise_or_opinion",
+        "details": null,
+        "reason": "no dated structural-risk event"
+      },
+      "journal": {
+        "category": "signals",
+        "client_order_id": "xpc-b54deb584cdd84abb12b3ac1",
+        "contract_details": [
+          {
+            "contract_id": "CF260828P00113000",
+            "expiration": "2026-08-28",
+            "option_type": "put",
+            "strike": 113.0,
+            "ticker": "CF"
+          },
+          {
+            "contract_id": "CF260828P00123000",
+            "expiration": "2026-08-28",
+            "option_type": "put",
+            "strike": 123.0,
+            "ticker": "CF"
+          }
+        ],
+        "contract_ids": [
+          "CF260828P00113000",
+          "CF260828P00123000"
+        ],
+        "data_tier": "indicative",
+        "event_id": "evt-e08ece4a5ce0ab1c812b",
+        "kind": "candidate",
+        "model_bucket": "crash_protocol",
+        "model_probability": 0.49395882163163296,
+        "provider": null,
+        "reason": null,
+        "recorded_at": "2026-07-28T15:54:18.376354+00:00",
+        "schema_version": 1,
+        "selection_context": {
+          "benchmark_return": -6.766815536607407e-05,
+          "crash_protocol_paper_enabled": true,
+          "data_freshness": {
+            "allowed": true,
+            "latest_completed_as_of": "2026-07-27T04:00:00+00:00",
+            "max_age_days": 4,
+            "reason": "completed_formation_aligned"
+          },
+          "data_tier": "indicative",
+          "dollar_volume": 12705013.350000001,
+          "event_checks": {
+            "earnings": {
+              "allowed": true,
+              "category": "earnings",
+              "details": {
+                "age_hours": 0.001,
+                "calendar_days": 3,
+                "calendar_path": "data/events/earnings.csv",
+                "coverage_end": "2026-07-31",
+                "coverage_start": "2026-07-25",
+                "metadata_path": "data/events/earnings.csv.metadata.json",
+                "retrieved_at": "2026-07-28T15:54:13.204069+00:00",
+                "source": "nasdaq.expected_earnings_calendar",
+                "ticker": "CF",
+                "trading_day": "2026-07-28"
+              },
+              "reason": "outside earnings blackout"
+            },
+            "news": {
+              "allowed": true,
+              "category": "noise_or_opinion",
+              "details": null,
+              "reason": "no dated structural-risk event"
+            }
+          },
+          "formation_comparison": {
+            "allowed": true,
+            "basket": {
+              "relative_return": -0.042460010808621274,
+              "robust_z": -2.290739427373728,
+              "streak_direction": "negative",
+              "streak_length": 2
+            },
+            "provider": {
+              "as_of": "2026-07-27T04:00:00+00:00",
+              "relative_return": -0.042460010808621274,
+              "robust_z": -2.290739427373728,
+              "signed_streak": -2,
+              "streak_direction": "negative",
+              "streak_length": 2
+            },
+            "reason": "completed_signal_values_aligned"
+          },
+          "formation_date": "2026-07-27 04:00:00+00:00",
+          "formation_source": "completed_basket_verified_against_provider",
+          "intraday_range_pct": 0.02128991859737016,
+          "intraday_risk": {
+            "allowed": true,
+            "last_order_at": null,
+            "market_is_open": true,
+            "market_timestamp": "2026-07-28T11:54:16.265547236-04:00",
+            "next_close": "2026-07-28T16:00:00-04:00",
+            "next_open": "2026-07-29T09:30:00-04:00",
+            "orders_today": 0,
+            "reason": "approved"
+          },
+          "liquidity_context": 14378221.74,
+          "live_features": {
+            "as_of": "2026-07-27T04:00:00+00:00",
+            "relative_return": -0.042460010808621274,
+            "robust_z": -2.290739427373728,
+            "signed_streak": -2,
+            "streak_direction": "negative",
+            "streak_length": 2
+          },
+          "market_price_as_of": "2026-07-28T04:00:00+00:00",
+          "market_regime": 0.0006709273448549547,
+          "model_bucket": "crash_protocol",
+          "model_probability": 0.49395882163163296,
+          "relative_return": -0.042460010808621274,
+          "review_phase": "entry",
+          "robust_z": -2.290739427373728,
+          "sector": "Basic Materials",
+          "selection_rank": 2,
+          "selection_source": "data/universe/tradable-basket.csv",
+          "signal_gate": {
+            "allowed": true,
+            "reason": "approved",
+            "robust_z": -2.290739427373728,
+            "strategy_route": "core_mean_reversion",
+            "streak_direction": "negative",
+            "streak_length": 2,
+            "z_threshold": -2.0
+          },
+          "signed_streak": -2,
+          "stock_return": -0.04252767896398735,
+          "strategy_route": "core_mean_reversion",
+          "streak_depth": 2,
+          "streak_direction": "negative",
+          "streak_length": 2,
+          "ticker": "CF",
+          "turn_of_month": false,
+          "volatility_context": 0.33515290665530223
+        },
+        "selection_rank": null,
+        "sleeve": "asymmetric",
+        "status": "recorded",
+        "strategy_route": null,
+        "strategy_variant": "improved",
+        "ticker": "CF",
+        "title": "CF \u00b7 candidate \u00b7 recorded",
+        "trading_day": "2026-07-28"
+      },
+      "kind": "candidate",
+      "market_data": {
+        "data_tier": "indicative",
+        "debit_pct_width": 0.5670000000000001,
+        "legs": [
+          {
+            "ask": 4.03,
+            "bid": 2.42,
+            "contract_id": "CF260828P00113000",
+            "role": "short",
+            "spread_pct": 0.49922480620155046,
+            "ticker": "CF",
+            "timestamp": "2026-07-28T15:53:51.868930945Z"
+          }
+        ],
+        "observed_at": "2026-07-28T15:54:16.074972+00:00",
+        "reward_multiple": 0.7636684303350968
+      },
+      "model_bucket": "crash_protocol",
+      "model_probability": 0.49395882163163296,
+      "risk_decision": {
+        "allowed": false,
+        "reason": "option_quote_spread_too_wide"
+      },
+      "risk_snapshot": {
+        "asymmetric_open_risk": 0.0,
+        "core_open_risk": 0.0,
+        "daily_pnl": 0.0,
+        "drawdown": 0.0,
+        "nav": 100000.0,
+        "open_asymmetric_trades": 0,
+        "options_buying_power": 100000.0,
+        "options_trading_level": 3,
+        "sector_open_risk": {},
+        "ticker_open_risk": {},
+        "trading_blocked": false
+      },
+      "selection_context": {
+        "benchmark_return": -6.766815536607407e-05,
+        "crash_protocol_paper_enabled": true,
+        "data_freshness": {
+          "allowed": true,
+          "latest_completed_as_of": "2026-07-27T04:00:00+00:00",
+          "max_age_days": 4,
+          "reason": "completed_formation_aligned"
+        },
+        "data_tier": "indicative",
+        "dollar_volume": 12705013.350000001,
+        "event_checks": {
+          "earnings": {
+            "allowed": true,
+            "category": "earnings",
+            "details": {
+              "age_hours": 0.001,
+              "calendar_days": 3,
+              "calendar_path": "data/events/earnings.csv",
+              "coverage_end": "2026-07-31",
+              "coverage_start": "2026-07-25",
+              "metadata_path": "data/events/earnings.csv.metadata.json",
+              "retrieved_at": "2026-07-28T15:54:13.204069+00:00",
+              "source": "nasdaq.expected_earnings_calendar",
+              "ticker": "CF",
+              "trading_day": "2026-07-28"
+            },
+            "reason": "outside earnings blackout"
+          },
+          "news": {
+            "allowed": true,
+            "category": "noise_or_opinion",
+            "details": null,
+            "reason": "no dated structural-risk event"
+          }
+        },
+        "formation_comparison": {
+          "allowed": true,
+          "basket": {
+            "relative_return": -0.042460010808621274,
+            "robust_z": -2.290739427373728,
+            "streak_direction": "negative",
+            "streak_length": 2
+          },
+          "provider": {
+            "as_of": "2026-07-27T04:00:00+00:00",
+            "relative_return": -0.042460010808621274,
+            "robust_z": -2.290739427373728,
+            "signed_streak": -2,
+            "streak_direction": "negative",
+            "streak_length": 2
+          },
+          "reason": "completed_signal_values_aligned"
+        },
+        "formation_date": "2026-07-27 04:00:00+00:00",
+        "formation_source": "completed_basket_verified_against_provider",
+        "intraday_range_pct": 0.02128991859737016,
+        "intraday_risk": {
+          "allowed": true,
+          "last_order_at": null,
+          "market_is_open": true,
+          "market_timestamp": "2026-07-28T11:54:16.265547236-04:00",
+          "next_close": "2026-07-28T16:00:00-04:00",
+          "next_open": "2026-07-29T09:30:00-04:00",
+          "orders_today": 0,
+          "reason": "approved"
+        },
+        "liquidity_context": 14378221.74,
+        "live_features": {
+          "as_of": "2026-07-27T04:00:00+00:00",
+          "relative_return": -0.042460010808621274,
+          "robust_z": -2.290739427373728,
+          "signed_streak": -2,
+          "streak_direction": "negative",
+          "streak_length": 2
+        },
+        "market_price_as_of": "2026-07-28T04:00:00+00:00",
+        "market_regime": 0.0006709273448549547,
+        "model_bucket": "crash_protocol",
+        "model_probability": 0.49395882163163296,
+        "relative_return": -0.042460010808621274,
+        "review_phase": "entry",
+        "robust_z": -2.290739427373728,
+        "sector": "Basic Materials",
+        "selection_rank": 2,
+        "selection_source": "data/universe/tradable-basket.csv",
+        "signal_gate": {
+          "allowed": true,
+          "reason": "approved",
+          "robust_z": -2.290739427373728,
+          "strategy_route": "core_mean_reversion",
+          "streak_direction": "negative",
+          "streak_length": 2,
+          "z_threshold": -2.0
+        },
+        "signed_streak": -2,
+        "stock_return": -0.04252767896398735,
+        "strategy_route": "core_mean_reversion",
+        "streak_depth": 2,
+        "streak_direction": "negative",
+        "streak_length": 2,
+        "ticker": "CF",
+        "turn_of_month": false,
+        "volatility_context": 0.33515290665530223
+      },
+      "signal_id": "sig-45e41b36574efa8a392a4fe3",
+      "sleeve": "asymmetric",
+      "spread": {
+        "contracts": 1,
+        "debit": 5.670000000000001,
+        "direction": "bearish",
+        "long_strike": 123.0,
+        "short_strike": 113.0,
+        "sleeve": "asymmetric",
+        "symbol": "CF"
+      },
+      "strategy_variant": "improved",
+      "ticker": "CF",
+      "underlying": "CF"
+    },
+    {
+      "category": "signals",
+      "contract_ids": [],
+      "journal": {
+        "category": "signals",
+        "client_order_id": null,
+        "contract_details": [],
+        "contract_ids": [],
+        "data_tier": null,
+        "event_id": "evt-5be4421215220fd7cb9e",
+        "kind": "option_chain_gate",
+        "model_bucket": null,
+        "model_probability": null,
+        "provider": "system",
+        "reason": "no bearish debit long put meets delta band",
+        "recorded_at": "2026-07-28T15:54:20.376512+00:00",
+        "schema_version": 1,
+        "selection_context": {
+          "benchmark_return": -6.766815536607407e-05,
+          "crash_protocol_paper_enabled": true,
+          "data_freshness": {
+            "allowed": true,
+            "latest_completed_as_of": "2026-07-27T04:00:00+00:00",
+            "max_age_days": 4,
+            "reason": "completed_formation_aligned"
+          },
+          "data_tier": "indicative",
+          "dollar_volume": 4205668.68,
+          "event_checks": {
+            "earnings": {
+              "allowed": true,
+              "category": "earnings",
+              "details": {
+                "age_hours": 0.001,
+                "calendar_days": 3,
+                "calendar_path": "data/events/earnings.csv",
+                "coverage_end": "2026-07-31",
+                "coverage_start": "2026-07-25",
+                "metadata_path": "data/events/earnings.csv.metadata.json",
+                "retrieved_at": "2026-07-28T15:54:13.204069+00:00",
+                "source": "nasdaq.expected_earnings_calendar",
+                "ticker": "VNOM",
+                "trading_day": "2026-07-28"
+              },
+              "reason": "outside earnings blackout"
+            },
+            "news": {
+              "allowed": true,
+              "category": "noise_or_opinion",
+              "details": null,
+              "reason": "no dated structural-risk event"
+            }
+          },
+          "formation_comparison": {
+            "allowed": true,
+            "basket": {
+              "relative_return": -0.04592080702193879,
+              "robust_z": -2.1903282142062737,
+              "streak_direction": "negative",
+              "streak_length": 2
+            },
+            "provider": {
+              "as_of": "2026-07-27T04:00:00+00:00",
+              "relative_return": -0.04592080702193879,
+              "robust_z": -2.1903282142062737,
+              "signed_streak": -2,
+              "streak_direction": "negative",
+              "streak_length": 2
+            },
+            "reason": "completed_signal_values_aligned"
+          },
+          "formation_date": "2026-07-27 04:00:00+00:00",
+          "formation_source": "completed_basket_verified_against_provider",
+          "intraday_range_pct": 0.037402718085724394,
+          "intraday_risk": {
+            "allowed": true,
+            "last_order_at": null,
+            "market_is_open": true,
+            "market_timestamp": "2026-07-28T11:54:18.574784754-04:00",
+            "next_close": "2026-07-28T16:00:00-04:00",
+            "next_open": "2026-07-29T09:30:00-04:00",
+            "orders_today": 0,
+            "reason": "approved"
+          },
+          "liquidity_context": 5013270.455,
+          "live_features": {
+            "as_of": "2026-07-27T04:00:00+00:00",
+            "relative_return": -0.04592080702193879,
+            "robust_z": -2.1903282142062737,
+            "signed_streak": -2,
+            "streak_direction": "negative",
+            "streak_length": 2
+          },
+          "market_price_as_of": "2026-07-28T04:00:00+00:00",
+          "market_regime": 0.0006709273448549547,
+          "model_bucket": "crash_protocol",
+          "model_probability": 0.49852117269849905,
+          "relative_return": -0.04592080702193879,
+          "review_phase": "entry",
+          "robust_z": -2.1903282142062737,
+          "sector": "Energy",
+          "selection_rank": 1,
+          "selection_source": "data/universe/tradable-basket.csv",
+          "signal_gate": {
+            "allowed": true,
+            "reason": "approved",
+            "robust_z": -2.1903282142062737,
+            "strategy_route": "core_mean_reversion",
+            "streak_direction": "negative",
+            "streak_length": 2,
+            "z_threshold": -2.0
+          },
+          "signed_streak": -2,
+          "stock_return": -0.045988475177304866,
+          "strategy_route": "core_mean_reversion",
+          "streak_depth": 2,
+          "streak_direction": "negative",
+          "streak_length": 2,
+          "ticker": "VNOM",
+          "turn_of_month": false,
+          "volatility_context": 0.31399513856212147
+        },
+        "selection_rank": null,
+        "sleeve": "core",
+        "status": "vetoed",
+        "strategy_route": null,
+        "strategy_variant": "improved",
+        "ticker": "VNOM",
+        "title": "VNOM \u00b7 option chain gate \u00b7 vetoed",
+        "trading_day": "2026-07-28"
+      },
+      "kind": "option_chain_gate",
+      "provider": "system",
+      "reason": "no bearish debit long put meets delta band",
+      "selection_context": {
+        "benchmark_return": -6.766815536607407e-05,
+        "crash_protocol_paper_enabled": true,
+        "data_freshness": {
+          "allowed": true,
+          "latest_completed_as_of": "2026-07-27T04:00:00+00:00",
+          "max_age_days": 4,
+          "reason": "completed_formation_aligned"
+        },
+        "data_tier": "indicative",
+        "dollar_volume": 4205668.68,
+        "event_checks": {
+          "earnings": {
+            "allowed": true,
+            "category": "earnings",
+            "details": {
+              "age_hours": 0.001,
+              "calendar_days": 3,
+              "calendar_path": "data/events/earnings.csv",
+              "coverage_end": "2026-07-31",
+              "coverage_start": "2026-07-25",
+              "metadata_path": "data/events/earnings.csv.metadata.json",
+              "retrieved_at": "2026-07-28T15:54:13.204069+00:00",
+              "source": "nasdaq.expected_earnings_calendar",
+              "ticker": "VNOM",
+              "trading_day": "2026-07-28"
+            },
+            "reason": "outside earnings blackout"
+          },
+          "news": {
+            "allowed": true,
+            "category": "noise_or_opinion",
+            "details": null,
+            "reason": "no dated structural-risk event"
+          }
+        },
+        "formation_comparison": {
+          "allowed": true,
+          "basket": {
+            "relative_return": -0.04592080702193879,
+            "robust_z": -2.1903282142062737,
+            "streak_direction": "negative",
+            "streak_length": 2
+          },
+          "provider": {
+            "as_of": "2026-07-27T04:00:00+00:00",
+            "relative_return": -0.04592080702193879,
+            "robust_z": -2.1903282142062737,
+            "signed_streak": -2,
+            "streak_direction": "negative",
+            "streak_length": 2
+          },
+          "reason": "completed_signal_values_aligned"
+        },
+        "formation_date": "2026-07-27 04:00:00+00:00",
+        "formation_source": "completed_basket_verified_against_provider",
+        "intraday_range_pct": 0.037402718085724394,
+        "intraday_risk": {
+          "allowed": true,
+          "last_order_at": null,
+          "market_is_open": true,
+          "market_timestamp": "2026-07-28T11:54:18.574784754-04:00",
+          "next_close": "2026-07-28T16:00:00-04:00",
+          "next_open": "2026-07-29T09:30:00-04:00",
+          "orders_today": 0,
+          "reason": "approved"
+        },
+        "liquidity_context": 5013270.455,
+        "live_features": {
+          "as_of": "2026-07-27T04:00:00+00:00",
+          "relative_return": -0.04592080702193879,
+          "robust_z": -2.1903282142062737,
+          "signed_streak": -2,
+          "streak_direction": "negative",
+          "streak_length": 2
+        },
+        "market_price_as_of": "2026-07-28T04:00:00+00:00",
+        "market_regime": 0.0006709273448549547,
+        "model_bucket": "crash_protocol",
+        "model_probability": 0.49852117269849905,
+        "relative_return": -0.04592080702193879,
+        "review_phase": "entry",
+        "robust_z": -2.1903282142062737,
+        "sector": "Energy",
+        "selection_rank": 1,
+        "selection_source": "data/universe/tradable-basket.csv",
+        "signal_gate": {
+          "allowed": true,
+          "reason": "approved",
+          "robust_z": -2.1903282142062737,
+          "strategy_route": "core_mean_reversion",
+          "streak_direction": "negative",
+          "streak_length": 2,
+          "z_threshold": -2.0
+        },
+        "signed_streak": -2,
+        "stock_return": -0.045988475177304866,
+        "strategy_route": "core_mean_reversion",
+        "streak_depth": 2,
+        "streak_direction": "negative",
+        "streak_length": 2,
+        "ticker": "VNOM",
+        "turn_of_month": false,
+        "volatility_context": 0.31399513856212147
+      },
+      "sleeve": "core",
+      "status": "vetoed",
+      "strategy_variant": "improved",
+      "symbol": "VNOM",
+      "ticker": "VNOM",
+      "timeframe": "1Day"
+    },
+    {
+      "category": "signals",
+      "client_order_id": "xpc-561ffacc76fa56bdcb24918a",
+      "contract_ids": [
+        "CF260828P00113000",
+        "CF260828P00123000"
+      ],
+      "contracts": [
+        {
+          "contract_id": "CF260828P00113000",
+          "expiration": "2026-08-28",
+          "option_type": "put",
+          "role": "short",
+          "strike": 113.0,
+          "ticker": "CF"
+        },
+        {
+          "contract_id": "CF260828P00123000",
+          "expiration": "2026-08-28",
+          "option_type": "put",
+          "role": "long",
+          "strike": 123.0,
+          "ticker": "CF"
+        }
+      ],
+      "data_tier": "indicative",
+      "event_decision": {
+        "allowed": true,
+        "category": "noise_or_opinion",
+        "details": null,
+        "reason": "no dated structural-risk event"
+      },
+      "journal": {
+        "category": "signals",
+        "client_order_id": "xpc-561ffacc76fa56bdcb24918a",
+        "contract_details": [
+          {
+            "contract_id": "CF260828P00113000",
+            "expiration": "2026-08-28",
+            "option_type": "put",
+            "strike": 113.0,
+            "ticker": "CF"
+          },
+          {
+            "contract_id": "CF260828P00123000",
+            "expiration": "2026-08-28",
+            "option_type": "put",
+            "strike": 123.0,
+            "ticker": "CF"
+          }
+        ],
+        "contract_ids": [
+          "CF260828P00113000",
+          "CF260828P00123000"
+        ],
+        "data_tier": "indicative",
+        "event_id": "evt-efff79e461ffe45dd0ad",
+        "kind": "candidate",
+        "model_bucket": "crash_protocol",
+        "model_probability": 0.49395882163163296,
+        "provider": null,
+        "reason": null,
+        "recorded_at": "2026-07-28T17:48:07.510063+00:00",
+        "schema_version": 1,
+        "selection_context": {
+          "benchmark_return": -6.766815536607407e-05,
+          "crash_protocol_paper_enabled": true,
+          "data_freshness": {
+            "allowed": true,
+            "latest_completed_as_of": "2026-07-27T04:00:00+00:00",
+            "max_age_days": 4,
+            "reason": "completed_formation_aligned"
+          },
+          "data_tier": "indicative",
+          "dollar_volume": 12705013.350000001,
+          "event_checks": {
+            "earnings": {
+              "allowed": true,
+              "category": "earnings",
+              "details": {
+                "age_hours": 0.001,
+                "calendar_days": 3,
+                "calendar_path": "data/events/earnings.csv",
+                "coverage_end": "2026-07-31",
+                "coverage_start": "2026-07-25",
+                "metadata_path": "data/events/earnings.csv.metadata.json",
+                "retrieved_at": "2026-07-28T17:48:00.169439+00:00",
+                "source": "nasdaq.expected_earnings_calendar",
+                "ticker": "CF",
+                "trading_day": "2026-07-28"
+              },
+              "reason": "outside earnings blackout"
+            },
+            "news": {
+              "allowed": true,
+              "category": "noise_or_opinion",
+              "details": null,
+              "reason": "no dated structural-risk event"
+            }
+          },
+          "formation_comparison": {
+            "allowed": true,
+            "basket": {
+              "relative_return": -0.042460010808621274,
+              "robust_z": -2.290739427373728,
+              "streak_direction": "negative",
+              "streak_length": 2
+            },
+            "provider": {
+              "as_of": "2026-07-27T04:00:00+00:00",
+              "relative_return": -0.042460010808621274,
+              "robust_z": -2.290739427373728,
+              "signed_streak": -2,
+              "streak_direction": "negative",
+              "streak_length": 2
+            },
+            "reason": "completed_signal_values_aligned"
+          },
+          "formation_date": "2026-07-27 04:00:00+00:00",
+          "formation_source": "completed_basket_verified_against_provider",
+          "intraday_range_pct": 0.02128991859737016,
+          "intraday_risk": {
+            "allowed": true,
+            "last_order_at": null,
+            "market_is_open": true,
+            "market_timestamp": "2026-07-28T13:48:05.149168578-04:00",
+            "next_close": "2026-07-28T16:00:00-04:00",
+            "next_open": "2026-07-29T09:30:00-04:00",
+            "orders_today": 0,
+            "reason": "approved"
+          },
+          "liquidity_context": 14378221.74,
+          "live_features": {
+            "as_of": "2026-07-27T04:00:00+00:00",
+            "relative_return": -0.042460010808621274,
+            "robust_z": -2.290739427373728,
+            "signed_streak": -2,
+            "streak_direction": "negative",
+            "streak_length": 2
+          },
+          "market_price_as_of": "2026-07-28T04:00:00+00:00",
+          "market_regime": 0.0006709273448549547,
+          "model_bucket": "crash_protocol",
+          "model_probability": 0.49395882163163296,
+          "relative_return": -0.042460010808621274,
+          "review_phase": "entry",
+          "robust_z": -2.290739427373728,
+          "sector": "Basic Materials",
+          "selection_rank": 2,
+          "selection_source": "data/universe/tradable-basket.csv",
+          "signal_gate": {
+            "allowed": true,
+            "reason": "approved",
+            "robust_z": -2.290739427373728,
+            "strategy_route": "core_mean_reversion",
+            "streak_direction": "negative",
+            "streak_length": 2,
+            "z_threshold": -2.0
+          },
+          "signed_streak": -2,
+          "stock_return": -0.04252767896398735,
+          "strategy_route": "core_mean_reversion",
+          "streak_depth": 2,
+          "streak_direction": "negative",
+          "streak_length": 2,
+          "ticker": "CF",
+          "turn_of_month": false,
+          "volatility_context": 0.33515290665530223
+        },
+        "selection_rank": null,
+        "sleeve": "asymmetric",
+        "status": "recorded",
+        "strategy_route": null,
+        "strategy_variant": "improved",
+        "ticker": "CF",
+        "title": "CF \u00b7 candidate \u00b7 recorded",
+        "trading_day": "2026-07-28"
+      },
+      "kind": "candidate",
+      "market_data": {
+        "data_tier": "indicative",
+        "debit_pct_width": 0.545,
+        "legs": [
+          {
+            "ask": 4.08,
+            "bid": 2.57,
+            "contract_id": "CF260828P00113000",
+            "role": "short",
+            "spread_pct": 0.4541353383458647,
+            "ticker": "CF",
+            "timestamp": "2026-07-28T17:47:56.120605143Z"
+          }
+        ],
+        "observed_at": "2026-07-28T17:48:04.663776+00:00",
+        "reward_multiple": 0.8348623853211009
+      },
+      "model_bucket": "crash_protocol",
+      "model_probability": 0.49395882163163296,
+      "risk_decision": {
+        "allowed": false,
+        "reason": "option_quote_spread_too_wide"
+      },
+      "risk_snapshot": {
+        "asymmetric_open_risk": 0.0,
+        "core_open_risk": 0.0,
+        "daily_pnl": 0.0,
+        "drawdown": 0.0,
+        "nav": 100000.0,
+        "open_asymmetric_trades": 0,
+        "options_buying_power": 100000.0,
+        "options_trading_level": 3,
+        "sector_open_risk": {},
+        "ticker_open_risk": {},
+        "trading_blocked": false
+      },
+      "selection_context": {
+        "benchmark_return": -6.766815536607407e-05,
+        "crash_protocol_paper_enabled": true,
+        "data_freshness": {
+          "allowed": true,
+          "latest_completed_as_of": "2026-07-27T04:00:00+00:00",
+          "max_age_days": 4,
+          "reason": "completed_formation_aligned"
+        },
+        "data_tier": "indicative",
+        "dollar_volume": 12705013.350000001,
+        "event_checks": {
+          "earnings": {
+            "allowed": true,
+            "category": "earnings",
+            "details": {
+              "age_hours": 0.001,
+              "calendar_days": 3,
+              "calendar_path": "data/events/earnings.csv",
+              "coverage_end": "2026-07-31",
+              "coverage_start": "2026-07-25",
+              "metadata_path": "data/events/earnings.csv.metadata.json",
+              "retrieved_at": "2026-07-28T17:48:00.169439+00:00",
+              "source": "nasdaq.expected_earnings_calendar",
+              "ticker": "CF",
+              "trading_day": "2026-07-28"
+            },
+            "reason": "outside earnings blackout"
+          },
+          "news": {
+            "allowed": true,
+            "category": "noise_or_opinion",
+            "details": null,
+            "reason": "no dated structural-risk event"
+          }
+        },
+        "formation_comparison": {
+          "allowed": true,
+          "basket": {
+            "relative_return": -0.042460010808621274,
+            "robust_z": -2.290739427373728,
+            "streak_direction": "negative",
+            "streak_length": 2
+          },
+          "provider": {
+            "as_of": "2026-07-27T04:00:00+00:00",
+            "relative_return": -0.042460010808621274,
+            "robust_z": -2.290739427373728,
+            "signed_streak": -2,
+            "streak_direction": "negative",
+            "streak_length": 2
+          },
+          "reason": "completed_signal_values_aligned"
+        },
+        "formation_date": "2026-07-27 04:00:00+00:00",
+        "formation_source": "completed_basket_verified_against_provider",
+        "intraday_range_pct": 0.02128991859737016,
+        "intraday_risk": {
+          "allowed": true,
+          "last_order_at": null,
+          "market_is_open": true,
+          "market_timestamp": "2026-07-28T13:48:05.149168578-04:00",
+          "next_close": "2026-07-28T16:00:00-04:00",
+          "next_open": "2026-07-29T09:30:00-04:00",
+          "orders_today": 0,
+          "reason": "approved"
+        },
+        "liquidity_context": 14378221.74,
+        "live_features": {
+          "as_of": "2026-07-27T04:00:00+00:00",
+          "relative_return": -0.042460010808621274,
+          "robust_z": -2.290739427373728,
+          "signed_streak": -2,
+          "streak_direction": "negative",
+          "streak_length": 2
+        },
+        "market_price_as_of": "2026-07-28T04:00:00+00:00",
+        "market_regime": 0.0006709273448549547,
+        "model_bucket": "crash_protocol",
+        "model_probability": 0.49395882163163296,
+        "relative_return": -0.042460010808621274,
+        "review_phase": "entry",
+        "robust_z": -2.290739427373728,
+        "sector": "Basic Materials",
+        "selection_rank": 2,
+        "selection_source": "data/universe/tradable-basket.csv",
+        "signal_gate": {
+          "allowed": true,
+          "reason": "approved",
+          "robust_z": -2.290739427373728,
+          "strategy_route": "core_mean_reversion",
+          "streak_direction": "negative",
+          "streak_length": 2,
+          "z_threshold": -2.0
+        },
+        "signed_streak": -2,
+        "stock_return": -0.04252767896398735,
+        "strategy_route": "core_mean_reversion",
+        "streak_depth": 2,
+        "streak_direction": "negative",
+        "streak_length": 2,
+        "ticker": "CF",
+        "turn_of_month": false,
+        "volatility_context": 0.33515290665530223
+      },
+      "signal_id": "sig-45e41b36574efa8a392a4fe3",
+      "sleeve": "asymmetric",
+      "spread": {
+        "contracts": 1,
+        "debit": 5.45,
+        "direction": "bearish",
+        "long_strike": 123.0,
+        "short_strike": 113.0,
+        "sleeve": "asymmetric",
+        "symbol": "CF"
+      },
+      "strategy_variant": "improved",
+      "ticker": "CF",
+      "underlying": "CF"
+    },
+    {
+      "category": "signals",
+      "contract_ids": [],
+      "journal": {
+        "category": "signals",
+        "client_order_id": null,
+        "contract_details": [],
+        "contract_ids": [],
+        "data_tier": null,
+        "event_id": "evt-488926d660ee71c4314c",
+        "kind": "option_chain_gate",
+        "model_bucket": null,
+        "model_probability": null,
+        "provider": "system",
+        "reason": "no bearish debit long put meets delta band",
+        "recorded_at": "2026-07-28T17:48:09.694552+00:00",
+        "schema_version": 1,
+        "selection_context": {
+          "benchmark_return": -6.766815536607407e-05,
+          "crash_protocol_paper_enabled": true,
+          "data_freshness": {
+            "allowed": true,
+            "latest_completed_as_of": "2026-07-27T04:00:00+00:00",
+            "max_age_days": 4,
+            "reason": "completed_formation_aligned"
+          },
+          "data_tier": "indicative",
+          "dollar_volume": 4205668.68,
+          "event_checks": {
+            "earnings": {
+              "allowed": true,
+              "category": "earnings",
+              "details": {
+                "age_hours": 0.002,
+                "calendar_days": 3,
+                "calendar_path": "data/events/earnings.csv",
+                "coverage_end": "2026-07-31",
+                "coverage_start": "2026-07-25",
+                "metadata_path": "data/events/earnings.csv.metadata.json",
+                "retrieved_at": "2026-07-28T17:48:00.169439+00:00",
+                "source": "nasdaq.expected_earnings_calendar",
+                "ticker": "VNOM",
+                "trading_day": "2026-07-28"
+              },
+              "reason": "outside earnings blackout"
+            },
+            "news": {
+              "allowed": true,
+              "category": "noise_or_opinion",
+              "details": null,
+              "reason": "no dated structural-risk event"
+            }
+          },
+          "formation_comparison": {
+            "allowed": true,
+            "basket": {
+              "relative_return": -0.04592080702193879,
+              "robust_z": -2.1903282142062737,
+              "streak_direction": "negative",
+              "streak_length": 2
+            },
+            "provider": {
+              "as_of": "2026-07-27T04:00:00+00:00",
+              "relative_return": -0.04592080702193879,
+              "robust_z": -2.1903282142062737,
+              "signed_streak": -2,
+              "streak_direction": "negative",
+              "streak_length": 2
+            },
+            "reason": "completed_signal_values_aligned"
+          },
+          "formation_date": "2026-07-27 04:00:00+00:00",
+          "formation_source": "completed_basket_verified_against_provider",
+          "intraday_range_pct": 0.037402718085724394,
+          "intraday_risk": {
+            "allowed": true,
+            "last_order_at": null,
+            "market_is_open": true,
+            "market_timestamp": "2026-07-28T13:48:07.721788763-04:00",
+            "next_close": "2026-07-28T16:00:00-04:00",
+            "next_open": "2026-07-29T09:30:00-04:00",
+            "orders_today": 0,
+            "reason": "approved"
+          },
+          "liquidity_context": 5013270.455,
+          "live_features": {
+            "as_of": "2026-07-27T04:00:00+00:00",
+            "relative_return": -0.04592080702193879,
+            "robust_z": -2.1903282142062737,
+            "signed_streak": -2,
+            "streak_direction": "negative",
+            "streak_length": 2
+          },
+          "market_price_as_of": "2026-07-28T04:00:00+00:00",
+          "market_regime": 0.0006709273448549547,
+          "model_bucket": "crash_protocol",
+          "model_probability": 0.49852117269849905,
+          "relative_return": -0.04592080702193879,
+          "review_phase": "entry",
+          "robust_z": -2.1903282142062737,
+          "sector": "Energy",
+          "selection_rank": 1,
+          "selection_source": "data/universe/tradable-basket.csv",
+          "signal_gate": {
+            "allowed": true,
+            "reason": "approved",
+            "robust_z": -2.1903282142062737,
+            "strategy_route": "core_mean_reversion",
+            "streak_direction": "negative",
+            "streak_length": 2,
+            "z_threshold": -2.0
+          },
+          "signed_streak": -2,
+          "stock_return": -0.045988475177304866,
+          "strategy_route": "core_mean_reversion",
+          "streak_depth": 2,
+          "streak_direction": "negative",
+          "streak_length": 2,
+          "ticker": "VNOM",
+          "turn_of_month": false,
+          "volatility_context": 0.31399513856212147
+        },
+        "selection_rank": null,
+        "sleeve": "core",
+        "status": "vetoed",
+        "strategy_route": null,
+        "strategy_variant": "improved",
+        "ticker": "VNOM",
+        "title": "VNOM \u00b7 option chain gate \u00b7 vetoed",
+        "trading_day": "2026-07-28"
+      },
+      "kind": "option_chain_gate",
+      "provider": "system",
+      "reason": "no bearish debit long put meets delta band",
+      "selection_context": {
+        "benchmark_return": -6.766815536607407e-05,
+        "crash_protocol_paper_enabled": true,
+        "data_freshness": {
+          "allowed": true,
+          "latest_completed_as_of": "2026-07-27T04:00:00+00:00",
+          "max_age_days": 4,
+          "reason": "completed_formation_aligned"
+        },
+        "data_tier": "indicative",
+        "dollar_volume": 4205668.68,
+        "event_checks": {
+          "earnings": {
+            "allowed": true,
+            "category": "earnings",
+            "details": {
+              "age_hours": 0.002,
+              "calendar_days": 3,
+              "calendar_path": "data/events/earnings.csv",
+              "coverage_end": "2026-07-31",
+              "coverage_start": "2026-07-25",
+              "metadata_path": "data/events/earnings.csv.metadata.json",
+              "retrieved_at": "2026-07-28T17:48:00.169439+00:00",
+              "source": "nasdaq.expected_earnings_calendar",
+              "ticker": "VNOM",
+              "trading_day": "2026-07-28"
+            },
+            "reason": "outside earnings blackout"
+          },
+          "news": {
+            "allowed": true,
+            "category": "noise_or_opinion",
+            "details": null,
+            "reason": "no dated structural-risk event"
+          }
+        },
+        "formation_comparison": {
+          "allowed": true,
+          "basket": {
+            "relative_return": -0.04592080702193879,
+            "robust_z": -2.1903282142062737,
+            "streak_direction": "negative",
+            "streak_length": 2
+          },
+          "provider": {
+            "as_of": "2026-07-27T04:00:00+00:00",
+            "relative_return": -0.04592080702193879,
+            "robust_z": -2.1903282142062737,
+            "signed_streak": -2,
+            "streak_direction": "negative",
+            "streak_length": 2
+          },
+          "reason": "completed_signal_values_aligned"
+        },
+        "formation_date": "2026-07-27 04:00:00+00:00",
+        "formation_source": "completed_basket_verified_against_provider",
+        "intraday_range_pct": 0.037402718085724394,
+        "intraday_risk": {
+          "allowed": true,
+          "last_order_at": null,
+          "market_is_open": true,
+          "market_timestamp": "2026-07-28T13:48:07.721788763-04:00",
+          "next_close": "2026-07-28T16:00:00-04:00",
+          "next_open": "2026-07-29T09:30:00-04:00",
+          "orders_today": 0,
+          "reason": "approved"
+        },
+        "liquidity_context": 5013270.455,
+        "live_features": {
+          "as_of": "2026-07-27T04:00:00+00:00",
+          "relative_return": -0.04592080702193879,
+          "robust_z": -2.1903282142062737,
+          "signed_streak": -2,
+          "streak_direction": "negative",
+          "streak_length": 2
+        },
+        "market_price_as_of": "2026-07-28T04:00:00+00:00",
+        "market_regime": 0.0006709273448549547,
+        "model_bucket": "crash_protocol",
+        "model_probability": 0.49852117269849905,
+        "relative_return": -0.04592080702193879,
+        "review_phase": "entry",
+        "robust_z": -2.1903282142062737,
+        "sector": "Energy",
+        "selection_rank": 1,
+        "selection_source": "data/universe/tradable-basket.csv",
+        "signal_gate": {
+          "allowed": true,
+          "reason": "approved",
+          "robust_z": -2.1903282142062737,
+          "strategy_route": "core_mean_reversion",
+          "streak_direction": "negative",
+          "streak_length": 2,
+          "z_threshold": -2.0
+        },
+        "signed_streak": -2,
+        "stock_return": -0.045988475177304866,
+        "strategy_route": "core_mean_reversion",
+        "streak_depth": 2,
+        "streak_direction": "negative",
+        "streak_length": 2,
+        "ticker": "VNOM",
+        "turn_of_month": false,
+        "volatility_context": 0.31399513856212147
+      },
+      "sleeve": "core",
+      "status": "vetoed",
+      "strategy_variant": "improved",
+      "symbol": "VNOM",
+      "ticker": "VNOM",
+      "timeframe": "1Day"
+    }
+  ],
+  "kind": "daily_operations_report",
+  "portfolio_note": {
+    "anomalies": [
+      "invalid_or_missing_nebius_daily_note"
+    ],
+    "kind": "daily_portfolio_note",
+    "llm_input": {
+      "categories": {
+        "reports": 1,
+        "risk": 7,
+        "signals": 15
+      },
+      "deterministic_anomalies": [],
+      "event_count": 23,
+      "statuses": {
+        "deferred": 7,
+        "recorded": 4,
+        "selected": 2,
+        "skipped": 2,
+        "vetoed": 8
+      },
+      "trading_day": "2026-07-28"
+    },
+    "llm_output": {
+      "anomalies": [
+        "invalid_or_missing_nebius_daily_note"
+      ],
+      "model": "glm-5.2",
+      "note": "Nebius daily note unavailable; review the deterministic ledger report.",
+      "provider": "nebius",
+      "reason": "Nebius returned an invalid daily note",
+      "risk_posture": "escalate"
+    },
+    "model": "glm-5.2",
+    "note": "Nebius daily note unavailable; review the deterministic ledger report.",
+    "provider": "nebius",
+    "reason": "Nebius returned an invalid daily note",
+    "risk_posture": "escalate",
+    "summary": {
+      "categories": {
+        "reports": 1,
+        "risk": 7,
+        "signals": 15
+      },
+      "deterministic_anomalies": [],
+      "event_count": 23,
+      "statuses": {
+        "deferred": 7,
+        "recorded": 4,
+        "selected": 2,
+        "skipped": 2,
+        "vetoed": 8
+      },
+      "trading_day": "2026-07-28"
+    }
+  },
+  "statuses": {
+    "deferred": 7,
+    "recorded": 4,
+    "selected": 2,
+    "skipped": 2,
+    "vetoed": 8
+  },
+  "trading_day": "2026-07-28"
+}
