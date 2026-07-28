@@ -35,12 +35,20 @@ class NebiusReviewer:
             headers={"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"},
             method="POST",
         )
-        with urlopen(request, timeout=30) as response:
-            body = json.loads(response.read())
-        content = body["choices"][0]["message"]["content"]
         try:
+            with urlopen(request, timeout=30) as response:
+                body = json.loads(response.read())
+        except Exception as exc:
+            return {
+                "decision": "escalate",
+                "reason": f"Nebius API error: {type(exc).__name__} ({exc})",
+                "provider": "nebius",
+                "model": self.model,
+            }
+        try:
+            content = body["choices"][0]["message"]["content"]
             judgment = json.loads(content)
-        except (TypeError, json.JSONDecodeError):
+        except (KeyError, IndexError, TypeError, json.JSONDecodeError):
             return {"decision": "escalate", "reason": "Nebius returned invalid JSON", "provider": "nebius", "model": self.model}
         if not isinstance(judgment, dict):
             return {"decision": "escalate", "reason": "Nebius returned a non-object JSON value", "provider": "nebius", "model": self.model}
