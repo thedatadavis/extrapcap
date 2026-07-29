@@ -3,29 +3,29 @@
   "source": "nasdaq.expected_earnings_calendar",
   "source_page": "https://www.nasdaq.com/market-activity/earnings",
   "endpoint": "https://api.nasdaq.com/api/calendar/earnings",
-  "retrieved_at": "2026-07-28T20:10:25.271806+00:00",
-  "center_date": "2026-07-28",
+  "retrieved_at": "2026-07-29T15:07:43.131317+00:00",
+  "center_date": "2026-07-29",
   "blackout_calendar_days": 3,
-  "coverage_start": "2026-07-25",
-  "coverage_end": "2026-07-31",
+  "coverage_start": "2026-07-26",
+  "coverage_end": "2026-08-01",
   "queried_dates": [
-    "2026-07-25",
     "2026-07-26",
     "2026-07-27",
     "2026-07-28",
     "2026-07-29",
     "2026-07-30",
-    "2026-07-31"
+    "2026-07-31",
+    "2026-08-01"
   ],
-  "row_count": 881,
+  "row_count": 891,
   "rows_by_date": {
-    "2026-07-25": 0,
     "2026-07-26": 1,
-    "2026-07-27": 78,
-    "2026-07-28": 145,
-    "2026-07-29": 290,
-    "2026-07-30": 310,
-    "2026-07-31": 58
+    "2026-07-27": 73,
+    "2026-07-28": 169,
+    "2026-07-29": 283,
+    "2026-07-30": 305,
+    "2026-07-31": 61,
+    "2026-08-01": 0
   },
   "methodology": "Expected dates are derived by Nasdaq from an algorithm based on historical reporting dates; absence from a fully queried date means no expected report was returned."
 }
