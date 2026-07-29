@@ -25,7 +25,7 @@ jobs:
       - name: Run GLM 5.2 policy learner
         env:
           NEBIUS_API_KEY: ${{ secrets.NEBIUS_API_KEY }}
-          NEBIUS_MODEL: ${{ vars.NEBIUS_MODEL || 'glm-5.2' }}
+          NEBIUS_MODEL: ${{ vars.NEBIUS_MODEL || 'zai-org/GLM-5.2' }}
         run: python -m extrapcap.improvement_cli --date "$(date -u +%F)" --output-dir logs/proposals
       - name: Commit policy proposals
         run: |
