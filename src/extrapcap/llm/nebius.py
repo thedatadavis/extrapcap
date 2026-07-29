@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
 from ..secrets import optional_nebius_key
@@ -13,7 +14,10 @@ class NebiusReviewer:
     def __init__(self, base_url: str | None = None, api_key: str | None = None, model: str | None = None):
         self.base_url = (base_url or os.getenv("NEBIUS_BASE_URL", "https://api.tokenfactory.nebius.com/v1")).rstrip("/")
         self.api_key = api_key or optional_nebius_key()
-        self.model = model or os.getenv("NEBIUS_MODEL", "glm-5.2")
+        raw_model = model or os.getenv("NEBIUS_MODEL", "zai-org/GLM-5.2")
+        if raw_model.lower() in {"glm-5.2", "glm5.2"}:
+            raw_model = "zai-org/GLM-5.2"
+        self.model = raw_model
 
     def _request_json(self, system: str, user: dict, thinking_effort: str = "high") -> dict:
         if not self.api_key:
@@ -23,7 +27,10 @@ class NebiusReviewer:
             "temperature": 0,
             "response_format": {"type": "json_object"},
             "reasoning_effort": thinking_effort,
-            "extra_body": {"reasoning_effort": thinking_effort},
+            "extra_body": {
+                "reasoning_effort": thinking_effort,
+                "thinking": {"type": "enabled", "budget_tokens": 4096 if thinking_effort == "max" else 2048},
+            },
             "messages": [
                 {"role": "system", "content": system},
                 {"role": "user", "content": json.dumps(user)},
@@ -38,6 +45,18 @@ class NebiusReviewer:
         try:
             with urlopen(request, timeout=30) as response:
                 body = json.loads(response.read())
+        except HTTPError as exc:
+            error_text = ""
+            try:
+                error_text = exc.read().decode("utf-8", errors="replace")
+            except Exception:
+                pass
+            return {
+                "decision": "escalate",
+                "reason": f"Nebius API HTTP {exc.code}: {exc.reason} - {error_text[:200]}",
+                "provider": "nebius",
+                "model": self.model,
+            }
         except Exception as exc:
             return {
                 "decision": "escalate",
