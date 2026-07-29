@@ -18,7 +18,12 @@ from ..fills import FillAssumptions
 from ..llm.nebius import NebiusReviewer
 from ..models.sniper import SniperModel
 from ..options_data import AlpacaOptionsData
-from ..orchestration.paper_run import PaperRunCoordinator, build_candidate, build_crash_candidate
+from ..orchestration.paper_run import (
+    PaperRunCoordinator,
+    build_candidate,
+    build_crash_candidate,
+    build_fast_ev_candidate,
+)
 from ..risk import approve_intraday_order
 from ..selection import completed_signal_alignment_reason, core_streak_gate
 from ..signals import SNIPER_FEATURES, relative_features
@@ -35,6 +40,8 @@ def run_live_cycle(
     timeframe: str = "1Day",
     selection_context: dict | None = None,
     review_phase: str = "entry",
+    fast_ev: bool = False,
+    min_ev: float = 10.0,
 ) -> dict:
     if review_phase not in {"entry", "opening_prep"}:
         raise ValueError("unsupported review phase")
@@ -275,8 +282,25 @@ def run_live_cycle(
     )
     context["market_price_as_of"] = current_symbol_bars.sort_values("date").iloc[-1]["date"].isoformat()
     context["crash_protocol_paper_enabled"] = paper_crash_protocol_enabled()
+    context["crash_protocol_paper_enabled"] = paper_crash_protocol_enabled()
     try:
-        if (
+        if fast_ev:
+            if probability <= 0.51:
+                raise ValueError(f"sniper probability {probability:.4f} <= 0.51 threshold")
+            candidate = build_fast_ev_candidate(
+                underlying=symbol,
+                trading_day=end.date(),
+                underlying_price=current_underlying_price,
+                contracts_payload=contracts_payload,
+                snapshot_payload=snapshot_payload,
+                model_probability=probability,
+                risk_state=risk_state,
+                risk_config=config.risk,
+                event_decision=event_decision,
+                selection_context=context,
+                min_ev=min_ev,
+            )
+        elif (
             execution_mode in {"dry-run", "paper-submit"}
             and context["crash_protocol_paper_enabled"]
             and probability < config.strategy.trap_low
@@ -325,7 +349,7 @@ def run_live_cycle(
             "reason": str(exc),
             "provider": "system",
             "sleeve": "core",
-            "strategy_variant": "improved",
+            "strategy_variant": "fast_ev" if fast_ev else "improved",
             "selection_context": context,
         }
         AuditLedger().append("signals", result, end.date(), deduplicate=True)
@@ -337,7 +361,7 @@ def run_live_cycle(
             "reason": str(exc),
             "result": result,
         }
-    result = PaperRunCoordinator(client, reviewer).execute(candidate)
+    result = PaperRunCoordinator(client, reviewer, fast_ev=fast_ev).execute(candidate)
     return {"ticker": symbol.upper(), "symbol": symbol.upper(), "timeframe": timeframe, "probability": probability, "model": model.version, "result": result}
 
 
@@ -349,10 +373,12 @@ def main() -> None:
     parser.add_argument("--expiration-lte")
     parser.add_argument("--execution-mode", choices=("dry-run", "paper-submit", "live-submit"), default="dry-run")
     parser.add_argument("--timeframe", choices=("1Day", "1Min", "5Min", "15Min", "1Hour"), default="1Day")
+    parser.add_argument("--fast-ev", action="store_true", help="Enable Fast EV (>= $10) review mode")
+    parser.add_argument("--min-ev", type=float, default=10.0, help="Minimum Expected Value threshold in dollars")
     args = parser.parse_args()
     if not args.model:
         parser.error("--model or SNIPER_MODEL_PATH is required")
-    print(json.dumps(run_live_cycle(args.symbol, args.model, args.expiration_gte, args.expiration_lte or None, args.execution_mode, args.timeframe), indent=2))
+    print(json.dumps(run_live_cycle(args.symbol, args.model, args.expiration_gte, args.expiration_lte or None, args.execution_mode, args.timeframe, fast_ev=args.fast_ev, min_ev=args.min_ev), indent=2))
 
 
 if __name__ == "__main__":

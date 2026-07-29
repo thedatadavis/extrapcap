@@ -117,6 +117,8 @@ def run_basket(
     review_phase: str = "entry",
     z_threshold: float = -2.0,
     max_candidates: int = 25,
+    fast_ev: bool = False,
+    min_ev: float = 10.0,
     runner=run_live_cycle,
     ledger: AuditLedger | None = None,
     model_loader=SniperModel.load,
@@ -133,12 +135,17 @@ def run_basket(
         model_loader=model_loader,
     )
     crash_enabled = execution_mode in {"dry-run", "paper-submit"} and paper_crash_protocol_enabled()
-    tradeable_candidates = [
-        selection
-        for selection in ranked
-        if selection["model_bucket"] in {"premium_candidate", "watch_list"}
-        or (crash_enabled and selection["model_bucket"] == "crash_protocol")
-    ]
+    if fast_ev:
+        tradeable_candidates = [
+            selection for selection in ranked if (selection.get("model_probability") or 0.0) > 0.51
+        ]
+    else:
+        tradeable_candidates = [
+            selection
+            for selection in ranked
+            if selection["model_bucket"] in {"premium_candidate", "watch_list"}
+            or (crash_enabled and selection["model_bucket"] == "crash_protocol")
+        ]
     selected_tickers = {selection["ticker"] for selection in tradeable_candidates[:max_candidates]}
     selection_ranks = {
         selection["ticker"]: rank
@@ -148,6 +155,7 @@ def run_basket(
         ticker = selection["ticker"]
         decision = core_streak_gate(selection, z_threshold)
         model_bucket = model_buckets.get(ticker)
+        prob = selection.get("model_probability") or 0.0
         selection = {
             **selection,
             "selection_rank": selection_ranks.get(ticker),
@@ -156,12 +164,12 @@ def run_basket(
             "signal_gate": decision.as_dict(),
         }
         crash_candidate = model_bucket == "crash_protocol" and crash_enabled
-        is_tradeable = model_bucket in {"premium_candidate", "watch_list"}
+        is_tradeable = (prob > 0.51) if fast_ev else (model_bucket in {"premium_candidate", "watch_list"})
         if not decision.allowed or (not is_tradeable and not crash_candidate) or ticker not in selected_tickers:
             if not decision.allowed:
                 reason = decision.reason
             elif not is_tradeable:
-                reason = model_bucket or "model_score_unavailable"
+                reason = f"sniper prob {prob:.2f} <= 0.51" if fast_ev else (model_bucket or "model_score_unavailable")
             else:
                 reason = "candidate_limit"
             status = "vetoed" if not decision.allowed else "deferred"
@@ -172,7 +180,7 @@ def run_basket(
                 "reason": reason,
                 "provider": "system",
                 "sleeve": "core",
-                "strategy_variant": "improved",
+                "strategy_variant": "fast_ev" if fast_ev else "improved",
                 "strategy_route": decision.strategy_route,
                 "selection_rank": selection.get("selection_rank"),
                 "model_probability": selection.get("model_probability"),
@@ -198,7 +206,7 @@ def run_basket(
                 "reason": "approved",
                 "provider": "system",
                 "sleeve": "core",
-                "strategy_variant": "improved",
+                "strategy_variant": "fast_ev" if fast_ev else "improved",
                 "strategy_route": decision.strategy_route,
                 "selection_rank": selection["selection_rank"],
                 "model_probability": selection["model_probability"],
@@ -218,6 +226,8 @@ def run_basket(
                     timeframe,
                     selection_context=selection,
                     review_phase=review_phase,
+                    fast_ev=fast_ev,
+                    min_ev=min_ev,
                 )
             )
         except ValueError as exc:
@@ -228,7 +238,7 @@ def run_basket(
                 "reason": str(exc),
                 "provider": "system",
                 "sleeve": "core",
-                "strategy_variant": "improved",
+                "strategy_variant": "fast_ev" if fast_ev else "improved",
                 "selection_context": selection,
             }
             audit.append("signals", veto, date.today(), deduplicate=True)
@@ -261,6 +271,8 @@ def main() -> None:
     parser.add_argument("--review-phase", choices=("entry", "opening_prep"), default="entry")
     parser.add_argument("--z-threshold", type=float, default=-2.0)
     parser.add_argument("--max-candidates", type=int, default=10)
+    parser.add_argument("--fast-ev", action="store_true", help="Enable Fast EV (>= $10) review mode")
+    parser.add_argument("--min-ev", type=float, default=10.0, help="Minimum Expected Value threshold in dollars")
     args = parser.parse_args()
     if not args.model:
         parser.error("--model or SNIPER_MODEL_PATH is required")
@@ -274,6 +286,8 @@ def main() -> None:
         review_phase=args.review_phase,
         z_threshold=args.z_threshold,
         max_candidates=args.max_candidates,
+        fast_ev=args.fast_ev,
+        min_ev=args.min_ev,
     )
     print(json.dumps(results, indent=2))
     if not basket_run_succeeded(results):
