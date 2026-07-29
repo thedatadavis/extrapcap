@@ -105,3 +105,35 @@ def test_paper_run_coordinator_fast_ev_auto_approves():
     coordinator = PaperRunCoordinator(MockClient(), ErrorReviewer(), fast_ev=True)
     res = coordinator.execute(candidate)
     assert res.get("client_order_id") == candidate.envelope.client_order_id
+
+
+def test_evaluate_fast_ev_exit_heuristics():
+    from extrapcap.execution.position_manager import evaluate_fast_ev_exit
+
+    opened = date(2026, 7, 20)
+    as_of = date(2026, 7, 25)
+
+    # 1. Anticipatory Win Take (>= 40% max profit)
+    # Entry debit = 2.00, width = 5.00 -> Max profit = 3.00, Max risk = 2.00
+    # Current value = 3.50 -> PnL = +1.50 -> profit_pct = 1.50 / 3.00 = 50% >= 40%
+    dec1 = evaluate_fast_ev_exit(entry_cost=2.00, current_value=3.50, spread_width=5.00, is_debit=True, opened_at=opened, as_of=as_of, dte=10)
+    assert dec1.action == "close"
+    assert dec1.reason == "anticipatory_win_40pct_max_profit"
+
+    # 2. Minimize Loss (>= 50% max risk)
+    # Current value = 0.80 -> PnL = -1.20 -> loss_pct = 1.20 / 2.00 = 60% >= 50%
+    dec2 = evaluate_fast_ev_exit(entry_cost=2.00, current_value=0.80, spread_width=5.00, is_debit=True, opened_at=opened, as_of=as_of, dte=10)
+    assert dec2.action == "close"
+    assert dec2.reason == "minimize_loss_50pct_max_risk"
+
+    # 3. Hold-to-Maturity vs Expiration Close (0-1 DTE)
+    # In profit at 1 DTE -> Close to harvest gains
+    dec3 = evaluate_fast_ev_exit(entry_cost=2.00, current_value=2.30, spread_width=5.00, is_debit=True, opened_at=opened, as_of=as_of, dte=1)
+    assert dec3.action == "close"
+    assert dec3.reason == "harvest_profit_at_expiration"
+
+    # Deep OTM at 0 DTE -> Hold to expire
+    dec4 = evaluate_fast_ev_exit(entry_cost=2.00, current_value=0.03, spread_width=5.00, is_debit=True, opened_at=opened, as_of=as_of, dte=0)
+    assert dec4.action == "hold"
+    assert dec4.reason == "hold_to_maturity_expire_worthless"
+

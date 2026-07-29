@@ -48,6 +48,7 @@ jobs:
           --expiration-gte "$(date -u -d '+2 days' +%F)"
           --expiration-lte "$(date -u -d '+35 days' +%F)"
           --max-candidates 10
+          --fast-ev
           --review-phase opening_prep
           --execution-mode dry-run
       - name: Commit opening-prep ledger

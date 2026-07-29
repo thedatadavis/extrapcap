@@ -9,7 +9,14 @@ from ..ledger import AuditLedger
 from ..options_data import AlpacaOptionsData, normalize_chain, parse_occ_option_symbol
 from ..options import DebitSpread
 from .orders import OrderEnvelope
-from .position_manager import ManagedPosition, build_close_envelope, evaluate_credit_exit, evaluate_debit_exit
+from .position_manager import (
+    ManagedPosition,
+    build_close_envelope,
+    evaluate_credit_exit,
+    evaluate_debit_exit,
+    evaluate_fast_ev_exit,
+)
+import os
 
 
 def _read_registry(path: str | Path) -> list[dict]:
@@ -130,6 +137,8 @@ def manage_live_positions(
             continue
         opened_at = date.fromisoformat(opened_at_value)
         entry_debit = metadata.get("entry_debit")
+        dte = max(0, (parsed[0].expiration - as_of).days)
+        is_fast_ev_pos = metadata.get("strategy_variant") == "fast_ev" or os.getenv("EXTRAPCAP_FAST_EV", "false").lower() == "true"
         if entry_debit is not None:
             current_debit = long_quote.bid - short_quote.ask
             if current_debit < 0:
@@ -137,8 +146,20 @@ def manage_live_positions(
                 results.append(result)
                 ledger.append("risk", result, as_of)
                 continue
-            spread = DebitSpread(parsed[0].underlying, long.strike, short.strike, float(entry_debit), sleeve="asymmetric", direction="bearish")
-            decision = evaluate_debit_exit(spread, opened_at, as_of, current_debit, cfg)
+            spread_width = float(metadata.get("spread_width", abs(long.strike - short.strike)))
+            if is_fast_ev_pos:
+                decision = evaluate_fast_ev_exit(
+                    entry_cost=float(entry_debit),
+                    current_value=current_debit,
+                    spread_width=spread_width,
+                    is_debit=True,
+                    opened_at=opened_at,
+                    as_of=as_of,
+                    dte=dte,
+                )
+            else:
+                spread = DebitSpread(parsed[0].underlying, long.strike, short.strike, float(entry_debit), sleeve="asymmetric", direction="bearish")
+                decision = evaluate_debit_exit(spread, opened_at, as_of, current_debit, cfg)
             result = {
                 "client_order_id": record.get("client_order_id"),
                 **position_metadata,
@@ -153,7 +174,7 @@ def manage_live_positions(
                         OrderEnvelope(opened_at.isoformat(), parsed[0].underlying, "buy_to_open", legs, "asymmetric", payload.get("limit_price"), int(payload.get("qty", 1))),
                         float(entry_debit),
                         current_debit,
-                        float(metadata.get("spread_width", abs(long.strike - short.strike))),
+                        spread_width,
                         opened_at,
                         as_of,
                     ),
@@ -178,23 +199,51 @@ def manage_live_positions(
             results.append(result)
             ledger.append("risk", result, as_of)
             continue
-        position = ManagedPosition(
-            OrderEnvelope(
-                opened_at.isoformat(),
-                parsed[0].underlying,
-                "sell_to_open",
-                legs,
-                payload.get("sleeve", "core"),
-                payload.get("limit_price"),
-                int(payload.get("qty", 1)),
-            ),
-            float(metadata.get("entry_credit", payload.get("limit_price", 0))),
-            current_debit,
-            float(metadata.get("spread_width", short.strike - long.strike)),
-            opened_at,
-            as_of,
-        )
-        decision = evaluate_credit_exit(position, cfg)
+        spread_width = float(metadata.get("spread_width", short.strike - long.strike))
+        if is_fast_ev_pos:
+            decision = evaluate_fast_ev_exit(
+                entry_cost=float(metadata.get("entry_credit", payload.get("limit_price", 0))),
+                current_value=current_debit,
+                spread_width=spread_width,
+                is_debit=False,
+                opened_at=opened_at,
+                as_of=as_of,
+                dte=dte,
+            )
+            position = ManagedPosition(
+                OrderEnvelope(
+                    opened_at.isoformat(),
+                    parsed[0].underlying,
+                    "sell_to_open",
+                    legs,
+                    payload.get("sleeve", "core"),
+                    payload.get("limit_price"),
+                    int(payload.get("qty", 1)),
+                ),
+                float(metadata.get("entry_credit", payload.get("limit_price", 0))),
+                current_debit,
+                spread_width,
+                opened_at,
+                as_of,
+            )
+        else:
+            position = ManagedPosition(
+                OrderEnvelope(
+                    opened_at.isoformat(),
+                    parsed[0].underlying,
+                    "sell_to_open",
+                    legs,
+                    payload.get("sleeve", "core"),
+                    payload.get("limit_price"),
+                    int(payload.get("qty", 1)),
+                ),
+                float(metadata.get("entry_credit", payload.get("limit_price", 0))),
+                current_debit,
+                spread_width,
+                opened_at,
+                as_of,
+            )
+            decision = evaluate_credit_exit(position, cfg)
         result = {
             "client_order_id": record.get("client_order_id"),
             **position_metadata,
