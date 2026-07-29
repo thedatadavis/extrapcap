@@ -17,6 +17,7 @@ from ..options_data import (
     normalize_chain,
     select_put_vertical,
     select_bearish_put_debit_vertical,
+    select_highest_ev_vertical,
     selected_vertical_quote_quality,
 )
 from ..risk import PortfolioRiskState, RiskDecision, approve_asymmetric, approve_candidate
@@ -203,14 +204,84 @@ def build_crash_candidate(
     )
 
 
+def build_fast_ev_candidate(
+    *,
+    underlying: str,
+    trading_day: date,
+    underlying_price: float,
+    contracts_payload: dict,
+    snapshot_payload: dict,
+    model_probability: float,
+    risk_state: PortfolioRiskState,
+    risk_config: RiskConfig,
+    event_decision: EventDecision,
+    strategy_variant: str = "fast_ev",
+    selection_context: dict | None = None,
+    min_ev: float = 10.0,
+) -> PaperCandidate:
+    """Build a candidate by scanning all available vertical spreads for highest EV >= $10.00."""
+    if model_probability <= 0.51:
+        raise ValueError(f"sniper probability {model_probability:.4f} <= 0.51 threshold")
+    contracts = contracts_from_payload(contracts_payload)
+    quotes = normalize_chain(snapshot_payload)
+    sol = select_highest_ev_vertical(underlying, contracts, quotes, underlying_price, model_probability, min_ev=min_ev)
+    spread = sol.spread
+    selected = sol.selected
+    sector = str((selection_context or {}).get("sector") or "").strip()
+    market_data_details = {
+        "data_tier": snapshot_payload.get("_data_tier"),
+        "expected_value": sol.expected_value,
+        "max_profit": sol.max_profit,
+        "max_risk": sol.max_risk,
+    }
+    if not sector or sector.upper() == "N/A":
+        risk_decision = RiskDecision(False, "sector metadata required")
+    elif isinstance(spread, DebitSpread):
+        risk_decision = approve_asymmetric(spread, risk_state, risk_config)
+    else:
+        sector_risk = (risk_state.sector_open_risk or {}).get(sector, 0.0)
+        risk_decision = approve_candidate(spread, risk_state, risk_config, sector_risk)
+
+    if isinstance(spread, DebitSpread):
+        envelope = OrderEnvelope(
+            str(trading_day), underlying, "buy_to_open", selected.order_legs(), "asymmetric", limit_price=spread.debit
+        )
+    else:
+        envelope = OrderEnvelope(
+            str(trading_day), underlying, "sell_to_open", selected.order_legs(), "core", limit_price=spread.credit
+        )
+
+    return PaperCandidate(
+        envelope=envelope,
+        spread=spread,
+        selected=selected,
+        model_probability=model_probability,
+        model_bucket="fast_ev_candidate",
+        risk_decision=risk_decision,
+        event_decision=event_decision,
+        risk_state=risk_state,
+        market_data_details=market_data_details,
+        strategy_variant=strategy_variant,
+        selection_context=selection_context,
+    )
+
+
 class PaperRunCoordinator:
     """Runs qualitative review after hard gates; only approved candidates reach execution."""
 
-    def __init__(self, client, reviewer, ledger: AuditLedger | None = None, registry: OrderRegistry | None = None):
+    def __init__(
+        self,
+        client,
+        reviewer,
+        ledger: AuditLedger | None = None,
+        registry: OrderRegistry | None = None,
+        fast_ev: bool = False,
+    ):
         self.client = client
         self.reviewer = reviewer
         self.ledger = ledger or AuditLedger()
         self.registry = registry or OrderRegistry()
+        self.fast_ev = fast_ev
 
     def execute(self, candidate: PaperCandidate) -> dict:
         cid = candidate.envelope.client_order_id
@@ -287,7 +358,8 @@ class PaperRunCoordinator:
             self.ledger.append("risk", result, trading_day)
             return result
         crash_candidate = candidate.model_bucket == "crash_protocol" and isinstance(candidate.spread, DebitSpread)
-        if candidate.model_bucket not in {"premium_candidate", "watch_list"} and not crash_candidate:
+        is_fast_ev = self.fast_ev or candidate.model_bucket == "fast_ev_candidate"
+        if not is_fast_ev and candidate.model_bucket not in {"premium_candidate", "watch_list"} and not crash_candidate:
             result = {"client_order_id": cid, "status": "vetoed", "reason": candidate.model_bucket, **common}
             self.ledger.append("signals", result, trading_day)
             return result
@@ -298,10 +370,13 @@ class PaperRunCoordinator:
             "model_probability": candidate.model_probability,
             "model_bucket": candidate.model_bucket,
         }
-        try:
-            judgment = self.reviewer.review(review_input)
-        except Exception as exc:
-            judgment = {"decision": "escalate", "reason": f"reviewer failure: {type(exc).__name__}", "provider": "nebius"}
+        if is_fast_ev:
+            judgment = {"decision": "go", "reason": "fast_ev_approved", "provider": "system"}
+        else:
+            try:
+                judgment = self.reviewer.review(review_input)
+            except Exception as exc:
+                judgment = {"decision": "escalate", "reason": f"reviewer failure: {type(exc).__name__}", "provider": "nebius"}
         self.ledger.append(
             "rationales",
             {"client_order_id": cid, **common, "input": review_input, "judgment": judgment},

@@ -8,6 +8,7 @@ import os
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 from .data.pagination import merge_pages
+from .options import DebitSpread, VerticalSpread
 
 class DataTier(StrEnum):
     INDICATIVE = "indicative"
@@ -159,6 +160,83 @@ def select_bearish_put_debit_vertical(
     if short_quote.bid is None or long_quote.ask <= short_quote.bid:
         raise ValueError("quotes do not produce positive bearish debit")
     return SelectedDebitVertical(underlying, long, short, long_quote.ask - short_quote.bid, long_quote.delta)
+
+
+@dataclass(frozen=True)
+class FastEVSolution:
+    spread: VerticalSpread | DebitSpread
+    selected: SelectedVertical | SelectedDebitVertical
+    expected_value: float
+    max_profit: float
+    max_risk: float
+    bucket: str = "fast_ev_candidate"
+
+
+def select_highest_ev_vertical(
+    underlying: str,
+    contracts: list[OptionContract],
+    quotes: list[OptionQuote],
+    underlying_price: float,
+    win_probability: float,
+    min_ev: float = 10.0,
+    widths: tuple[float, ...] = (5.0, 10.0),
+) -> FastEVSolution:
+    """Scan all vertical spreads in option chain and return the one with the highest EV >= min_ev."""
+    quote_map = {quote.symbol: quote for quote in quotes}
+    valid_contracts = [c for c in contracts if c.symbol in quote_map and c.underlying == underlying]
+
+    solutions = []
+    by_group: dict[tuple[str, str], list[OptionContract]] = {}
+    for c in valid_contracts:
+        by_group.setdefault((c.expiration, c.option_type), []).append(c)
+
+    for (exp, opt_type), group in by_group.items():
+        group_sorted = sorted(group, key=lambda c: c.strike)
+        for i, c1 in enumerate(group_sorted):
+            q1 = quote_map[c1.symbol]
+            for c2 in group_sorted[i + 1 :]:
+                q2 = quote_map[c2.symbol]
+                strike_diff = c2.strike - c1.strike
+                if not any(abs(strike_diff - w) < 1e-5 for w in widths):
+                    continue
+                width = strike_diff
+
+                # Debit Spread (c2 = long, c1 = short)
+                if q2.ask is not None and q1.bid is not None and q2.ask > q1.bid:
+                    debit = q2.ask - q1.bid
+                    if 0 < debit < width:
+                        max_profit = (width - debit) * 100
+                        max_risk = debit * 100
+                        ev = (win_probability * max_profit) - ((1 - win_probability) * max_risk)
+                        if ev >= min_ev:
+                            selected_debit = SelectedDebitVertical(underlying, c2, c1, debit, q2.delta)
+                            spread_debit = DebitSpread(
+                                underlying,
+                                c2.strike,
+                                c1.strike,
+                                debit,
+                                sleeve="asymmetric",
+                                direction="bearish" if opt_type == "put" else "bullish",
+                            )
+                            solutions.append((ev, max_profit, max_risk, spread_debit, selected_debit))
+
+                # Credit Spread (c1 = short, c2 = long)
+                if q1.bid is not None and q2.ask is not None and q1.bid > q2.ask:
+                    credit = q1.bid - q2.ask
+                    if 0 < credit < width:
+                        max_profit = credit * 100
+                        max_risk = (width - credit) * 100
+                        ev = (win_probability * max_profit) - ((1 - win_probability) * max_risk)
+                        if ev >= min_ev:
+                            selected_credit = SelectedVertical(underlying, c1, c2, credit, q1.delta)
+                            spread_credit = VerticalSpread(underlying, c1.strike, c2.strike, credit)
+                            solutions.append((ev, max_profit, max_risk, spread_credit, selected_credit))
+
+    if not solutions:
+        raise ValueError(f"no vertical spread meets expected value threshold of ${min_ev:.2f}")
+
+    best_ev, max_profit, max_risk, best_spread, best_selected = max(solutions, key=lambda item: item[0])
+    return FastEVSolution(best_spread, best_selected, best_ev, max_profit, max_risk)
 
 
 class AlpacaOptionsData:
