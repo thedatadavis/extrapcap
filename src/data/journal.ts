@@ -263,15 +263,54 @@ function latestPerformance() {
 }
 
 const ledger = readLedger();
-const executionCategories = new Set(['orders', 'fills', 'executions', 'entries', 'exits', 'positions', 'risk', 'signals']);
+const executionCategories = new Set(['orders', 'fills', 'executions', 'entries', 'exits', 'positions']);
 
 function isExecutionEvent(item: JournalItem) {
   return executionCategories.has(item.category) || /(^|_)(order|exit|fill|close)(s?_|$)/.test(item.kind) || ['entry', 'fill', 'exit', 'close'].includes(item.kind);
 }
 
+function isExecutedTrade(item: JournalItem) {
+  const status = (item.status ?? '').toLowerCase();
+  const decision = (item.decision ?? '').toLowerCase();
+  const kind = (item.kind ?? '').toLowerCase();
+  const category = (item.category ?? '').toLowerCase();
+
+  if (
+    status === 'vetoed' ||
+    status === 'deferred' ||
+    status === 'recorded' ||
+    decision === 'vetoed' ||
+    decision === 'no-go' ||
+    category === 'signals' ||
+    kind === 'entry_signal_gate' ||
+    kind === 'data_integrity_gate' ||
+    kind === 'event_gate'
+  ) {
+    return false;
+  }
+
+  return (
+    executionCategories.has(category) ||
+    status === 'submitted' ||
+    status === 'accepted' ||
+    status === 'filled' ||
+    status === 'paper_submit' ||
+    status === 'pending_new' ||
+    kind === 'paper_order' ||
+    kind.includes('order') ||
+    kind.includes('fill') ||
+    kind.includes('exit') ||
+    kind.includes('close')
+  );
+}
+
 export const journal = ledger
   .map((entry) => ({ ...entry, entries: entry.entries.filter(isExecutionEvent) }))
   .filter((entry) => entry.entries.length > 0);
+
+export const executedTrades = ledger
+  .flatMap((entry) => entry.entries.map((item) => ({ date: entry.date, item, trade: tradeFor(item) })))
+  .filter(({ item }) => isExecutedTrade(item));
 
 export const months = journal.reduce<Record<string, JournalEntry[]>>((groups, entry) => {
   const month = entry.date.slice(0, 7);

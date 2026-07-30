@@ -1,8 +1,8 @@
 ---
 import Shell from '../layouts/Shell.astro';
-import { accountHistory, formatDate, journal, latestAccount, tradeFor } from '../data/journal';
+import { accountHistory, executedTrades, formatDate, journal, latestAccount } from '../data/journal';
 const base = import.meta.env.BASE_URL;
-const recentTrades = journal.flatMap((entry) => entry.entries.map((item) => ({ date: entry.date, trade: tradeFor(item) }))).slice(-8).reverse();
+const recentTrades = executedTrades.map(({ date, trade }) => ({ date, trade })).slice(-8).reverse();
 const firstBalance = accountHistory[0]?.balance ?? 0;
 const currentBalance = latestAccount?.balance ?? firstBalance;
 const balanceChange = currentBalance - firstBalance;
