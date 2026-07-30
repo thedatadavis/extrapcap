@@ -51,11 +51,11 @@ entry.entries.forEach((item) => {
   }
 });
 
-const tickersTable = Array.from(tickerMap.values()).sort((a, b) => {
+const clearedGateTickers = Array.from(tickerMap.values()).filter((row) => row.isGateAllowed).sort((a, b) => {
   if (a.isProbAllowed !== b.isProbAllowed) return b.isProbAllowed ? -1 : 1;
-  if (a.isGateAllowed !== b.isGateAllowed) return b.isGateAllowed ? -1 : 1;
   return a.ticker.localeCompare(b.ticker);
 });
+const tickersTable = clearedGateTickers.length > 0 ? clearedGateTickers : Array.from(tickerMap.values()).slice(0, 14);
 ---
 
 <Shell>

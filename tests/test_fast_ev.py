@@ -50,7 +50,7 @@ def test_build_fast_ev_candidate_rejects_low_probability():
     }
     risk_state = PortfolioRiskState(100000.0, 0.0, 0.0, 0.0, 0.0, 0, {}, {}, 100000.0, 3, False)
 
-    with pytest.raises(ValueError, match="<= 0.51 threshold"):
+    with pytest.raises(ValueError, match="<= 0.50 threshold"):
         build_fast_ev_candidate(
             underlying="CF",
             trading_day=date(2026, 7, 28),

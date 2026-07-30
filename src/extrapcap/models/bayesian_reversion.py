@@ -22,8 +22,31 @@ class BayesianReversionModel:
     global_prior: float = 0.50
 
     @classmethod
-    def fit_from_bars(cls, bars: pd.DataFrame, benchmark: pd.Series, lookback_days: int = 252) -> BayesianReversionModel:
+    def fit_from_bars(
+        cls,
+        bars: pd.DataFrame,
+        benchmark: pd.Series,
+        lookback_days: int = 252,
+        basket_path: str = "data/universe/tradable-basket.csv",
+    ) -> BayesianReversionModel:
         """Fit empirical reversion probabilities using 1 year of relative returns vs SPY."""
+        bars = bars.copy()
+        if "sector" not in bars.columns:
+            p = Path(basket_path)
+            if p.exists():
+                try:
+                    basket = pd.read_csv(p)
+                    if "symbol" in basket.columns and "sector" in basket.columns:
+                        s_map = dict(zip(basket["symbol"], basket["sector"]))
+                        bars["sector"] = bars["symbol"].map(s_map).fillna("Unknown")
+                    elif "ticker" in basket.columns and "sector" in basket.columns:
+                        s_map = dict(zip(basket["ticker"], basket["sector"]))
+                        bars["sector"] = bars["symbol"].map(s_map).fillna("Unknown")
+                except Exception:
+                    bars["sector"] = "Unknown"
+            else:
+                bars["sector"] = "Unknown"
+
         frame = relative_features(bars[bars.symbol != "SPY"], benchmark)
         frame["date"] = pd.to_datetime(frame["date"])
 

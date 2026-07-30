@@ -275,10 +275,17 @@ function isExecutedTrade(item: JournalItem) {
   const kind = (item.kind ?? '').toLowerCase();
   const category = (item.category ?? '').toLowerCase();
 
+  // Strictly exclude non-filled statuses (dry_run, prepared, pending, submitted, vetoed, deferred)
   if (
     status === 'vetoed' ||
     status === 'deferred' ||
     status === 'recorded' ||
+    status === 'dry_run' ||
+    status === 'prepared' ||
+    status === 'pending' ||
+    status === 'pending_new' ||
+    status === 'submitted' ||
+    status === 'accepted' ||
     decision === 'vetoed' ||
     decision === 'no-go' ||
     category === 'signals' ||
@@ -289,16 +296,13 @@ function isExecutedTrade(item: JournalItem) {
     return false;
   }
 
+  // Only return filled / executed trades or position closes
   return (
-    executionCategories.has(category) ||
-    status === 'submitted' ||
-    status === 'accepted' ||
     status === 'filled' ||
-    status === 'paper_submit' ||
-    status === 'pending_new' ||
-    kind === 'paper_order' ||
-    kind.includes('order') ||
-    kind.includes('fill') ||
+    status === 'partially_filled' ||
+    status === 'executed' ||
+    kind === 'fill' ||
+    kind === 'execution' ||
     kind.includes('exit') ||
     kind.includes('close')
   );

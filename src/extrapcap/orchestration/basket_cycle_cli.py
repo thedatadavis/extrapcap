@@ -155,7 +155,7 @@ def run_basket(
                 raw_p = float(selection.get("model_probability") or 0.50)
                 prob = raw_p if selection.get("streak_direction") == "negative" else (1.0 - raw_p)
             selection["reversion_probability"] = prob
-            if prob > 0.51:
+            if prob > 0.50:
                 tradeable_candidates.append(selection)
     else:
         tradeable_candidates = [
@@ -182,7 +182,7 @@ def run_basket(
             "signal_gate": decision.as_dict(),
         }
         crash_candidate = model_bucket == "crash_protocol" and crash_enabled
-        is_tradeable = (prob > 0.51) if fast_ev else (model_bucket in {"premium_candidate", "watch_list"})
+        is_tradeable = (prob > 0.50) if fast_ev else (model_bucket in {"premium_candidate", "watch_list"})
         if not decision.allowed or (not is_tradeable and not crash_candidate) or ticker not in selected_tickers:
             if not decision.allowed:
                 reason = decision.reason
