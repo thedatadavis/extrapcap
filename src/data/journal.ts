@@ -38,6 +38,8 @@ export type JournalItem = {
   marketData?: JsonRecord;
   marketPrice?: number;
   marketPriceDate?: string;
+  positions?: JsonRecord[];
+  openOrders?: JsonRecord[];
 };
 
 export type JournalEntry = {
@@ -201,6 +203,8 @@ function readLedger(): JournalEntry[] {
           marketData: record.market_data,
           marketPrice: typeof record.underlying_price === 'number' ? record.underlying_price : snapshot?.price,
           marketPriceDate: snapshot?.date,
+          positions: Array.isArray(record.positions) ? record.positions : undefined,
+          openOrders: Array.isArray(record.open_orders) ? record.open_orders : undefined,
         });
       });
       byDate.set(date, events);

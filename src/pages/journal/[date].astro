@@ -1,6 +1,6 @@
 ---
 import Shell from '../../layouts/Shell.astro';
-import { formatDate, journal, readoutFor } from '../../data/journal';
+import { formatDate, journal, latestAccount, readoutFor } from '../../data/journal';
 
 export function getStaticPaths() {
   return journal.map((entry) => ({ params: { date: entry.date }, props: { entry } }));
@@ -63,6 +63,10 @@ const clearedGateTickers = Array.from(tickerMap.values()).filter((row) => row.is
   return a.ticker.localeCompare(b.ticker);
 });
 const tickersTable = clearedGateTickers.length > 0 ? clearedGateTickers : Array.from(tickerMap.values()).slice(0, 14);
+
+const reconciliationItem = entry.entries.find((item) => item.kind === 'reconciliation' || item.positions !== undefined);
+const activePositions = reconciliationItem?.positions ?? [];
+const openOrders = reconciliationItem?.openOrders ?? [];
 ---
 
 <Shell>
@@ -150,7 +154,7 @@ const tickersTable = clearedGateTickers.length > 0 ? clearedGateTickers : Array.
               <strong>Execution &amp; Capital Protection:</strong> {submittedCount > 0 ? `The system placed ${submittedCount} paper order${submittedCount > 1 ? 's' : ''} today following positive expected value evaluation.` : `Because zero candidate vertical option spreads achieved the positive expected value threshold (EV \u2265 $10.00) after option pricing and spread liquidity screening, the system safely deferred entry and placed 0 new paper orders today, preserving capital in neutral market conditions.`}
             </p>
             <p>
-              <strong>Active Position Management:</strong> Held paper positions in RVMD ($115/$105 Put Debit Spread) and SPY ($739/$734 Put Credit Spread) were monitored under our 3-part Fast EV exit heuristic. Both limit orders expired unfilled at market close as market quotes remained outside fill parameters.
+              <strong>Active Position Management:</strong> {activePositions.length === 0 ? `Account reconciliation confirmed 0 active positions held in the Alpaca account. All portfolio equity ($${(latestAccount?.balance ?? 100000).toLocaleString('en-US')}) remains 100% in cash with zero open order or position risk.` : `Monitored ${activePositions.length} active position${activePositions.length > 1 ? 's' : ''} in the Alpaca account under our exit heuristics.`}
             </p>
           </div>
         </section>
