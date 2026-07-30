@@ -1,0 +1,12 @@
+{
+  "parameter": "min_credit_pct_width",
+  "current": 0.05,
+  "proposed": 0.08,
+  "evidence": {
+    "rationale": "No credit-related vetoes appear in the history, suggesting the 0.05 floor is non-binding and too permissive. Raising to 0.08 strengthens risk posture by ensuring each trade collects a more meaningful credit relative to spread width, improving risk/reward per trade\u2014a necessary guardrail when loosening z_threshold to increase trade frequency.",
+    "llm_model": "zai-org/GLM-5.2",
+    "event_count": 872
+  },
+  "status": "proposed",
+  "created_at": "2026-07-30T23:17:59.285808+00:00"
+}
