@@ -308,9 +308,7 @@ function isExecutedTrade(item: JournalItem) {
   );
 }
 
-export const journal = ledger
-  .map((entry) => ({ ...entry, entries: entry.entries.filter(isExecutionEvent) }))
-  .filter((entry) => entry.entries.length > 0);
+export const journal = ledger.filter((entry) => entry.entries.length > 0);
 
 export const executedTrades = ledger
   .flatMap((entry) => entry.entries.map((item) => ({ date: entry.date, item, trade: tradeFor(item) })))
