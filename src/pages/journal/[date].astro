@@ -12,28 +12,28 @@ const base = import.meta.env.BASE_URL;
 // Use structured summary layout for 2026-07-30 and future reports
 const isStructuredLayout = entry.date >= '2026-07-30';
 
-// Deduplicate items per ticker to generate a clean table
+// Deduplicate items per ticker — keep the best record per ticker
 const tickerMap = new Map();
-let evaluatedCount = 0;
-let passedGateCount = 0;
-let passedProbCount = 0;
-let submittedCount = 0;
+const evaluatedTickers = new Set();
+const gateTickers = new Set();
+const probTickers = new Set();
+const submittedTickers = new Set();
 
 entry.entries.forEach((item) => {
   const ticker = item.ticker ?? item.selectionContext?.ticker;
   if (!ticker) return;
-  evaluatedCount++;
+  evaluatedTickers.add(ticker);
 
   const ctx = item.selectionContext ?? {};
   const sigGate = ctx.signal_gate ?? {};
   const isGateAllowed = sigGate.allowed === true || item.reason === 'approved' || (ctx.robust_z !== undefined && Math.abs(ctx.robust_z) >= 2.0);
-  if (isGateAllowed) passedGateCount++;
+  if (isGateAllowed) gateTickers.add(ticker);
 
   const prob = item.modelProbability ?? ctx.reversion_probability ?? ctx.model_probability;
   const isProbAllowed = typeof prob === 'number' && prob > 0.51;
-  if (isProbAllowed) passedProbCount++;
+  if (isProbAllowed) probTickers.add(ticker);
 
-  if (item.status === 'submitted' || item.kind === 'paper_order' || item.decision === 'go') submittedCount++;
+  if (item.status === 'submitted' || item.kind === 'paper_order' || item.decision === 'go') submittedTickers.add(ticker);
 
   if (!tickerMap.has(ticker) || isProbAllowed || isGateAllowed) {
     tickerMap.set(ticker, {
@@ -51,8 +51,13 @@ entry.entries.forEach((item) => {
   }
 });
 
+const evaluatedCount = evaluatedTickers.size;
+const passedGateCount = gateTickers.size;
+const passedProbCount = probTickers.size;
+const submittedCount = submittedTickers.size;
+
 const clearedGateTickers = Array.from(tickerMap.values()).filter((row) => row.isGateAllowed).sort((a, b) => {
-  if (a.isProbAllowed !== b.isProbAllowed) return b.isProbAllowed ? -1 : 1;
+  if (a.isProbAllowed !== b.isProbAllowed) return a.isProbAllowed ? -1 : 1;
   return a.ticker.localeCompare(b.ticker);
 });
 const tickersTable = clearedGateTickers.length > 0 ? clearedGateTickers : Array.from(tickerMap.values()).slice(0, 14);
@@ -72,7 +77,7 @@ const tickersTable = clearedGateTickers.length > 0 ? clearedGateTickers : Array.
           <div class="metric-grid">
             <div class="metric">
               <span>Evaluated Basket</span>
-              <strong>{tickersTable.length}</strong>
+              <strong>{evaluatedCount}</strong>
               <small>Total Tickers Screened</small>
             </div>
             <div class="metric">
@@ -112,7 +117,7 @@ const tickersTable = clearedGateTickers.length > 0 ? clearedGateTickers : Array.
               </thead>
               <tbody>
                 {tickersTable.slice(0, 30).map((row) => (
-                  <tr>
+                  <tr class={row.isProbAllowed ? '' : 'row-dimmed'}>
                     <td class="ticker-cell">{row.ticker}</td>
                     <td>{row.sector}</td>
                     <td style="text-transform:capitalize;">{row.direction} · {row.length}d</td>
@@ -137,7 +142,7 @@ const tickersTable = clearedGateTickers.length > 0 ? clearedGateTickers : Array.
           <h2 style="font-family:var(--serif); font-size:26px; font-weight:400; margin-bottom:14px;">Daily Performance &amp; Rationale Summary</h2>
           <div class="readout-body" style="max-width:100%; display:grid; gap:16px; color:#4b4c48; font-size:15px; line-height:1.65;">
             <p>
-              <strong>Market Environment &amp; Signal Screening:</strong> On {formatDate(entry.date)}, the 2-sided Bayesian Fast EV engine evaluated {tickersTable.length} tickers across our active trading basket relative to SPY benchmark returns. While {passedGateCount} tickers met quantitative relative-return streak boundaries (|Z| &ge; 2.0), all evaluated candidates registered empirical reversion probabilities of ~50.28% (P &le; 0.51), failing the required win probability threshold for positive expected value trade execution.
+              <strong>Market Environment &amp; Signal Screening:</strong> On {formatDate(entry.date)}, the 2-sided Bayesian Fast EV engine evaluated {evaluatedCount} tickers across our active trading basket relative to SPY benchmark returns. While {passedGateCount} tickers met quantitative relative-return streak boundaries (|Z| &ge; 2.0), all evaluated candidates registered empirical reversion probabilities of ~50.28% (P &le; 0.51), failing the required win probability threshold for positive expected value trade execution.
             </p>
             <p>
               <strong>Execution &amp; Capital Protection:</strong> Because zero candidate vertical option spreads achieved an expected value of EV &ge; $10.00, the system safely deferred entry and placed {submittedCount} new paper orders today, preserving capital in neutral market conditions.
