@@ -3,7 +3,7 @@
   "source": "nasdaq.expected_earnings_calendar",
   "source_page": "https://www.nasdaq.com/market-activity/earnings",
   "endpoint": "https://api.nasdaq.com/api/calendar/earnings",
-  "retrieved_at": "2026-07-30T18:33:24.760418+00:00",
+  "retrieved_at": "2026-07-30T18:34:30.110747+00:00",
   "center_date": "2026-07-30",
   "blackout_calendar_days": 3,
   "coverage_start": "2026-07-27",
@@ -17,12 +17,12 @@
     "2026-08-01",
     "2026-08-02"
   ],
-  "row_count": 884,
+  "row_count": 885,
   "rows_by_date": {
     "2026-07-27": 69,
     "2026-07-28": 169,
     "2026-07-29": 300,
-    "2026-07-30": 287,
+    "2026-07-30": 288,
     "2026-07-31": 59,
     "2026-08-01": 0,
     "2026-08-02": 0
