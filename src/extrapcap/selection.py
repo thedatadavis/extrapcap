@@ -72,10 +72,10 @@ def core_streak_gate(
                 z_threshold,
             )
 
-    if length is None or not 2 <= length <= 5:
+    if length is None or not 2 <= length <= 8:
         return CoreSelectionDecision(
             False,
-            "completed_streak_length_outside_2_to_5",
+            "completed_streak_length_outside_2_to_8",
             route,
             direction,
             length,
