@@ -65,7 +65,7 @@ jobs:
           python -m extrapcap.orchestration.basket_cycle_cli
           --basket data/universe/tradable-basket.csv
           --model "$SNIPER_MODEL_PATH"
-          --expiration-gte "$(date -u -d '+2 days' +%F)"
+          --expiration-gte "$(date -u +%F)"
           --expiration-lte "$(date -u -d '+35 days' +%F)"
           --max-candidates 10
           --fast-ev
