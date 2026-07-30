@@ -168,6 +168,93 @@ class AlpacaPaperClient:
         suffix = "?nested=true" if nested else ""
         return self._get(f"/orders/{order_id}{suffix}")
 
+    def get_order(self, order_id: str) -> dict:
+        if self.dry_run:
+            return {"status": "filled", "id": order_id}
+        return self._get(f"/orders/{order_id}")
+
+    def cancel_order(self, order_id: str) -> dict:
+        if self.dry_run:
+            return {"status": "canceled", "id": order_id}
+        return self._request(f"/orders/{order_id}", "DELETE")
+
+    def execute_order_with_backoff(
+        self,
+        order_payload: dict,
+        candidate_info: dict | None = None,
+        max_attempts: int = 5,
+        price_step: float = 0.02,
+        backoff_delays: tuple[int, ...] = (2, 4, 8, 16, 32),
+    ) -> dict:
+        """Submit limit order and perform in-thread exponential backoff with price adjustments.
+
+        - For debit spreads (side=buy or positive limit price): increase limit price by +$0.02 per attempt.
+        - For credit spreads (side=sell): decrease limit price by -$0.02 per attempt.
+        - Checks fill status after each backoff delay.
+        - Leaves attempt 5 open as a DAY limit order if unfilled after 5 attempts.
+        """
+        if self.dry_run:
+            return self.submit_order(order_payload)
+
+        import time
+
+        current_order = dict(order_payload)
+        is_buy_debit = current_order.get("side") in {"buy", "buy_to_open"} or float(current_order.get("limit_price") or 0) > 0
+        limit_price = float(current_order.get("limit_price") or 0)
+
+        attempts_history = []
+        last_response = None
+
+        for attempt in range(1, max_attempts + 1):
+            response = self.submit_order(current_order)
+            last_response = response
+            order_id = response.get("id") if isinstance(response, dict) else None
+
+            attempts_history.append(
+                {
+                    "attempt": attempt,
+                    "order_id": order_id,
+                    "limit_price": limit_price,
+                    "submitted_at": datetime.now(timezone.utc).isoformat(),
+                }
+            )
+
+            if not order_id or attempt == max_attempts:
+                break
+
+            delay = backoff_delays[min(attempt - 1, len(backoff_delays) - 1)]
+            time.sleep(delay)
+
+            try:
+                status_res = self.get_order(order_id)
+                order_status = str(status_res.get("status", "")).lower()
+                if order_status in {"filled", "partially_filled"}:
+                    return {
+                        **status_res,
+                        "attempts_history": attempts_history,
+                        "filled_attempt": attempt,
+                    }
+            except Exception:
+                pass
+
+            try:
+                self.cancel_order(order_id)
+            except Exception:
+                pass
+
+            if is_buy_debit:
+                limit_price = round(limit_price + price_step, 2)
+            else:
+                limit_price = round(max(0.01, limit_price - price_step), 2)
+
+            current_order["limit_price"] = str(limit_price)
+
+        return {
+            **(last_response if isinstance(last_response, dict) else {}),
+            "attempts_history": attempts_history,
+            "final_attempt_left_open": True,
+        }
+
 
 # Keep the existing import name stable while callers migrate to account-neutral
 # terminology. The live path is selected only by EXTRAPCAP_EXECUTION_MODE.

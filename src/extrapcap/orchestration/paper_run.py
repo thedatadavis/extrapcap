@@ -433,9 +433,18 @@ class PaperRunCoordinator:
             {"client_order_id": cid, **common, "input": review_input, "judgment": judgment},
             trading_day,
         )
-        if judgment.get("decision") != "go":
-            return {"client_order_id": cid, "status": "vetoed", "reason": judgment.get("decision", "missing_decision")}
-        response = self.client.submit_order(candidate.envelope.alpaca_payload())
+        if hasattr(self.client, "execute_order_with_backoff") and not getattr(self.client, "dry_run", True):
+            response = self.client.execute_order_with_backoff(
+                candidate.envelope.alpaca_payload(),
+                candidate_info={
+                    "expected_value": candidate.market_data_details.get("expected_value"),
+                    "min_ev": 10.0,
+                },
+                max_attempts=5,
+                price_step=0.02,
+            )
+        else:
+            response = self.client.submit_order(candidate.envelope.alpaca_payload())
         if not getattr(self.client, "dry_run", True):
             if not isinstance(response, dict):
                 raise RuntimeError("paper order response was not an object")

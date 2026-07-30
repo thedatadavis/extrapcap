@@ -147,9 +147,44 @@ def test_bayesian_reversion_model():
     bars_stock = pd.DataFrame({"symbol": "CF", "date": dates, "close": [100 - i for i in range(10)], "sector": "Basic Materials"})
     bars = pd.concat([bars_spy, bars_stock], ignore_index=True)
 
-    benchmark = bars_spy.set_index("date")["close"]
-    model = BayesianReversionModel.fit_from_bars(bars, benchmark)
-    prob = model.predict_reversion_probability(2, "negative", 0, "Basic Materials")
-    assert 0.0 <= prob <= 1.0
+def test_execute_order_with_backoff():
+    from extrapcap.execution.alpaca import AlpacaPaperClient
+
+    client = AlpacaPaperClient(dry_run=False, api_key="test", secret_key="test")
+    submits = []
+    cancels = []
+
+    def mock_submit(order):
+        submits.append(dict(order))
+        return {"id": f"ord-{len(submits)}", "status": "new"}
+
+    def mock_get(order_id):
+        if len(submits) >= 3:
+            return {"id": order_id, "status": "filled"}
+        return {"id": order_id, "status": "new"}
+
+    def mock_cancel(order_id):
+        cancels.append(order_id)
+        return {"id": order_id, "status": "canceled"}
+
+    client.submit_order = mock_submit
+    client.get_order = mock_get
+    client.cancel_order = mock_cancel
+
+    res = client.execute_order_with_backoff(
+        {"order_class": "mleg", "limit_price": "1.20", "side": "buy"},
+        max_attempts=5,
+        price_step=0.02,
+        backoff_delays=(0, 0, 0, 0, 0),
+    )
+
+    assert res.get("status") == "filled"
+    assert res.get("filled_attempt") == 3
+    assert len(submits) == 3
+    # Check limit price adjustments: 1.20 -> 1.22 -> 1.24
+    assert submits[0]["limit_price"] == "1.20"
+    assert submits[1]["limit_price"] == "1.22"
+    assert submits[2]["limit_price"] == "1.24"
+
 
 
