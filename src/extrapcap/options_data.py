@@ -179,12 +179,21 @@ def select_highest_ev_vertical(
     underlying_price: float,
     win_probability: float,
     min_ev: float = 10.0,
-    widths: tuple[float, ...] = (5.0, 10.0),
+    widths: tuple[float, ...] = (1.0, 2.0, 2.5, 3.0, 5.0, 10.0),
     streak_direction: str = "negative",
 ) -> FastEVSolution:
     """Scan directional vertical spreads in option chain and return the one with the highest EV >= min_ev."""
+    if underlying_price <= 0:
+        raise ValueError(f"invalid real underlying price ${underlying_price}")
+
     quote_map = {quote.symbol: quote for quote in quotes}
-    valid_contracts = [c for c in contracts if c.symbol in quote_map and c.underlying == underlying]
+    # Filter contracts within 25% of real underlying price to focus on ATM/NTM spreads
+    valid_contracts = [
+        c for c in contracts
+        if c.symbol in quote_map
+        and c.underlying == underlying
+        and abs(c.strike - underlying_price) <= 0.25 * underlying_price
+    ]
 
     solutions = []
     by_group: dict[tuple[str, str], list[OptionContract]] = {}
