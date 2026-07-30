@@ -173,7 +173,7 @@ def run_basket(
         ticker = selection["ticker"]
         decision = core_streak_gate(selection, z_threshold, fast_ev=fast_ev)
         model_bucket = model_buckets.get(ticker)
-        prob = selection.get("reversion_probability") or selection.get("model_probability") or 0.0
+        prob = selection.get("reversion_probability") or 0.0
         selection = {
             **selection,
             "selection_rank": selection_ranks.get(ticker),
@@ -187,7 +187,7 @@ def run_basket(
             if not decision.allowed:
                 reason = decision.reason
             elif not is_tradeable:
-                reason = f"sniper prob {prob:.2f} <= 0.51" if fast_ev else (model_bucket or "model_score_unavailable")
+                reason = f"bayes prob {prob:.4f} <= 0.50" if fast_ev else (model_bucket or "model_score_unavailable")
             else:
                 reason = "candidate_limit"
             status = "vetoed" if not decision.allowed else "deferred"

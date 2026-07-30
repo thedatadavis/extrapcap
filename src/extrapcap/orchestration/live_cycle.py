@@ -285,8 +285,8 @@ def run_live_cycle(
     context["crash_protocol_paper_enabled"] = paper_crash_protocol_enabled()
     try:
         if fast_ev:
-            if probability <= 0.51:
-                raise ValueError(f"sniper probability {probability:.4f} <= 0.51 threshold")
+            if probability <= 0.50:
+                raise ValueError(f"reversion probability {probability:.4f} <= 0.50 threshold")
             candidate = build_fast_ev_candidate(
                 underlying=symbol,
                 trading_day=end.date(),
