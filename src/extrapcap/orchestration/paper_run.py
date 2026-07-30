@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from datetime import date, datetime
 import hashlib
 import json
+from pathlib import Path
 
 from ..events import EventDecision
 from ..execution.orders import OrderEnvelope, OrderRegistry
@@ -204,6 +205,27 @@ def build_crash_candidate(
     )
 
 
+_bayesian_model_cache = None
+
+
+def get_bayesian_model(bars_path: str = "data/normalized/bars.csv"):
+    global _bayesian_model_cache
+    if _bayesian_model_cache is not None:
+        return _bayesian_model_cache
+    p = Path(bars_path)
+    if not p.exists():
+        return None
+    try:
+        import pandas as pd
+        from ..models.bayesian_reversion import BayesianReversionModel
+        bars = pd.read_csv(p)
+        benchmark = bars.loc[bars.symbol == "SPY"].set_index("date")["close"]
+        _bayesian_model_cache = BayesianReversionModel.fit_from_bars(bars, benchmark)
+        return _bayesian_model_cache
+    except Exception:
+        return None
+
+
 def build_fast_ev_candidate(
     *,
     underlying: str,
@@ -218,21 +240,50 @@ def build_fast_ev_candidate(
     strategy_variant: str = "fast_ev",
     selection_context: dict | None = None,
     min_ev: float = 10.0,
+    bayes_model=None,
 ) -> PaperCandidate:
     """Build a candidate by scanning all available vertical spreads for highest EV >= $10.00."""
-    if model_probability <= 0.51:
-        raise ValueError(f"sniper probability {model_probability:.4f} <= 0.51 threshold")
+    ctx = selection_context or {}
+    streak_direction = str(ctx.get("streak_direction") or "negative")
+    streak_length = int(ctx.get("streak_length") or 2)
+    sector = str(ctx.get("sector") or "Unknown").strip()
+    day_of_week = trading_day.weekday()
+
+    if bayes_model is True:
+        bayes_model = get_bayesian_model()
+
+    if bayes_model is not None and hasattr(bayes_model, "predict_reversion_probability"):
+        reversion_prob = bayes_model.predict_reversion_probability(
+            streak_length=streak_length,
+            streak_direction=streak_direction,
+            day_of_week=day_of_week,
+            sector=sector,
+        )
+    else:
+        reversion_prob = model_probability if streak_direction == "negative" else (1.0 - model_probability)
+
+    if reversion_prob <= 0.51:
+        raise ValueError(f"reversion probability {reversion_prob:.4f} <= 0.51 threshold")
+
     contracts = contracts_from_payload(contracts_payload)
     quotes = normalize_chain(snapshot_payload)
-    sol = select_highest_ev_vertical(underlying, contracts, quotes, underlying_price, model_probability, min_ev=min_ev)
+    sol = select_highest_ev_vertical(
+        underlying,
+        contracts,
+        quotes,
+        underlying_price,
+        reversion_prob,
+        min_ev=min_ev,
+        streak_direction=streak_direction,
+    )
     spread = sol.spread
     selected = sol.selected
-    sector = str((selection_context or {}).get("sector") or "").strip()
     market_data_details = {
         "data_tier": snapshot_payload.get("_data_tier"),
         "expected_value": sol.expected_value,
         "max_profit": sol.max_profit,
         "max_risk": sol.max_risk,
+        "reversion_probability": reversion_prob,
     }
     if not sector or sector.upper() == "N/A":
         risk_decision = RiskDecision(False, "sector metadata required")
@@ -255,7 +306,7 @@ def build_fast_ev_candidate(
         envelope=envelope,
         spread=spread,
         selected=selected,
-        model_probability=model_probability,
+        model_probability=reversion_prob,
         model_bucket="fast_ev_candidate",
         risk_decision=risk_decision,
         event_decision=event_decision,

@@ -135,10 +135,28 @@ def run_basket(
         model_loader=model_loader,
     )
     crash_enabled = execution_mode in {"dry-run", "paper-submit"} and paper_crash_protocol_enabled()
+    from ..orchestration.paper_run import get_bayesian_model
+    bayes_model = get_bayesian_model() if fast_ev else None
+
     if fast_ev:
-        tradeable_candidates = [
-            selection for selection in ranked if (selection.get("model_probability") or 0.0) > 0.51
-        ]
+        tradeable_candidates = []
+        for selection in selections:
+            dec = core_streak_gate(selection, z_threshold, fast_ev=True)
+            if not dec.allowed:
+                continue
+            if bayes_model is not None:
+                prob = bayes_model.predict_reversion_probability(
+                    streak_length=int(selection.get("streak_length") or 2),
+                    streak_direction=str(selection.get("streak_direction") or "negative"),
+                    day_of_week=date.today().weekday(),
+                    sector=str(selection.get("sector") or "Unknown"),
+                )
+            else:
+                raw_p = float(selection.get("model_probability") or 0.50)
+                prob = raw_p if selection.get("streak_direction") == "negative" else (1.0 - raw_p)
+            selection["reversion_probability"] = prob
+            if prob > 0.51:
+                tradeable_candidates.append(selection)
     else:
         tradeable_candidates = [
             selection
@@ -153,9 +171,9 @@ def run_basket(
     }
     for selection in selections:
         ticker = selection["ticker"]
-        decision = core_streak_gate(selection, z_threshold)
+        decision = core_streak_gate(selection, z_threshold, fast_ev=fast_ev)
         model_bucket = model_buckets.get(ticker)
-        prob = selection.get("model_probability") or 0.0
+        prob = selection.get("reversion_probability") or selection.get("model_probability") or 0.0
         selection = {
             **selection,
             "selection_rank": selection_ranks.get(ticker),

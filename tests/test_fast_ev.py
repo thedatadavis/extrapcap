@@ -28,7 +28,7 @@ def test_select_highest_ev_vertical_calculates_correct_ev():
     # Debit spread: long 118.0 put @ 4.50 ask, short 113.0 put @ 2.00 bid -> net debit = 2.50
     # Width = 5.00 -> Max Profit = (5.00 - 2.50) * 100 = $250. Max Risk = 2.50 * 100 = $250.
     # With win_prob = 0.60: EV = 0.60 * 250 - 0.40 * 250 = 150 - 100 = $50.00 >= $10.00.
-    sol = select_highest_ev_vertical("CF", contracts, quotes, 120.0, win_probability=0.60, min_ev=10.0)
+    sol = select_highest_ev_vertical("CF", contracts, quotes, 120.0, win_probability=0.60, min_ev=10.0, streak_direction="positive")
 
     assert sol.expected_value == pytest.approx(50.0)
     assert sol.max_profit == pytest.approx(250.0)
@@ -86,11 +86,11 @@ def test_paper_run_coordinator_fast_ev_auto_approves():
         underlying_price=120.0,
         contracts_payload=contracts_payload,
         snapshot_payload=snapshot_payload,
-        model_probability=0.60,
+        model_probability=0.40,
         risk_state=risk_state,
         risk_config=RiskConfig(),
         event_decision=EventDecision("earnings", True, "ok"),
-        selection_context={"sector": "Basic Materials"},
+        selection_context={"sector": "Basic Materials", "streak_direction": "positive"},
     )
 
     class MockClient:
@@ -136,4 +136,20 @@ def test_evaluate_fast_ev_exit_heuristics():
     dec4 = evaluate_fast_ev_exit(entry_cost=2.00, current_value=0.03, spread_width=5.00, is_debit=True, opened_at=opened, as_of=as_of, dte=0)
     assert dec4.action == "hold"
     assert dec4.reason == "hold_to_maturity_expire_worthless"
+
+
+def test_bayesian_reversion_model():
+    import pandas as pd
+    from extrapcap.models.bayesian_reversion import BayesianReversionModel
+
+    dates = pd.date_range("2026-01-01", periods=10, freq="D")
+    bars_spy = pd.DataFrame({"symbol": "SPY", "date": dates, "close": [100 + i for i in range(10)]})
+    bars_stock = pd.DataFrame({"symbol": "CF", "date": dates, "close": [100 - i for i in range(10)], "sector": "Basic Materials"})
+    bars = pd.concat([bars_spy, bars_stock], ignore_index=True)
+
+    benchmark = bars_spy.set_index("date")["close"]
+    model = BayesianReversionModel.fit_from_bars(bars, benchmark)
+    prob = model.predict_reversion_probability(2, "negative", 0, "Basic Materials")
+    assert 0.0 <= prob <= 1.0
+
 

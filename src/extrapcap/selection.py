@@ -34,27 +34,44 @@ def _positive_int(value) -> int | None:
     return parsed if parsed >= 0 else None
 
 
-def core_streak_gate(context: dict, z_threshold: float = -2.0) -> CoreSelectionDecision:
-    """Gate the currently implemented bullish core route with completed streak evidence.
+def core_streak_gate(
+    context: dict,
+    z_threshold: float = -2.0,
+    fast_ev: bool = False,
+) -> CoreSelectionDecision:
+    """Gate completed streak evidence for bullish or 2-sided mean-reversion.
 
-    Negative market-relative streaks are the paper-inspired mean-reversion side of
-    the signal. Positive streaks need a separately constructed bearish route and
-    therefore cannot silently enter the bull-put engine.
+    Negative market-relative streaks trigger bullish mean reversion.
+    In Fast EV mode, positive market-relative streaks trigger bearish mean reversion.
     """
     direction = context.get("streak_direction")
     length = _positive_int(context.get("streak_length"))
     robust_z = _finite_float(context.get("robust_z"))
     route = "core_mean_reversion" if direction == "negative" else "bearish_reversal_watch"
-    if direction != "negative":
-        return CoreSelectionDecision(
-            False,
-            "core_requires_negative_relative_streak",
-            route,
-            direction,
-            length,
-            robust_z,
-            z_threshold,
-        )
+
+    if fast_ev:
+        if direction not in {"negative", "positive"}:
+            return CoreSelectionDecision(
+                False,
+                "fast_ev_requires_valid_relative_streak_direction",
+                route,
+                direction,
+                length,
+                robust_z,
+                z_threshold,
+            )
+    else:
+        if direction != "negative":
+            return CoreSelectionDecision(
+                False,
+                "core_requires_negative_relative_streak",
+                route,
+                direction,
+                length,
+                robust_z,
+                z_threshold,
+            )
+
     if length is None or not 2 <= length <= 5:
         return CoreSelectionDecision(
             False,
@@ -75,10 +92,20 @@ def core_streak_gate(context: dict, z_threshold: float = -2.0) -> CoreSelectionD
             robust_z,
             z_threshold,
         )
-    if robust_z > z_threshold:
+    if direction == "negative" and robust_z > z_threshold:
         return CoreSelectionDecision(
             False,
             "robust_z_above_entry_threshold",
+            route,
+            direction,
+            length,
+            robust_z,
+            z_threshold,
+        )
+    if direction == "positive" and robust_z < abs(z_threshold):
+        return CoreSelectionDecision(
+            False,
+            "robust_z_below_positive_entry_threshold",
             route,
             direction,
             length,
