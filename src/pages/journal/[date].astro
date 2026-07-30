@@ -57,7 +57,9 @@ const passedProbCount = probTickers.size;
 const submittedCount = submittedTickers.size;
 
 const clearedGateTickers = Array.from(tickerMap.values()).filter((row) => row.isGateAllowed).sort((a, b) => {
-  if (a.isProbAllowed !== b.isProbAllowed) return a.isProbAllowed ? -1 : 1;
+  const probA = typeof a.prob === 'number' ? a.prob : -1;
+  const probB = typeof b.prob === 'number' ? b.prob : -1;
+  if (probB !== probA) return probB - probA;
   return a.ticker.localeCompare(b.ticker);
 });
 const tickersTable = clearedGateTickers.length > 0 ? clearedGateTickers : Array.from(tickerMap.values()).slice(0, 14);
@@ -142,10 +144,10 @@ const tickersTable = clearedGateTickers.length > 0 ? clearedGateTickers : Array.
           <h2 style="font-family:var(--serif); font-size:26px; font-weight:400; margin-bottom:14px;">Daily Performance &amp; Rationale Summary</h2>
           <div class="readout-body" style="max-width:100%; display:grid; gap:16px; color:#4b4c48; font-size:15px; line-height:1.65;">
             <p>
-              <strong>Market Environment &amp; Signal Screening:</strong> On {formatDate(entry.date)}, the 2-sided Bayesian Fast EV engine evaluated {evaluatedCount} tickers across our active trading basket relative to SPY benchmark returns. While {passedGateCount} tickers met quantitative relative-return streak boundaries (|Z| &ge; 2.0), all evaluated candidates registered empirical reversion probabilities of ~50.28% (P &le; 0.51), failing the required win probability threshold for positive expected value trade execution.
+              <strong>Market Environment &amp; Signal Screening:</strong> On {formatDate(entry.date)}, the 2-sided Bayesian Fast EV engine evaluated {evaluatedCount} tickers across our active trading basket relative to SPY benchmark returns. {passedGateCount} tickers met quantitative relative-return streak boundaries (|Z| &ge; 2.0){passedProbCount > 0 ? `, and ${passedProbCount} tickers achieved empirical reversion probabilities above the required win probability threshold (P > 0.51).` : `, but all candidates registered empirical reversion probabilities at or below the P \u2264 0.51 threshold.`}
             </p>
             <p>
-              <strong>Execution &amp; Capital Protection:</strong> Because zero candidate vertical option spreads achieved an expected value of EV &ge; $10.00, the system safely deferred entry and placed {submittedCount} new paper orders today, preserving capital in neutral market conditions.
+              <strong>Execution &amp; Capital Protection:</strong> {submittedCount > 0 ? `The system placed ${submittedCount} paper order${submittedCount > 1 ? 's' : ''} today following positive expected value evaluation.` : `Because zero candidate vertical option spreads achieved the positive expected value threshold (EV \u2265 $10.00) after option pricing and spread liquidity screening, the system safely deferred entry and placed 0 new paper orders today, preserving capital in neutral market conditions.`}
             </p>
             <p>
               <strong>Active Position Management:</strong> Held paper positions in RVMD ($115/$105 Put Debit Spread) and SPY ($739/$734 Put Credit Spread) were monitored under our 3-part Fast EV exit heuristic. Both limit orders expired unfilled at market close as market quotes remained outside fill parameters.
