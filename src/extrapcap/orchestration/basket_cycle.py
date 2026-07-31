@@ -109,32 +109,26 @@ def score_core_candidates(
 
 def run_basket(
     basket: str | Path,
-    model: str | Path,
-    expiration_gte: str,
+    model: str | Path | None = None,
+    expiration_gte: str | None = None,
     expiration_lte: str | None = None,
     timeframe: str = "1Day",
     max_candidates: int = 10,
     z_threshold: float = -2.0,
     audit: AuditLedger | None = None,
     runner=run_live_cycle,
-    model_loader=SniperModel.load,
+    model_loader=None,
     review_phase: str = "entry",
     fast_ev: bool = True,
     prep_only: bool = False,
     min_ev: float = 10.0,
 ) -> list[dict]:
-    """Run active paper trading cycle across tradable basket."""
+    """Run EV paper trading cycle across tradable basket using empirical Bayesian reversion probabilities."""
     audit = audit or AuditLedger()
+    expiration_gte = expiration_gte or date.today().isoformat()
     selections = basket_rows(basket)
-    ranked, model_buckets = score_core_candidates(
-        selections,
-        model,
-        z_threshold=z_threshold,
-        model_loader=model_loader,
-    )
-    crash_enabled = paper_crash_protocol_enabled()
     from ..orchestration.paper_run import get_bayesian_model
-    bayes_model = get_bayesian_model() if fast_ev else None
+    bayes_model = get_bayesian_model()
 
     if fast_ev:
         tradeable_candidates = []

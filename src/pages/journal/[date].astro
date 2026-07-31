@@ -18,8 +18,7 @@ const isStructuredLayout = entry.date >= '2026-07-30';
 const tickerMap = new Map();
 const evaluatedTickers = new Set();
 const gateTickers = new Set();
-const probTickers = new Set();
-const submittedTickers = new Set();
+const filledTickers = new Set();
 
 entry.entries.forEach((item) => {
   const ticker = item.ticker ?? item.selectionContext?.ticker;
@@ -35,12 +34,24 @@ entry.entries.forEach((item) => {
   const existing = tickerMap.get(ticker);
   const bestProb = typeof prob === 'number' ? prob : (existing?.prob ?? null);
 
-  if (typeof bestProb === 'number' && bestProb > 0.50) {
-    probTickers.add(ticker);
+
+
+  if (
+    item.status === 'submitted' ||
+    item.status === 'paper_submit' ||
+    item.kind === 'paper_order' ||
+    item.decision === 'go'
+  ) {
+    submittedTickers.add(ticker);
   }
 
-  if (item.status === 'submitted' || item.kind === 'paper_order' || item.decision === 'go') {
-    submittedTickers.add(ticker);
+  if (
+    item.status === 'filled' ||
+    item.status === 'partially_filled' ||
+    item.kind === 'paper_fill' ||
+    (item.filled_qty !== undefined && item.filled_qty > 0)
+  ) {
+    filledTickers.add(ticker);
   }
 
   const finalStatus = item.status ?? item.decision ?? existing?.status ?? 'vetoed';
@@ -62,8 +73,10 @@ entry.entries.forEach((item) => {
 
 const evaluatedCount = evaluatedTickers.size;
 const passedGateCount = gateTickers.size;
-const passedProbCount = probTickers.size;
-const submittedCount = submittedTickers.size;
+const passedProbCount = Array.from(tickerMap.values()).filter(
+  (row) => row.isGateAllowed && typeof row.prob === 'number' && row.prob > 0.50
+).length;
+const filledCount = filledTickers.size;
 
 const clearedGateTickers = Array.from(tickerMap.values()).filter((row) => row.isGateAllowed).sort((a, b) => {
   const probA = typeof a.prob === 'number' ? a.prob : -1;
@@ -114,12 +127,12 @@ try {
             <div class="metric">
               <span>Reversion Prob</span>
               <strong>{passedProbCount}</strong>
-              <small>Met P &gt; 51% Threshold</small>
+              <small>Met P &gt; 50% Threshold</small>
             </div>
             <div class="metric">
-              <span>Orders Placed</span>
-              <strong>{submittedCount}</strong>
-              <small>Paper Orders Submitted</small>
+              <span>Orders Filled</span>
+              <strong>{filledCount}</strong>
+              <small>Paper Orders Filled</small>
             </div>
           </div>
         </section>
