@@ -596,7 +596,6 @@ date,symbol,report_time,company_name,fiscal_quarter_ending,eps_forecast,estimate
 2026-07-30,GDYN,not-supplied,"Grid Dynamics Holdings, Inc.",Jun/2026,$0.02,3
 2026-07-30,GH,not-supplied,"Guardant Health, Inc.",Jun/2026,($0.74),3
 2026-07-30,GHC,not-supplied,Graham Holdings Company,Jun/2026,,N/A
-2026-07-30,GIGM,not-supplied,GigaMedia Limited,Jun/2026,,1
 2026-07-30,GIL,not-supplied,"Gildan Activewear, Inc.",Jun/2026,$1.11,2
 2026-07-30,GLPI,not-supplied,"Gaming and Leisure Properties, Inc.",Jun/2026,$1,6
 2026-07-30,GOOS,not-supplied,Canada Goose Holdings Inc.,Jun/2026,($0.63),1
@@ -779,7 +778,6 @@ date,symbol,report_time,company_name,fiscal_quarter_ending,eps_forecast,estimate
 2026-07-31,AN,pre-market,"AutoNation, Inc.",Jun/2026,$5.43,6
 2026-07-31,ARES,pre-market,Ares Management Corporation,Jun/2026,$1.29,7
 2026-07-31,AUC,not-supplied,ATIF Holdings Limited,Apr/2026,,8
-2026-07-31,BBUC,pre-market,Brookfield Business Corporation,Jun/2026,,8
 2026-07-31,BCPC,pre-market,Balchem Corporation,Jun/2026,$1.39,2
 2026-07-31,BEN,pre-market,"Franklin Resources, Inc.",Jun/2026,$0.66,6
 2026-07-31,BEP,pre-market,Brookfield Renewable Partners L.P.,Jun/2026,($0.35),4
@@ -800,30 +798,24 @@ date,symbol,report_time,company_name,fiscal_quarter_ending,eps_forecast,estimate
 2026-07-31,FRT,pre-market,Federal Realty Investment Trust,Jun/2026,$1.85,7
 2026-07-31,FTS,pre-market,Fortis Inc.,Jun/2026,$0.55,3
 2026-07-31,GTES,pre-market,Gates Industrial Corporation Ltd.,Jun/2026,$0.38,2
-2026-07-31,IESC,pre-market,"IES Holdings, Inc.",Jun/2026,,8
 2026-07-31,IMO,pre-market,Imperial Oil Limited,Jun/2026,$2.99,2
 2026-07-31,IRMD,pre-market,iRadimed Corporation,Jun/2026,$0.42,1
 2026-07-31,ITUB,pre-market,Itau Unibanco Banco Holding SA,Jun/2026,$0.22,3
-2026-07-31,KYIV,pre-market,Kyivstar Group Ltd.,Jun/2026,$0.35,8
 2026-07-31,LEA,pre-market,Lear Corporation,Jun/2026,$3.89,5
 2026-07-31,LIN,pre-market,Linde plc,Jun/2026,$4.49,7
 2026-07-31,LYB,pre-market,LyondellBasell Industries NV,Jun/2026,$3.56,4
 2026-07-31,MGA,pre-market,"Magna International, Inc.",Jun/2026,$1.53,4
 2026-07-31,MOG.A,pre-market,Moog Inc.,Jun/2026,$2.67,3
-2026-07-31,MOG.B,pre-market,Moog Inc.,Jun/2026,,8
 2026-07-31,MRNA,pre-market,"Moderna, Inc.",Jun/2026,($1.97),8
 2026-07-31,NB,not-supplied,NioCorp Developments Ltd.,Jun/2026,($0.02),1
 2026-07-31,NVT,pre-market,nVent Electric plc,Jun/2026,$1.16,4
 2026-07-31,NWG,pre-market,NatWest Group plc,Jun/2026,$0.45,1
 2026-07-31,NWL,pre-market,Newell Brands Inc.,Jun/2026,$0.19,5
-2026-07-31,OXSQ,pre-market,Oxford Square Capital Corp.,Jun/2026,,8
 2026-07-31,PAMT,not-supplied,PAMT CORP,Jun/2026,,8
 2026-07-31,PAX,pre-market,Patria Investments Limited,Jun/2026,$0.29,2
-2026-07-31,PAYP,pre-market,PayPay Corporation,Jun/2026,$0.15,8
 2026-07-31,POR,pre-market,Portland General Electric Company,Jun/2026,$0.64,3
 2026-07-31,PRLB,pre-market,"Proto Labs, Inc.",Jun/2026,$0.39,1
 2026-07-31,PRM,pre-market,"Perimeter Solutions, SA",Jun/2026,$0.43,3
-2026-07-31,PWP,pre-market,Perella Weinberg Partners,Jun/2026,,8
 2026-07-31,RBC,pre-market,RBC Bearings Incorporated,Jun/2026,$3.21,4
 2026-07-31,SMFG,pre-market,Sumitomo Mitsui Financial Group Inc,Jun/2026,$0.44,1
 2026-07-31,TAC,pre-market,TransAlta Corporation,Jun/2026,$0.11,1
