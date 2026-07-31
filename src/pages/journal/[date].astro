@@ -18,6 +18,7 @@ const isStructuredLayout = entry.date >= '2026-07-30';
 const tickerMap = new Map();
 const evaluatedTickers = new Set();
 const gateTickers = new Set();
+const submittedTickers = new Set();
 const filledTickers = new Set();
 
 entry.entries.forEach((item) => {
@@ -76,6 +77,7 @@ const passedGateCount = gateTickers.size;
 const passedProbCount = Array.from(tickerMap.values()).filter(
   (row) => row.isGateAllowed && typeof row.prob === 'number' && row.prob > 0.50
 ).length;
+const submittedCount = submittedTickers.size;
 const filledCount = filledTickers.size;
 
 const clearedGateTickers = Array.from(tickerMap.values()).filter((row) => row.isGateAllowed).sort((a, b) => {

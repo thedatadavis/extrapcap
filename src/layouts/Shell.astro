@@ -11,6 +11,7 @@ const base = import.meta.env.BASE_URL;
     <p class="sidebar-intro">A paper-traded options research journal studying streaks, mean reversion, and extrapolation bias.</p>
     <nav aria-label="Primary navigation">
       <a class:list={{ active: currentPath === `${base}/` || currentPath === `${base}` }} href={`${base}/`}>Overview</a>
+      <a class:list={{ active: currentPath.includes('/positions/active') }} href={`${base}/positions/active/`}>Active Positions</a>
       <p class="nav-heading">Journal</p>
       {Object.entries(months).map(([month, entries], index) => (
         <details open={index === 0} class="month-folder">
