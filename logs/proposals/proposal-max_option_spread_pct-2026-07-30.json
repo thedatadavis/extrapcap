@@ -1,0 +1,12 @@
+{
+  "parameter": "max_option_spread_pct",
+  "current": 0.4,
+  "proposed": 0.35000000000000003,
+  "evidence": {
+    "rationale": "No spread-related vetoes were observed, indicating 0.4 is permissive but not actively ensuring execution quality. Tightening to 0.35 enforces tighter bid-ask spreads on filled orders, which is prudent when increasing trade frequency via z_threshold loosening\u2014this balances higher volume with better fill quality and reduced slippage risk.",
+    "llm_model": "zai-org/GLM-5.2",
+    "event_count": 872
+  },
+  "status": "proposed",
+  "created_at": "2026-07-30T23:17:59.285800+00:00"
+}

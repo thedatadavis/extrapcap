@@ -1,0 +1,12 @@
+{
+  "parameter": "z_threshold",
+  "current": -2.0,
+  "proposed": -1.75,
+  "evidence": {
+    "rationale": "The system has a 0% execution rate with the dominant veto reason being 'robust_z_above_entry_threshold' (150+ unique tickers). A threshold of -2.0 is too restrictive, suppressing nearly all trade frequency. Loosening to -1.75 maintains a strong mean-reversion signal while allowing candidates with z-scores between -1.75 and -2.0 to pass, meaningfully increasing trade frequency without materially degrading signal quality.",
+    "llm_model": "zai-org/GLM-5.2",
+    "event_count": 872
+  },
+  "status": "proposed",
+  "created_at": "2026-07-30T23:17:59.285764+00:00"
+}

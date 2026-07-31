@@ -1,0 +1,12 @@
+{
+  "parameter": "max_candidates",
+  "current": 25.0,
+  "proposed": 30.0,
+  "evidence": {
+    "rationale": "With a loosened z_threshold, more candidates will pass initial screening. Expanding the candidate pool from 25 to 30 ensures the system can select the highest-quality signals from a larger qualified set, improving trade selection quality without significantly increasing computational burden. The current pool of evaluated tickers is already large (hundreds unique), so a modest increase is low-cost.",
+    "llm_model": "zai-org/GLM-5.2",
+    "event_count": 872
+  },
+  "status": "proposed",
+  "created_at": "2026-07-30T23:17:59.285814+00:00"
+}
