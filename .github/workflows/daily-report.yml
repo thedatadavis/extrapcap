@@ -2,7 +2,7 @@ name: Generate daily report
 on:
   workflow_dispatch:
   schedule:
-    - cron: '45 21 * * 1-5'
+    - cron: '45 20 * * 1-5'
 concurrency:
   group: extrapcap-ops-writer
   cancel-in-progress: false

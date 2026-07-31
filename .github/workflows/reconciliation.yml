@@ -2,7 +2,7 @@ name: Reconcile paper account
 on:
   workflow_dispatch:
   schedule:
-    - cron: '30 21 * * 1-5'
+    - cron: '30 20 * * 1-5'
 concurrency:
   group: extrapcap-ops-writer
   cancel-in-progress: false

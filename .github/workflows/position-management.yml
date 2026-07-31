@@ -9,9 +9,8 @@ on:
         type: choice
         options: [dry-run, paper-submit]
   schedule:
-    # Cover the full regular session across UTC daylight/standard-time shifts;
-    # the broker clock gate skips the extra pre/post-market invocations.
-    - cron: '*/15 13-21 * * 1-5'
+    # Every 30 minutes during market hours (9:30 AM to 4:30 PM EDT / 13:30 to 20:30 UTC).
+    - cron: '*/30 13-20 * * 1-5'
 concurrency:
   group: extrapcap-ops-writer
   cancel-in-progress: false
