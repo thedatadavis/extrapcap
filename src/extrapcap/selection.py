@@ -49,28 +49,16 @@ def core_streak_gate(
     robust_z = _finite_float(context.get("robust_z"))
     route = "core_mean_reversion" if direction == "negative" else "bearish_reversal_watch"
 
-    if fast_ev:
-        if direction not in {"negative", "positive"}:
-            return CoreSelectionDecision(
-                False,
-                "fast_ev_requires_valid_relative_streak_direction",
-                route,
-                direction,
-                length,
-                robust_z,
-                z_threshold,
-            )
-    else:
-        if direction != "negative":
-            return CoreSelectionDecision(
-                False,
-                "core_requires_negative_relative_streak",
-                route,
-                direction,
-                length,
-                robust_z,
-                z_threshold,
-            )
+    if direction not in {"negative", "positive"}:
+        return CoreSelectionDecision(
+            False,
+            "requires_valid_relative_streak_direction",
+            route,
+            direction,
+            length,
+            robust_z,
+            z_threshold,
+        )
 
     if length is None or not 2 <= length <= 8:
         return CoreSelectionDecision(

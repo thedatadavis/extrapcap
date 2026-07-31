@@ -142,8 +142,6 @@ def run_basket(
         tradeable_candidates = []
         for selection in selections:
             dec = core_streak_gate(selection, z_threshold, fast_ev=True)
-            if not dec.allowed:
-                continue
             if bayes_model is not None:
                 prob = bayes_model.predict_reversion_probability(
                     streak_length=int(selection.get("streak_length") or 2),
@@ -152,10 +150,10 @@ def run_basket(
                     sector=str(selection.get("sector") or "Unknown"),
                 )
             else:
-                raw_p = float(selection.get("model_probability") or 0.50)
-                prob = raw_p if selection.get("streak_direction") == "negative" else (1.0 - raw_p)
+                prob = float(selection.get("model_probability") or 0.50)
             selection["reversion_probability"] = prob
-            if prob > 0.50:
+            selection["model_probability"] = prob
+            if dec.allowed and prob > 0.50:
                 tradeable_candidates.append(selection)
     else:
         tradeable_candidates = [

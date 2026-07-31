@@ -260,7 +260,7 @@ def build_fast_ev_candidate(
             sector=sector,
         )
     else:
-        reversion_prob = model_probability if streak_direction == "negative" else (1.0 - model_probability)
+        reversion_prob = float(model_probability)
 
     if reversion_prob <= 0.50:
         raise ValueError(f"reversion probability {reversion_prob:.4f} <= 0.50 threshold")
