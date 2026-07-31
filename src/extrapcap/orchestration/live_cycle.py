@@ -264,8 +264,23 @@ def run_live_cycle(
             "reason": event_decision.reason,
             "result": result,
         }
-    model = SniperModel.load(model_path, SNIPER_FEATURES)
-    probability = float(model.predict_probability(latest[SNIPER_FEATURES].astype(float))[0])
+    if fast_ev:
+        bayes_prob = context.get("reversion_probability")
+        if bayes_prob is None:
+            from .paper_run import get_bayesian_model
+            bm = get_bayesian_model()
+            if bm is not None:
+                bayes_prob = bm.predict_reversion_probability(
+                    streak_length=int(context.get("streak_length") or 2),
+                    streak_direction=str(context.get("streak_direction") or "negative"),
+                    day_of_week=end.date().weekday(),
+                    sector=str(context.get("sector") or "Unknown"),
+                )
+        probability = float(bayes_prob if bayes_prob is not None else 0.50)
+    else:
+        model = SniperModel.load(model_path, SNIPER_FEATURES)
+        probability = float(model.predict_probability(latest[SNIPER_FEATURES].astype(float))[0])
+
     account = client.account()
     risk_state = build_portfolio_risk_state(
         account,
@@ -281,7 +296,6 @@ def run_live_cycle(
         current_symbol_bars.sort_values("date").iloc[-1]["close"]
     )
     context["market_price_as_of"] = current_symbol_bars.sort_values("date").iloc[-1]["date"].isoformat()
-    context["crash_protocol_paper_enabled"] = paper_crash_protocol_enabled()
     context["crash_protocol_paper_enabled"] = paper_crash_protocol_enabled()
     try:
         if fast_ev:
@@ -361,8 +375,8 @@ def run_live_cycle(
             "reason": str(exc),
             "result": result,
         }
-    result = PaperRunCoordinator(client, reviewer, fast_ev=fast_ev).execute(candidate)
-    return {"ticker": symbol.upper(), "symbol": symbol.upper(), "timeframe": timeframe, "probability": probability, "model": model.version, "result": result}
+    model_version = model.version if (not fast_ev and 'model' in locals() and model is not None) else "bayesian_fast_ev"
+    return {"ticker": symbol.upper(), "symbol": symbol.upper(), "timeframe": timeframe, "probability": probability, "model": model_version, "result": result}
 
 
 def main() -> None:

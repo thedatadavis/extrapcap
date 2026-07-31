@@ -32,25 +32,32 @@ entry.entries.forEach((item) => {
   if (isGateAllowed) gateTickers.add(ticker);
 
   const prob = item.modelProbability ?? ctx.reversion_probability ?? ctx.model_probability;
-  const isProbAllowed = typeof prob === 'number' && prob > 0.51;
-  if (isProbAllowed) probTickers.add(ticker);
+  const existing = tickerMap.get(ticker);
+  const bestProb = typeof prob === 'number' ? prob : (existing?.prob ?? null);
 
-  if (item.status === 'submitted' || item.kind === 'paper_order' || item.decision === 'go') submittedTickers.add(ticker);
-
-  if (!tickerMap.has(ticker) || isProbAllowed || isGateAllowed) {
-    tickerMap.set(ticker, {
-      ticker,
-      sector: ctx.sector ?? 'Unknown',
-      direction: ctx.streak_direction ?? 'flat',
-      length: ctx.streak_length ?? 0,
-      robustZ: ctx.robust_z,
-      prob,
-      status: item.status ?? item.decision ?? 'vetoed',
-      reason: item.reason ?? 'Vetoed by signal rules',
-      isGateAllowed,
-      isProbAllowed,
-    });
+  if (typeof bestProb === 'number' && bestProb > 0.50) {
+    probTickers.add(ticker);
   }
+
+  if (item.status === 'submitted' || item.kind === 'paper_order' || item.decision === 'go') {
+    submittedTickers.add(ticker);
+  }
+
+  const finalStatus = item.status ?? item.decision ?? existing?.status ?? 'vetoed';
+  const finalReason = item.reason ?? existing?.reason ?? 'Vetoed by signal rules';
+
+  tickerMap.set(ticker, {
+    ticker,
+    sector: ctx.sector ?? existing?.sector ?? 'Unknown',
+    direction: ctx.streak_direction ?? existing?.direction ?? 'flat',
+    length: ctx.streak_length ?? existing?.length ?? 0,
+    robustZ: ctx.robust_z ?? existing?.robustZ,
+    prob: bestProb,
+    status: finalStatus,
+    reason: finalReason,
+    isGateAllowed: isGateAllowed || existing?.isGateAllowed || false,
+    isProbAllowed: (typeof bestProb === 'number' && bestProb > 0.50) || existing?.isProbAllowed || false,
+  });
 });
 
 const evaluatedCount = evaluatedTickers.size;
