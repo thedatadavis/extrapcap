@@ -1,0 +1,858 @@
+---
+import Shell from '../../layouts/Shell.astro';
+import { ACTIVE_POSITIONS, generatePayoffCurve } from '../../data/positions';
+
+const base = import.meta.env.BASE_URL;
+const initialPosition = ACTIVE_POSITIONS[0];
+const initialPayoff = initialPosition ? generatePayoffCurve(initialPosition, 120) : [];
+---
+
+<Shell>
+  <header class="topbar">
+    <div class="topbar-left">
+      <a class="back-link" href={`${base}/`}>← Overview</a>
+      <span class="sep">/</span>
+      <span>Active Position Visualizer</span>
+    </div>
+    <a href="https://github.com/thedatadavis/extrapcap" aria-label="View source on GitHub">Source ↗</a>
+  </header>
+
+  <section class="positions-header">
+    <div>
+      <h1>Active Positions</h1>
+      <p class="hero-copy">Interactive options spread visualizer with payoff curves, strike crossovers, and profit potential metrics.</p>
+    </div>
+    <div class="header-summary-badge">
+      <span class="badge-label">Active Spreads</span>
+      <strong class="badge-count">{ACTIVE_POSITIONS.length}</strong>
+    </div>
+  </section>
+
+  <div class="positions-layout">
+    <!-- LEFT SIDEBAR: TICKER SELECTOR -->
+    <aside class="ticker-sidebar" aria-label="Active tickers">
+      <div class="controls-bar">
+        <div class="search-box">
+          <svg class="search-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+          <input type="text" id="ticker-search" placeholder="Search ticker..." aria-label="Search ticker" />
+        </div>
+        <select id="sort-select" aria-label="Sort positions">
+          <option value="pnl_desc">Sort: Highest P&L</option>
+          <option value="dte_asc">Sort: Nearest Expiration</option>
+          <option value="ticker_asc">Sort: Ticker A-Z</option>
+        </select>
+      </div>
+
+      <div class="ticker-list" id="ticker-list-container">
+        {ACTIVE_POSITIONS.map((pos, idx) => (
+          <button
+            type="button"
+            class:list={['ticker-card', { active: idx === 0 }]}
+            data-id={pos.id}
+            data-ticker={pos.ticker}
+            data-pnl={pos.unrealizedPnL}
+            data-dte={pos.dte}
+          >
+            <div class="card-top">
+              <span class="card-ticker">{pos.ticker}</span>
+              <span class:list={['pnl-pill', { negative: pos.unrealizedPnL < 0 }]}>
+                {pos.unrealizedPnL >= 0 ? '+' : ''}${pos.unrealizedPnL} ({pos.unrealizedPnLPct.toFixed(1)}%)
+              </span>
+            </div>
+            <div class="card-mid">
+              <span class="strategy-tag">{pos.strategy}</span>
+              <span class="spot-price">${pos.currentSpotPrice.toFixed(2)}</span>
+            </div>
+            <div class="card-bot">
+              <span>{pos.shortStrike}P / {pos.longStrike}P</span>
+              <span class="dte-tag">{pos.dte} DTE</span>
+            </div>
+          </button>
+        ))}
+      </div>
+    </aside>
+
+    <!-- RIGHT MAIN AREA: POSITION DETAILS & VISUALIZER -->
+    <main class="main-visualizer" id="visualizer-content">
+      <!-- HEADER CARD -->
+      <div class="detail-header-card">
+        <div>
+          <div class="title-row">
+            <h2 id="pos-ticker-title">{initialPosition.ticker}</h2>
+            <span id="pos-company-name" class="company-sub">{initialPosition.companyName}</span>
+            <span id="pos-status-badge" class:list={['status-pill', initialPosition.status]}>
+              {initialPosition.unrealizedPnL >= 0 ? 'In Profit Zone' : 'At Risk'}
+            </span>
+          </div>
+          <p id="pos-strategy-desc" class="strategy-subtitle">
+            {initialPosition.strategy} · {initialPosition.sleeve} · Expiring {initialPosition.expirationDate}
+          </p>
+        </div>
+        <div class="pnl-callout">
+          <span class="callout-label">Unrealized Return</span>
+          <strong id="pos-pnl-val" class:list={['callout-val', { negative: initialPosition.unrealizedPnL < 0 }]}>
+            {initialPosition.unrealizedPnL >= 0 ? '+' : ''}${initialPosition.unrealizedPnL}
+          </strong>
+          <span id="pos-pnl-pct" class:list={['callout-pct', { negative: initialPosition.unrealizedPnL < 0 }]}>
+            {initialPosition.unrealizedPnLPct >= 0 ? '+' : ''}{initialPosition.unrealizedPnLPct.toFixed(2)}% of max credit
+          </span>
+        </div>
+      </div>
+
+      <!-- METRICS GRID -->
+      <div class="metric-grid">
+        <div class="metric">
+          <span>Net Credit</span>
+          <strong id="metric-credit">${initialPosition.netCreditTotal}</strong>
+          <small id="metric-credit-sub">${initialPosition.entryCredit.toFixed(2)} / contract</small>
+        </div>
+        <div class="metric">
+          <span>Max Risk</span>
+          <strong id="metric-risk">${initialPosition.maxRisk}</strong>
+          <small id="metric-roc">ROC: {((initialPosition.maxProfit / initialPosition.maxRisk) * 100).toFixed(1)}%</small>
+        </div>
+        <div class="metric">
+          <span>Break-Even</span>
+          <strong id="metric-breakeven">${initialPosition.breakEven.toFixed(2)}</strong>
+          <small id="metric-be-sub">Short: ${initialPosition.shortStrike.toFixed(2)}</small>
+        </div>
+        <div class="metric">
+          <span>Spot Price</span>
+          <strong id="metric-spot">${initialPosition.currentSpotPrice.toFixed(2)}</strong>
+          <small id="metric-buffer" class="buffer-text">
+            {(((initialPosition.currentSpotPrice - initialPosition.shortStrike) / initialPosition.currentSpotPrice) * 100).toFixed(1)}% buffer to short
+          </small>
+        </div>
+      </div>
+
+      <!-- VISUALIZER CHART PANEL -->
+      <div class="visualizer-panel">
+        <div class="panel-head">
+          <div>
+            <h3>Expiration Payoff & P/L Crossover Diagram</h3>
+            <p>P/L profile at option expiration across underlying spot prices</p>
+          </div>
+          <div class="legend-items">
+            <span class="legend-item profit"><i class="legend-swatch"></i> Profit Region</span>
+            <span class="legend-item loss"><i class="legend-swatch"></i> Loss Region</span>
+            <span class="legend-item spot"><i class="legend-swatch"></i> Spot Price</span>
+          </div>
+        </div>
+
+        <div class="svg-container" id="svg-wrap">
+          <svg id="payoff-svg" viewBox="0 0 800 280" preserveAspectRatio="none">
+            <!-- Rendered dynamically by script -->
+          </svg>
+          <div id="chart-tooltip" class="chart-hover-tooltip" hidden></div>
+        </div>
+        <p class="chart-instruction">Hover over chart to inspect P/L potential at specific spot prices.</p>
+      </div>
+
+      <!-- LEGS BREAKDOWN TABLE -->
+      <div class="legs-section">
+        <h3>Option Legs Breakdown</h3>
+        <div class="trade-table-wrap">
+          <table class="trade-table">
+            <thead>
+              <tr>
+                <th scope="col">Leg Contract</th>
+                <th scope="col">Side</th>
+                <th scope="col">Strike</th>
+                <th scope="col">Expiration</th>
+                <th scope="col">Qty</th>
+                <th scope="col">Entry Price</th>
+                <th scope="col">Current Mark</th>
+              </tr>
+            </thead>
+            <tbody id="legs-tbody">
+              {initialPosition.legs.map((leg) => (
+                <tr>
+                  <td class="ticker-cell">{leg.symbol}</td>
+                  <td>
+                    <span class:list={['action-pill', leg.side === 'buy' ? 'entry' : 'exit']}>
+                      {leg.side.toUpperCase()}
+                    </span>
+                  </td>
+                  <td>${leg.strike.toFixed(2)}</td>
+                  <td>{leg.expiration}</td>
+                  <td>{leg.qty}</td>
+                  <td>${leg.entryPrice.toFixed(2)}</td>
+                  <td>${leg.currentPrice.toFixed(2)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </main>
+  </div>
+</Shell>
+
+<script define:vars={{ ACTIVE_POSITIONS }}>
+  const positions = ACTIVE_POSITIONS;
+  let activePosId = positions[0]?.id;
+
+  // DOM Elements
+  const tickerSearch = document.getElementById('ticker-search');
+  const sortSelect = document.getElementById('sort-select');
+  const tickerContainer = document.getElementById('ticker-list-container');
+  const svgEl = document.getElementById('payoff-svg');
+  const tooltipEl = document.getElementById('chart-tooltip');
+  const svgWrap = document.getElementById('svg-wrap');
+
+  function calculatePayoff(pos, spotPrice) {
+    const { shortStrike, longStrike, entryCredit, quantity } = pos;
+    let pnlPerShare = entryCredit;
+    if (pos.strategy === 'Bull Put Spread') {
+      const shortPayout = -Math.max(0, shortStrike - spotPrice);
+      const longPayout = Math.max(0, longStrike - spotPrice);
+      pnlPerShare = entryCredit + shortPayout + longPayout;
+    }
+    return pnlPerShare * 100 * quantity;
+  }
+
+  function getActivePosition() {
+    return positions.find((p) => p.id === activePosId) || positions[0];
+  }
+
+  function updateVisualizer(pos) {
+    if (!pos) return;
+
+    // Header updates
+    document.getElementById('pos-ticker-title').textContent = pos.ticker;
+    document.getElementById('pos-company-name').textContent = pos.companyName;
+    document.getElementById('pos-strategy-desc').textContent = `${pos.strategy} · ${pos.sleeve} · Expiring ${pos.expirationDate}`;
+
+    const pnlValEl = document.getElementById('pos-pnl-val');
+    const pnlPctEl = document.getElementById('pos-pnl-pct');
+    const statusBadge = document.getElementById('pos-status-badge');
+
+    const pnl = pos.unrealizedPnL;
+    pnlValEl.textContent = `${pnl >= 0 ? '+' : ''}$${pnl}`;
+    pnlValEl.className = `callout-val ${pnl < 0 ? 'negative' : ''}`;
+
+    pnlPctEl.textContent = `${pos.unrealizedPnLPct >= 0 ? '+' : ''}${pos.unrealizedPnLPct.toFixed(2)}% of max credit`;
+    pnlPctEl.className = `callout-pct ${pnl < 0 ? 'negative' : ''}`;
+
+    statusBadge.textContent = pnl >= 0 ? 'In Profit Zone' : 'At Risk';
+    statusBadge.className = `status-pill ${pos.status}`;
+
+    // Metrics updates
+    document.getElementById('metric-credit').textContent = `$${pos.netCreditTotal}`;
+    document.getElementById('metric-credit-sub').textContent = `$${pos.entryCredit.toFixed(2)} / contract`;
+    document.getElementById('metric-risk').textContent = `$${pos.maxRisk}`;
+    document.getElementById('metric-roc').textContent = `ROC: ${((pos.maxProfit / pos.maxRisk) * 100).toFixed(1)}%`;
+    document.getElementById('metric-breakeven').textContent = `$${pos.breakEven.toFixed(2)}`;
+    document.getElementById('metric-be-sub').textContent = `Short: $${pos.shortStrike.toFixed(2)}`;
+    document.getElementById('metric-spot').textContent = `$${pos.currentSpotPrice.toFixed(2)}`;
+
+    const distPct = (((pos.currentSpotPrice - pos.shortStrike) / pos.currentSpotPrice) * 100).toFixed(1);
+    document.getElementById('metric-buffer').textContent = `${distPct}% buffer to short`;
+
+    // Legs table update
+    const tbody = document.getElementById('legs-tbody');
+    tbody.innerHTML = pos.legs
+      .map(
+        (leg) => `
+      <tr>
+        <td class="ticker-cell">${leg.symbol}</td>
+        <td><span class="action-pill ${leg.side === 'buy' ? 'entry' : 'exit'}">${leg.side.toUpperCase()}</span></td>
+        <td>$${leg.strike.toFixed(2)}</td>
+        <td>${leg.expiration}</td>
+        <td>${leg.qty}</td>
+        <td>$${leg.entryPrice.toFixed(2)}</td>
+        <td>$${leg.currentPrice.toFixed(2)}</td>
+      </tr>
+    `
+      )
+      .join('');
+
+    // Draw SVG Chart
+    drawSvgPayoffChart(pos);
+  }
+
+  function drawSvgPayoffChart(pos) {
+    if (!svgEl) return;
+
+    const width = 800;
+    const height = 280;
+    const padding = { top: 30, right: 40, bottom: 40, left: 50 };
+
+    const { longStrike, shortStrike, breakEven, currentSpotPrice, maxProfit, maxRisk } = pos;
+    const strikeRange = shortStrike - longStrike || 5;
+    const minX = Math.max(0.01, longStrike - strikeRange * 1.5);
+    const maxX = shortStrike + strikeRange * 1.5;
+
+    const minY = -maxRisk * 1.15;
+    const maxY = maxProfit * 1.25;
+
+    const mapX = (spot) => padding.left + ((spot - minX) / (maxX - minX)) * (width - padding.left - padding.right);
+    const mapY = (pnl) => padding.top + (1 - (pnl - minY) / (maxY - minY)) * (height - padding.top - padding.bottom);
+
+    const zeroY = mapY(0);
+
+    // Generate points
+    const pointsCount = 120;
+    const step = (maxX - minX) / (pointsCount - 1);
+    const points = [];
+    for (let i = 0; i < pointsCount; i++) {
+      const spot = minX + i * step;
+      const pnl = calculatePayoff(pos, spot);
+      points.push({ spot, pnl, x: mapX(spot), y: mapY(pnl) });
+    }
+
+    // Path string
+    const lineD = points.map((pt, i) => `${i === 0 ? 'M' : 'L'} ${pt.x.toFixed(1)} ${pt.y.toFixed(1)}`).join(' ');
+
+    // Fill polygon for profit (above zeroY)
+    const profitPolygon = `M ${mapX(minX)} ${zeroY} ${points.map((pt) => `L ${pt.x.toFixed(1)} ${Math.min(zeroY, pt.y).toFixed(1)}`).join(' ')} L ${mapX(maxX)} ${zeroY} Z`;
+
+    // Fill polygon for loss (below zeroY)
+    const lossPolygon = `M ${mapX(minX)} ${zeroY} ${points.map((pt) => `L ${pt.x.toFixed(1)} ${Math.max(zeroY, pt.y).toFixed(1)}`).join(' ')} L ${mapX(maxX)} ${zeroY} Z`;
+
+    const spotX = mapX(currentSpotPrice);
+    const spotY = mapY(calculatePayoff(pos, currentSpotPrice));
+    const shortX = mapX(shortStrike);
+    const longX = mapX(longStrike);
+    const beX = mapX(breakEven);
+
+    svgEl.innerHTML = `
+      <!-- Background Grids & Areas -->
+      <rect x="0" y="0" width="${width}" height="${height}" fill="#f0efe9" rx="4" />
+
+      <!-- Profit Shading -->
+      <path d="${profitPolygon}" fill="rgba(73, 107, 86, 0.15)" />
+      
+      <!-- Loss Shading -->
+      <path d="${lossPolygon}" fill="rgba(155, 94, 80, 0.15)" />
+
+      <!-- Zero P/L Line -->
+      <line x1="${padding.left}" y1="${zeroY}" x2="${width - padding.right}" y2="${zeroY}" stroke="rgba(32, 33, 31, 0.25)" stroke-width="1.5" stroke-dasharray="3 3" />
+      <text x="${padding.left - 8}" y="${zeroY + 4}" font-family="DM Mono, monospace" font-size="9" fill="#777873" text-anchor="end">$0</text>
+
+      <!-- Strike Lines & Labels -->
+      <!-- Long Strike -->
+      <line x1="${longX}" y1="${padding.top}" x2="${longX}" y2="${height - padding.bottom}" stroke="#777873" stroke-width="1" stroke-dasharray="4 4" />
+      <text x="${longX}" y="${height - padding.bottom + 16}" font-family="DM Mono, monospace" font-size="9" fill="#777873" text-anchor="middle">Long $${longStrike.toFixed(1)}</text>
+
+      <!-- Short Strike -->
+      <line x1="${shortX}" y1="${padding.top}" x2="${shortX}" y2="${height - padding.bottom}" stroke="#777873" stroke-width="1" stroke-dasharray="4 4" />
+      <text x="${shortX}" y="${height - padding.bottom + 16}" font-family="DM Mono, monospace" font-size="9" fill="#777873" text-anchor="middle">Short $${shortStrike.toFixed(1)}</text>
+
+      <!-- Break Even Line -->
+      <line x1="${beX}" y1="${padding.top}" x2="${beX}" y2="${height - padding.bottom}" stroke="#9b5e50" stroke-width="1.2" stroke-dasharray="2 2" />
+      <text x="${beX}" y="${padding.top - 10}" font-family="DM Mono, monospace" font-size="9" fill="#9b5e50" text-anchor="middle">BE $${breakEven.toFixed(2)}</text>
+
+      <!-- Main Payoff Curve -->
+      <path d="${lineD}" fill="none" stroke="#20211f" stroke-width="2.5" stroke-linejoin="round" />
+
+      <!-- Current Spot Price Marker -->
+      <line x1="${spotX}" y1="${padding.top}" x2="${spotX}" y2="${height - padding.bottom}" stroke="#496b56" stroke-width="2" />
+      <circle cx="${spotX}" cy="${spotY}" r="6" fill="#496b56" stroke="#f0efe9" stroke-width="2" />
+      <text x="${spotX}" y="${padding.top - 10}" font-family="DM Sans, sans-serif" font-weight="600" font-size="11" fill="#496b56" text-anchor="middle">Spot $${currentSpotPrice.toFixed(2)}</text>
+
+      <!-- Hover Cursor Guide (hidden by default) -->
+      <g id="hover-guide" hidden>
+        <line id="hover-line-x" x1="0" y1="${padding.top}" x2="0" y2="${height - padding.bottom}" stroke="#20211f" stroke-width="1" stroke-dasharray="2 2" />
+        <circle id="hover-circle" cx="0" cy="0" r="5" fill="#20211f" />
+      </g>
+    `;
+  }
+
+  // Handle Interactive Hover Tooltip on SVG
+  if (svgWrap) {
+    svgWrap.addEventListener('mousemove', (e) => {
+      const pos = getActivePosition();
+      if (!pos || !svgEl || !tooltipEl) return;
+
+      const rect = svgEl.getBoundingClientRect();
+      const mouseX = e.clientX - rect.left;
+      const pct = Math.max(0, Math.min(1, mouseX / rect.width));
+
+      const width = 800;
+      const height = 280;
+      const padding = { top: 30, right: 40, bottom: 40, left: 50 };
+
+      const strikeRange = pos.shortStrike - pos.longStrike || 5;
+      const minX = Math.max(0.01, pos.longStrike - strikeRange * 1.5);
+      const maxX = pos.shortStrike + strikeRange * 1.5;
+
+      const targetSpot = minX + pct * (maxX - minX);
+      const targetPnl = calculatePayoff(pos, targetSpot);
+
+      const mapX = (spot) => padding.left + ((spot - minX) / (maxX - minX)) * (width - padding.left - padding.right);
+      const mapY = (pnl) => {
+        const minY = -pos.maxRisk * 1.15;
+        const maxY = pos.maxProfit * 1.25;
+        return padding.top + (1 - (pnl - minY) / (maxY - minY)) * (height - padding.top - padding.bottom);
+      };
+
+      const guideGroup = svgEl.querySelector('#hover-guide');
+      const lineX = svgEl.querySelector('#hover-line-x');
+      const circle = svgEl.querySelector('#hover-circle');
+
+      if (guideGroup && lineX && circle) {
+        const hX = mapX(targetSpot);
+        const hY = mapY(targetPnl);
+        guideGroup.removeAttribute('hidden');
+        lineX.setAttribute('x1', hX);
+        lineX.setAttribute('x2', hX);
+        circle.setAttribute('cx', hX);
+        circle.setAttribute('cy', hY);
+      }
+
+      tooltipEl.hidden = false;
+      tooltipEl.style.left = `${Math.min(rect.width - 130, Math.max(10, mouseX - 60))}px`;
+      tooltipEl.style.top = `15px`;
+      tooltipEl.innerHTML = `
+        <strong>$${targetSpot.toFixed(2)}</strong>
+        <span class="${targetPnl >= 0 ? 'pos' : 'neg'}">
+          ${targetPnl >= 0 ? '+' : ''}$${targetPnl.toFixed(0)} P/L
+        </span>
+      `;
+    });
+
+    svgWrap.addEventListener('mouseleave', () => {
+      if (tooltipEl) tooltipEl.hidden = true;
+      const guideGroup = svgEl?.querySelector('#hover-guide');
+      if (guideGroup) guideGroup.setAttribute('hidden', '');
+    });
+  }
+
+  // Sidebar Ticker Selection & Filtering
+  function renderSidebarList() {
+    const query = (tickerSearch?.value || '').trim().toLowerCase();
+    const sortBy = sortSelect?.value || 'pnl_desc';
+
+    let filtered = positions.filter(
+      (p) => p.ticker.toLowerCase().includes(query) || p.companyName.toLowerCase().includes(query) || p.strategy.toLowerCase().includes(query)
+    );
+
+    if (sortBy === 'pnl_desc') {
+      filtered.sort((a, b) => b.unrealizedPnL - a.unrealizedPnL);
+    } else if (sortBy === 'dte_asc') {
+      filtered.sort((a, b) => a.dte - b.dte);
+    } else if (sortBy === 'ticker_asc') {
+      filtered.sort((a, b) => a.ticker.localeCompare(b.ticker));
+    }
+
+    if (!tickerContainer) return;
+
+    tickerContainer.innerHTML = filtered
+      .map(
+        (pos) => `
+      <button
+        type="button"
+        class="ticker-card ${pos.id === activePosId ? 'active' : ''}"
+        data-id="${pos.id}"
+      >
+        <div class="card-top">
+          <span class="card-ticker">${pos.ticker}</span>
+          <span class="pnl-pill ${pos.unrealizedPnL < 0 ? 'negative' : ''}">
+            ${pos.unrealizedPnL >= 0 ? '+' : ''}$${pos.unrealizedPnL} (${pos.unrealizedPnLPct.toFixed(1)}%)
+          </span>
+        </div>
+        <div class="card-mid">
+          <span class="strategy-tag">${pos.strategy}</span>
+          <span class="spot-price">$${pos.currentSpotPrice.toFixed(2)}</span>
+        </div>
+        <div class="card-bot">
+          <span>${pos.shortStrike}P / ${pos.longStrike}P</span>
+          <span class="dte-tag">${pos.dte} DTE</span>
+        </div>
+      </button>
+    `
+      )
+      .join('');
+
+    // Attach click events
+    tickerContainer.querySelectorAll('.ticker-card').forEach((card) => {
+      card.addEventListener('click', () => {
+        const id = card.getAttribute('data-id');
+        if (id) {
+          activePosId = id;
+          renderSidebarList();
+          updateVisualizer(getActivePosition());
+        }
+      });
+    });
+  }
+
+  tickerSearch?.addEventListener('input', renderSidebarList);
+  sortSelect?.addEventListener('change', renderSidebarList);
+
+  // Initialize view
+  renderSidebarList();
+  updateVisualizer(getActivePosition());
+</script>
+
+<style>
+  .topbar-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .sep {
+    color: var(--faint);
+  }
+  .positions-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    padding: 36px 0 28px;
+    border-bottom: 1px solid var(--faint);
+    margin-bottom: 28px;
+  }
+  .header-summary-badge {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    background: #eeeee8;
+    padding: 10px 16px;
+    border-radius: 4px;
+  }
+  .badge-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  .badge-count {
+    font-family: var(--serif);
+    font-size: 28px;
+    font-weight: 400;
+    line-height: 1;
+    color: var(--ink);
+  }
+
+  /* LAYOUT */
+  .positions-layout {
+    display: grid;
+    grid-template-columns: 280px minmax(0, 1fr);
+    gap: 32px;
+    align-items: start;
+    padding-bottom: 64px;
+  }
+
+  /* TICKER SIDEBAR */
+  .ticker-sidebar {
+    background: #f0efe9;
+    padding: 16px;
+    border-radius: 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .controls-bar {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .search-box {
+    position: relative;
+    display: flex;
+    align-items: center;
+  }
+  .search-icon {
+    position: absolute;
+    left: 10px;
+    color: var(--muted);
+    pointer-events: none;
+  }
+  .search-box input {
+    width: 100%;
+    padding: 7px 10px 7px 28px;
+    background: var(--paper);
+    border: 1px solid rgba(32, 33, 31, 0.12);
+    border-radius: 4px;
+    font-family: var(--sans);
+    font-size: 12px;
+    color: var(--ink);
+  }
+  .search-box input:focus {
+    outline: none;
+    border-color: var(--green);
+  }
+  #sort-select {
+    padding: 6px 8px;
+    background: var(--paper);
+    border: 1px solid rgba(32, 33, 31, 0.12);
+    border-radius: 4px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--ink);
+    cursor: pointer;
+  }
+
+  .ticker-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 640px;
+    overflow-y: auto;
+  }
+  .ticker-card {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 12px;
+    background: var(--paper);
+    border: 1px solid rgba(32, 33, 31, 0.08);
+    border-radius: 5px;
+    text-align: left;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .ticker-card:hover {
+    border-color: var(--green);
+    transform: translateY(-1px);
+  }
+  .ticker-card.active {
+    background: #e6e8e2;
+    border-color: var(--green);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+  }
+  .card-top,
+  .card-mid,
+  .card-bot {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .card-ticker {
+    font-family: var(--mono);
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--ink);
+  }
+  .pnl-pill {
+    font-family: var(--mono);
+    font-size: 10px;
+    font-weight: 500;
+    color: var(--green);
+    background: rgba(73, 107, 86, 0.12);
+    padding: 2px 6px;
+    border-radius: 3px;
+  }
+  .pnl-pill.negative {
+    color: var(--red);
+    background: rgba(155, 94, 80, 0.12);
+  }
+  .strategy-tag {
+    font-size: 11px;
+    color: var(--muted);
+  }
+  .spot-price {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--ink);
+  }
+  .card-bot {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--muted);
+  }
+  .dte-tag {
+    color: #555650;
+  }
+
+  /* RIGHT MAIN VISUALIZER */
+  .main-visualizer {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+  }
+  .detail-header-card {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    background: #eeeee8;
+    padding: 22px 24px;
+    border-radius: 6px;
+  }
+  .title-row {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    margin-bottom: 6px;
+  }
+  .title-row h2 {
+    font-family: var(--sans);
+    font-size: 28px;
+    font-weight: 600;
+    letter-spacing: -0.03em;
+    margin: 0;
+  }
+  .company-sub {
+    color: var(--muted);
+    font-size: 14px;
+  }
+  .status-pill {
+    font-family: var(--mono);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 3px 8px;
+    border-radius: 3px;
+  }
+  .status-pill.profit {
+    background: #d8e4db;
+    color: var(--green);
+  }
+  .status-pill.at_risk {
+    background: #f4e1dd;
+    color: var(--red);
+  }
+  .strategy-subtitle {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+    margin: 0;
+  }
+
+  .pnl-callout {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+  }
+  .callout-label {
+    font-family: var(--mono);
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+  }
+  .callout-val {
+    font-family: var(--serif);
+    font-size: 32px;
+    font-weight: 400;
+    line-height: 1.1;
+    color: var(--green);
+  }
+  .callout-val.negative {
+    color: var(--red);
+  }
+  .callout-pct {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--green);
+  }
+  .callout-pct.negative {
+    color: var(--red);
+  }
+
+  /* VISUALIZER PANEL */
+  .visualizer-panel {
+    background: #eeeee8;
+    padding: 22px 24px 18px;
+    border-radius: 6px;
+  }
+  .panel-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 16px;
+  }
+  .panel-head h3 {
+    font-size: 16px;
+    font-weight: 600;
+    margin: 0 0 2px;
+  }
+  .panel-head p {
+    font-size: 12px;
+    color: var(--muted);
+    margin: 0;
+  }
+  .legend-items {
+    display: flex;
+    gap: 14px;
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--muted);
+  }
+  .legend-swatch {
+    width: 10px;
+    height: 10px;
+    border-radius: 2px;
+  }
+  .legend-item.profit .legend-swatch {
+    background: rgba(73, 107, 86, 0.5);
+  }
+  .legend-item.loss .legend-swatch {
+    background: rgba(155, 94, 80, 0.5);
+  }
+  .legend-item.spot .legend-swatch {
+    background: var(--green);
+  }
+
+  .svg-container {
+    position: relative;
+    width: 100%;
+    height: 280px;
+    background: #f0efe9;
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .svg-container svg {
+    width: 100%;
+    height: 100%;
+    cursor: crosshair;
+  }
+  .chart-hover-tooltip {
+    position: absolute;
+    padding: 6px 10px;
+    background: var(--ink);
+    color: var(--paper);
+    border-radius: 4px;
+    font-family: var(--mono);
+    font-size: 10px;
+    pointer-events: none;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    z-index: 10;
+  }
+  .chart-hover-tooltip strong {
+    display: block;
+    font-size: 12px;
+    color: #fff;
+  }
+  .chart-hover-tooltip span.pos {
+    color: #81c784;
+  }
+  .chart-hover-tooltip span.neg {
+    color: #e57373;
+  }
+
+  .chart-instruction {
+    font-family: var(--mono);
+    font-size: 9px;
+    color: var(--muted);
+    margin: 8px 0 0;
+  }
+
+  /* LEGS SECTION */
+  .legs-section {
+    background: #eeeee8;
+    padding: 22px 24px;
+    border-radius: 6px;
+  }
+  .legs-section h3 {
+    font-size: 15px;
+    font-weight: 600;
+    margin: 0 0 16px;
+  }
+
+  @media (max-width: 900px) {
+    .positions-layout {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>

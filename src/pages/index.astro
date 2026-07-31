@@ -27,6 +27,16 @@ const balanceChangePct = firstBalance ? balanceChange / firstBalance : 0;
     <p class="chart-note">Hover or tap the chart to inspect each recorded balance.</p>
   </section>
 
+  <section class="trades-section" aria-labelledby="active-positions-title">
+    <div class="section-heading">
+      <div>
+        <h2 id="active-positions-title">Active Positions & Option Spreads</h2>
+        <p>Interactive P/L payoff visualizer across active option spreads</p>
+      </div>
+      <a class="text-link" href={`${base}/positions/active/`}>Open Spread Visualizer →</a>
+    </div>
+  </section>
+
   <section class="trades-section" aria-labelledby="trades-title">
     <div class="section-heading"><div><h2 id="trades-title">Recent trades</h2><p>Entries and exits recorded by the system</p></div><a class="text-link" href={`${base}/journal/${journal[0]?.date}/`}>Open journal →</a></div>
     {recentTrades.length > 0 ? (
