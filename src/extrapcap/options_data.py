@@ -280,6 +280,9 @@ class AlpacaOptionsData:
         self.secret_key = secret_key or os.getenv("ALPACA_SECRET_KEY")
         self.trading_url = trading_url.rstrip("/")
         self.data_url = data_url.rstrip("/")
+    @classmethod
+    def from_env(cls) -> AlpacaOptionsData:
+        return cls()
 
     def _get(self, base: str, path: str, params: dict) -> dict:
         if not self.api_key or not self.secret_key:
