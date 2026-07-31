@@ -27,7 +27,7 @@ jobs:
           ALPACA_PAPER: 'true'
           ALPACA_API_KEY: ${{ secrets.ALPACA_API_KEY }}
           ALPACA_SECRET_KEY: ${{ secrets.ALPACA_SECRET_KEY }}
-        run: python -m extrapcap.execution.reconcile_cli --date "$(date -u +%F)"
+        run: python -m extrapcap.execution.account_sync --as-of "$(date -u +%F)"
       - name: Commit reconciliation
         run: |
           git config user.name extrapcap-bot

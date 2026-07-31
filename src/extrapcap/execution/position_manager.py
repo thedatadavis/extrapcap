@@ -1,74 +1,73 @@
+"""Position tracking and paper order exit execution engine."""
+
 from __future__ import annotations
 
+import argparse
 from dataclasses import dataclass
 from datetime import date
+import json
+from pathlib import Path
+import os
 
 from ..config import RiskConfig
-from ..options import DebitSpread
-from ..risk import asymmetric_exit_reason
+from ..execution.alpaca import AlpacaPaperClient
+from ..ledger import AuditLedger
+from ..options_data import AlpacaOptionsData, normalize_chain, parse_occ_option_symbol
+from ..options import CreditSpread, DebitSpread
 from .orders import OrderEnvelope
-
-
-@dataclass(frozen=True)
-class ManagedPosition:
-    envelope: OrderEnvelope
-    entry_credit: float
-    current_debit: float
-    spread_width: float
-    opened_at: date
-    as_of: date
 
 
 @dataclass(frozen=True)
 class ExitDecision:
     action: str
     reason: str
-    target_debit: float | None = None
-    held_days: int = 0
 
 
-def evaluate_credit_exit(position: ManagedPosition, cfg: RiskConfig) -> ExitDecision:
-    """Evaluate a defined-risk credit vertical using only current mark data."""
-    if position.entry_credit <= 0 or position.spread_width <= 0:
-        return ExitDecision("veto", "invalid_position_terms")
-    if position.current_debit < 0:
-        return ExitDecision("veto", "invalid_negative_mark")
-    held_days = max(0, (position.as_of - position.opened_at).days)
-    target_debit = position.entry_credit * (1 - cfg.core_profit_target_pct)
-    stop_debit = min(position.spread_width * 0.99, position.entry_credit * cfg.core_stop_loss_multiple)
-    if position.current_debit <= target_debit:
-        return ExitDecision("close", "profit_target", target_debit, held_days)
-    if position.current_debit >= stop_debit:
-        return ExitDecision("close", "stop_loss", target_debit, held_days)
-    if held_days >= cfg.core_time_stop_days:
-        return ExitDecision("close", "time_stop", target_debit, held_days)
-    return ExitDecision("hold", "within_exit_envelope", target_debit, held_days)
+@dataclass(frozen=True)
+class ManagedPosition:
+    envelope: OrderEnvelope
+    entry_price: float
+    current_debit: float
+    spread_width: float
+    opened_at: date
+    as_of: date
+
+    @property
+    def return_on_capital(self) -> float:
+        capital = max(0.01, self.spread_width - self.entry_price)
+        profit = self.entry_price - self.current_debit
+        return profit / capital
+
+    @property
+    def max_loss(self) -> float:
+        return max(0.01, self.spread_width - self.entry_price)
+
+    @property
+    def loss_amount(self) -> float:
+        return max(0.0, self.current_debit - self.entry_price)
+
+    @property
+    def days_held(self) -> int:
+        return max(0, (self.as_of - self.opened_at).days)
 
 
-def build_close_envelope(position: ManagedPosition, decision: ExitDecision) -> OrderEnvelope:
-    if decision.action != "close":
-        raise ValueError("a close envelope requires a close decision")
-    legs = []
-    for leg in position.envelope.legs:
-        opened_side = leg.get("side")
-        if opened_side not in {"buy", "sell"}:
-            raise ValueError("open order leg has no valid side")
-        legs.append(
-            {
-                **leg,
-                "side": "buy" if opened_side == "sell" else "sell",
-                "position_intent": "buy_to_close" if opened_side == "sell" else "sell_to_close",
-            }
-        )
-    return OrderEnvelope(
-        trading_day=position.as_of.isoformat(),
-        symbol=position.envelope.symbol,
-        side="buy_to_close",
-        legs=tuple(legs),
-        sleeve=position.envelope.sleeve,
-        limit_price=position.current_debit,
-        quantity=position.envelope.quantity,
-    )
+def evaluate_credit_exit(
+    position: ManagedPosition,
+    config: RiskConfig | None = None,
+) -> ExitDecision:
+    """Evaluate hard rules for credit spread exit."""
+    cfg = config or RiskConfig()
+    profit_target = getattr(cfg, "profit_target_pct", getattr(cfg, "core_profit_target_pct", 0.5))
+    stop_loss_mult = getattr(cfg, "stop_loss_multiplier", getattr(cfg, "core_stop_loss_multiple", 2.0))
+    max_days = getattr(cfg, "max_holding_days", getattr(cfg, "core_time_stop_days", 14))
+
+    if position.return_on_capital >= profit_target:
+        return ExitDecision("close", f"profit_target_{int(profit_target * 100)}pct")
+    if position.loss_amount >= position.max_loss * stop_loss_mult:
+        return ExitDecision("close", f"stop_loss_{stop_loss_mult}x_max_loss")
+    if position.days_held >= max_days:
+        return ExitDecision("close", f"max_holding_{max_days}d")
+    return ExitDecision("hold", "risk_rules_satisfied")
 
 
 def evaluate_debit_exit(
@@ -76,13 +75,23 @@ def evaluate_debit_exit(
     opened_at: date,
     as_of: date,
     current_debit: float,
-    cfg: RiskConfig,
+    config: RiskConfig | None = None,
 ) -> ExitDecision:
-    held_days = max(0, (as_of - opened_at).days)
-    reason = asymmetric_exit_reason(spread, held_days, current_debit, cfg)
-    if reason:
-        return ExitDecision("close", reason, current_debit, held_days)
-    return ExitDecision("hold", "within_asymmetric_exit_envelope", current_debit, held_days)
+    """Evaluate hard rules for debit spread exit."""
+    cfg = config or RiskConfig()
+    profit_target = getattr(cfg, "profit_target_pct", getattr(cfg, "core_profit_target_pct", 0.5))
+    stop_loss_mult = getattr(cfg, "stop_loss_multiplier", getattr(cfg, "core_stop_loss_multiple", 2.0))
+    max_days = getattr(cfg, "max_holding_days", getattr(cfg, "core_time_stop_days", 14))
+
+    days_held = max(0, (as_of - opened_at).days)
+    if days_held >= max_days:
+        return ExitDecision("close", f"max_holding_{max_days}d")
+    profit = current_debit - spread.debit
+    if profit >= spread.debit * profit_target:
+        return ExitDecision("close", f"debit_profit_target_{int(profit_target * 100)}pct")
+    if current_debit <= spread.debit * (1.0 - stop_loss_mult):
+        return ExitDecision("close", f"debit_stop_loss_{stop_loss_mult}x")
+    return ExitDecision("hold", "risk_rules_satisfied")
 
 
 def evaluate_fast_ev_exit(
@@ -93,48 +102,292 @@ def evaluate_fast_ev_exit(
     is_debit: bool,
     opened_at: date,
     as_of: date,
-    dte: int | None = None,
+    dte: int,
 ) -> ExitDecision:
-    """Evaluate a Fast EV position using an explicit 3-part trade management heuristic:
-    1. Anticipatory Win: Close early if >= 40% of max profit, or >= 30% profit with <= 5 DTE.
-    2. Minimize Loss: Cut loss if unrealized loss >= 50% max risk, or held >= 7 days with negative PnL.
-    3. Hold-to-Maturity vs Expiration Close: If 0-1 DTE and in profit (> $0), close to harvest gains; if deep OTM (<= $0.05), hold to maturity.
-    """
-    held_days = max(0, (as_of - opened_at).days)
-
+    """3-Part Fast EV Exit Heuristic."""
+    days_held = max(0, (as_of - opened_at).days)
     if is_debit:
-        max_profit = spread_width - entry_cost
-        max_risk = entry_cost
-        pnl = current_value - entry_cost
+        profit = current_value - entry_cost
+        max_profit = max(0.01, spread_width - entry_cost)
+        if max_profit > 0 and (profit / max_profit) >= 0.50:
+            return ExitDecision("close", "fast_ev_50pct_max_profit")
+        if entry_cost > 0 and (current_value / entry_cost) <= 0.50:
+            return ExitDecision("close", "fast_ev_50pct_stop_loss")
+        if dte <= 5 or days_held >= 14:
+            return ExitDecision("close", f"fast_ev_time_exit_dte{dte}_held{days_held}d")
     else:
-        max_profit = entry_cost
-        max_risk = spread_width - entry_cost
-        pnl = entry_cost - current_value
+        max_profit = max(0.01, entry_cost)
+        profit = entry_cost - current_value
+        if max_profit > 0 and (profit / max_profit) >= 0.50:
+            return ExitDecision("close", "fast_ev_50pct_max_profit")
+        max_loss = max(0.01, spread_width - entry_cost)
+        if max_loss > 0 and (current_value - entry_cost) >= max_loss * 0.50:
+            return ExitDecision("close", "fast_ev_50pct_max_loss_stop")
+        if dte <= 5 or days_held >= 14:
+            return ExitDecision("close", f"fast_ev_time_exit_dte{dte}_held{days_held}d")
+    return ExitDecision("hold", "fast_ev_rules_satisfied")
 
-    if max_profit <= 0 or max_risk <= 0:
-        return ExitDecision("veto", "invalid_spread_parameters", held_days=held_days)
 
-    profit_pct_of_max = pnl / max_profit if max_profit > 0 else 0.0
-    loss_pct_of_max = (-pnl) / max_risk if max_risk > 0 else 0.0
+def build_close_envelope(position: ManagedPosition, decision: ExitDecision) -> OrderEnvelope:
+    """Construct closing envelope using opposite legs."""
+    legs = []
+    for leg in position.envelope.legs:
+        opposite_side = "sell" if leg.get("side") == "buy" else "buy"
+        opposite_intent = "sell_to_close" if leg.get("position_intent") == "buy_to_open" else "buy_to_close"
+        legs.append({
+            **leg,
+            "side": opposite_side,
+            "position_intent": opposite_intent,
+        })
+    side_val = getattr(position.envelope, "side", "buy_to_open")
+    action = "sell_to_close" if side_val == "buy_to_open" else "buy_to_close"
+    return OrderEnvelope(
+        trading_day=position.as_of.isoformat(),
+        symbol=position.envelope.symbol,
+        side=action,
+        legs=tuple(legs),
+        sleeve=position.envelope.sleeve,
+        limit_price=position.current_debit,
+        quantity=getattr(position.envelope, "quantity", 1),
+    )
 
-    # 1. Hold-to-Maturity vs Expiration Close (0-1 DTE)
-    if dte is not None and dte <= 1:
-        if current_value <= 0.05:
-            return ExitDecision("hold", "hold_to_maturity_expire_worthless", held_days=held_days)
-        if pnl > 0:
-            return ExitDecision("close", "harvest_profit_at_expiration", held_days=held_days)
 
-    # 2. Anticipatory Win Take
-    if profit_pct_of_max >= 0.40:
-        return ExitDecision("close", "anticipatory_win_40pct_max_profit", held_days=held_days)
-    if dte is not None and dte <= 5 and profit_pct_of_max >= 0.30:
-        return ExitDecision("close", "anticipatory_win_near_expiration_30pct", held_days=held_days)
+def _read_registry(path: str | Path) -> list[dict]:
+    target = Path(path)
+    if not target.exists():
+        return []
+    rows = []
+    for line in target.read_text(encoding="utf-8").splitlines():
+        if line.strip():
+            rows.append(json.loads(line))
+    return rows
 
-    # 3. Minimize Loss
-    if loss_pct_of_max >= 0.50:
-        return ExitDecision("close", "minimize_loss_50pct_max_risk", held_days=held_days)
-    if held_days >= 7 and pnl < 0:
-        return ExitDecision("close", "time_stop_dead_money_loss", held_days=held_days)
 
-    return ExitDecision("hold", "within_fast_ev_envelope", held_days=held_days)
+def manage_live_positions(
+    client,
+    options: AlpacaOptionsData,
+    *,
+    registry_path: str | Path = "logs/orders/ids.jsonl",
+    ledger: AuditLedger | None = None,
+    as_of: date | None = None,
+    risk_config: RiskConfig | None = None,
+) -> list[dict]:
+    """Mark registry-backed held verticals and submit exit paper orders when hard rules trigger."""
+    as_of = as_of or date.today()
+    cfg = risk_config or RiskConfig()
+    ledger = ledger or AuditLedger()
+    if hasattr(client, "clock"):
+        clock = client.clock()
+        if isinstance(clock, dict) and isinstance(clock.get("is_open"), bool) and not clock["is_open"]:
+            result = {"status": "skipped", "reason": "broker market clock closed"}
+            ledger.append("risk", result, as_of)
+            return [result]
+    held = {
+        str(position.get("symbol", "")).upper()
+        for position in client.positions()
+        if float(position.get("qty", 0) or 0) != 0
+    }
+    records = _read_registry(registry_path)
+    results = []
+    for record in records:
+        payload = record.get("payload", {})
+        legs = tuple(payload.get("legs", []))
+        if len(legs) != 2 or not all(str(leg.get("symbol", "")).upper() in held for leg in legs):
+            continue
+        if {leg.get("side") for leg in legs} != {"buy", "sell"}:
+            continue
+        try:
+            parsed = [parse_occ_option_symbol(leg["symbol"]) for leg in legs]
+            if parsed[0].underlying != parsed[1].underlying or parsed[0].option_type != "P" or parsed[1].option_type != "P":
+                continue
+            if parsed[0].expiration != parsed[1].expiration:
+                continue
+            short = next(item for item, leg in zip(parsed, legs) if leg.get("side") == "sell")
+            long = next(item for item, leg in zip(parsed, legs) if leg.get("side") == "buy")
+            if long.strike >= short.strike:
+                continue
+        except (KeyError, StopIteration, ValueError):
+            continue
+        metadata = record.get("metadata", {})
+        position_metadata = {
+            "ticker": parsed[0].underlying,
+            "underlying": parsed[0].underlying,
+            "contract_ids": [short.symbol, long.symbol],
+            "contracts": [
+                {
+                    "contract_id": short.symbol,
+                    "ticker": short.underlying,
+                    "expiration": short.expiration.isoformat(),
+                    "strike": short.strike,
+                    "option_type": "put",
+                    "role": "short",
+                },
+                {
+                    "contract_id": long.symbol,
+                    "ticker": long.underlying,
+                    "expiration": long.expiration.isoformat(),
+                    "strike": long.strike,
+                    "option_type": "put",
+                    "role": "long",
+                },
+            ],
+            "sleeve": payload.get("sleeve", "core"),
+            "strategy_variant": metadata.get("strategy_variant"),
+        }
+        snapshot_payload, tier = options.chain_all(
+            parsed[0].underlying,
+            expiration_gte=parsed[0].expiration.isoformat(),
+            expiration_lte=parsed[0].expiration.isoformat(),
+            option_type="put",
+            feed="indicative",
+        )
+        quotes = {quote.symbol: quote for quote in normalize_chain(snapshot_payload)}
+        short_quote, long_quote = quotes.get(short.symbol), quotes.get(long.symbol)
+        if not short_quote or not long_quote or short_quote.ask is None or long_quote.bid is None:
+            result = {
+                "client_order_id": record.get("client_order_id"),
+                **position_metadata,
+                "status": "skipped",
+                "reason": "incomplete_indicative_quote",
+                "data_tier": tier.value,
+            }
+            results.append(result)
+            ledger.append("risk", result, as_of)
+            continue
+        opened_at_value = metadata.get("opened_at")
+        if not opened_at_value:
+            result = {
+                "client_order_id": record.get("client_order_id"),
+                **position_metadata,
+                "status": "skipped",
+                "reason": "missing_entry_metadata",
+                "data_tier": tier.value,
+            }
+            results.append(result)
+            ledger.append("risk", result, as_of)
+            continue
+        opened_at = date.fromisoformat(opened_at_value)
+        entry_debit = metadata.get("entry_debit")
+        dte = max(0, (parsed[0].expiration - as_of).days)
+        is_fast_ev_pos = metadata.get("strategy_variant") == "fast_ev" or os.getenv("EXTRAPCAP_FAST_EV", "false").lower() == "true"
+        if entry_debit is not None:
+            current_debit = long_quote.bid - short_quote.ask
+            if current_debit < 0:
+                result = {"client_order_id": record.get("client_order_id"), **position_metadata, "status": "skipped", "reason": "invalid_negative_mark", "data_tier": tier.value}
+                results.append(result)
+                ledger.append("risk", result, as_of)
+                continue
+            spread_width = float(metadata.get("spread_width", abs(long.strike - short.strike)))
+            if is_fast_ev_pos:
+                decision = evaluate_fast_ev_exit(
+                    entry_cost=float(entry_debit),
+                    current_value=current_debit,
+                    spread_width=spread_width,
+                    is_debit=True,
+                    opened_at=opened_at,
+                    as_of=as_of,
+                    dte=dte,
+                )
+            else:
+                spread = DebitSpread(parsed[0].underlying, long.strike, short.strike, float(entry_debit), sleeve="asymmetric", direction="bearish")
+                decision = evaluate_debit_exit(spread, opened_at, as_of, current_debit, cfg)
+            result = {
+                "client_order_id": record.get("client_order_id"),
+                **position_metadata,
+                "status": decision.action,
+                "reason": decision.reason,
+                "current_debit": current_debit,
+                "data_tier": tier.value,
+            }
+            if decision.action == "close":
+                close_order = build_close_envelope(
+                    ManagedPosition(
+                        OrderEnvelope(opened_at.isoformat(), parsed[0].underlying, "buy_to_open", legs, "asymmetric", payload.get("limit_price"), int(payload.get("qty", 1))),
+                        float(entry_debit),
+                        current_debit,
+                        spread_width,
+                        opened_at,
+                        as_of,
+                    ),
+                    decision,
+                )
+                result["order"] = close_order.alpaca_payload()
+                result["provider_response"] = client.submit_order(result["order"])
+                ledger.append("orders", result, as_of)
+            else:
+                ledger.append("signals", result, as_of)
+            results.append(result)
+            continue
+        current_debit = short_quote.ask - long_quote.bid
+        if metadata.get("entry_credit") is None:
+            result = {
+                "client_order_id": record.get("client_order_id"),
+                **position_metadata,
+                "status": "skipped",
+                "reason": "missing_entry_metadata",
+                "data_tier": tier.value,
+            }
+            results.append(result)
+            ledger.append("risk", result, as_of)
+            continue
+        spread_width = float(metadata.get("spread_width", short.strike - long.strike))
+        position = ManagedPosition(
+            OrderEnvelope(
+                opened_at.isoformat(),
+                parsed[0].underlying,
+                "sell_to_open",
+                legs,
+                payload.get("sleeve", "core"),
+                payload.get("limit_price"),
+                int(payload.get("qty", 1)),
+            ),
+            float(metadata.get("entry_credit", payload.get("limit_price", 0))),
+            current_debit,
+            spread_width,
+            opened_at,
+            as_of,
+        )
+        if is_fast_ev_pos:
+            decision = evaluate_fast_ev_exit(
+                entry_cost=float(metadata.get("entry_credit", payload.get("limit_price", 0))),
+                current_value=current_debit,
+                spread_width=spread_width,
+                is_debit=False,
+                opened_at=opened_at,
+                as_of=as_of,
+                dte=dte,
+            )
+        else:
+            decision = evaluate_credit_exit(position, cfg)
+        result = {
+            "client_order_id": record.get("client_order_id"),
+            **position_metadata,
+            "status": decision.action,
+            "reason": decision.reason,
+            "current_debit": current_debit,
+            "data_tier": tier.value,
+        }
+        if decision.action == "close":
+            close_order = build_close_envelope(position, decision)
+            result["order"] = close_order.alpaca_payload()
+            result["provider_response"] = client.submit_order(result["order"])
+            ledger.append("orders", result, as_of)
+        else:
+            ledger.append("signals", result, as_of)
+        results.append(result)
+    return results
 
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Evaluate open option positions for deterministic exits")
+    parser.add_argument("--as-of", default=date.today().isoformat(), help="As-of date YYYY-MM-DD")
+    args = parser.parse_args()
+
+    client = AlpacaPaperClient.from_env()
+    options = AlpacaOptionsData.from_env()
+    results = manage_live_positions(client, options, as_of=date.fromisoformat(args.as_of))
+    print(json.dumps({"as_of": args.as_of, "results": results}, indent=2))
+
+
+if __name__ == "__main__":
+    main()

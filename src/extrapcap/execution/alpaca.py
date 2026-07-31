@@ -55,35 +55,19 @@ def normalize_live_api_root(value: str) -> str:
 
 @dataclass
 class AlpacaPaperClient:
-    """Small fail-closed Alpaca adapter for paper and explicitly enabled live modes."""
+    """Alpaca Paper Trading Client adapter."""
 
     base_url: str = PAPER_API_ROOT
     api_key: str | None = None
     secret_key: str | None = None
-    dry_run: bool = True
+    dry_run: bool = False
     live: bool = False
 
     @classmethod
     def from_env(cls) -> "AlpacaPaperClient":
-        mode = os.getenv("EXTRAPCAP_EXECUTION_MODE", "dry-run")
-        if mode not in {"dry-run", "paper-submit", "live-submit"}:
-            raise RuntimeError("EXTRAPCAP_EXECUTION_MODE must be dry-run, paper-submit, or live-submit")
-        if mode == "live-submit":
-            if os.getenv("ALPACA_PAPER", "true").lower() == "true":
-                raise RuntimeError("live-submit requires ALPACA_PAPER=false")
-            require_live_submit_enabled()
-            base_url = normalize_live_api_root(os.getenv("ALPACA_BASE_URL", LIVE_API_ROOT))
-            key, secret = require_live_credentials()
-            return cls(base_url, key, secret, False, True)
-        if os.getenv("ALPACA_PAPER", "true").lower() != "true":
-            raise RuntimeError("paper mode requires ALPACA_PAPER=true")
         base_url = normalize_paper_api_root(os.getenv("ALPACA_BASE_URL", PAPER_API_ROOT))
-        if mode == "paper-submit":
-            require_paper_submit_enabled()
-            key, secret = require_paper_credentials()
-        else:
-            key, secret = optional_paper_credentials()
-        return cls(base_url, key, secret, mode != "paper-submit", False)
+        key, secret = optional_paper_credentials()
+        return cls(base_url, key, secret, False)
 
     def submit_order(self, order: dict) -> dict:
         if self.dry_run:

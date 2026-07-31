@@ -31,6 +31,9 @@ class VerticalSpread:
         return self.credit * 100 * self.contracts
 
 
+CreditSpread = VerticalSpread
+
+
 @dataclass(frozen=True)
 class DebitSpread:
     symbol: str

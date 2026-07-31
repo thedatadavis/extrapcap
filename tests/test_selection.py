@@ -8,10 +8,12 @@ def test_core_streak_gate_requires_negative_two_to_five_day_streak_and_z_gate():
     )
     assert approved.allowed
     assert approved.strategy_route == "core_mean_reversion"
-    assert not core_streak_gate(
+    pos_approved = core_streak_gate(
         {"streak_direction": "positive", "streak_length": 4, "robust_z": 2.4},
         -2.0,
-    ).allowed
+    )
+    assert pos_approved.allowed
+    assert pos_approved.strategy_route == "bearish_reversal_watch"
     assert core_streak_gate(
         {"streak_direction": "negative", "streak_length": 4, "robust_z": -0.4},
         -2.0,

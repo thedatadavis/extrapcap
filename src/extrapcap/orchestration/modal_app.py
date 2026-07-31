@@ -81,7 +81,7 @@ def pre_open_prep():
     cmd = [
         sys.executable,
         "-m",
-        "extrapcap.orchestration.basket_cycle_cli",
+        "extrapcap.orchestration.basket_cycle",
         "--basket",
         "data/universe/tradable-basket.csv",
         "--model",
@@ -93,8 +93,7 @@ def pre_open_prep():
         "--fast-ev",
         "--review-phase",
         "opening_prep",
-        "--execution-mode",
-        "dry-run",
+        "--prep-only",
     ]
     return _sync_and_run(cmd, f"ledger: opening paper candidate prep {today}")
 
@@ -106,13 +105,13 @@ def pre_open_prep():
     timeout=600,
 )
 def entry_check_opening():
-    """9:45 AM EDT: Opening candidate review and order submission."""
+    """9:45 AM EDT: Opening candidate review and paper order submission."""
     print("--- Running 9:45 AM EDT Opening Entry Check ---")
     today = subprocess.check_output(["date", "-u", "+%F"], text=True).strip()
     cmd = [
         sys.executable,
         "-m",
-        "extrapcap.orchestration.basket_cycle_cli",
+        "extrapcap.orchestration.basket_cycle",
         "--basket",
         "data/universe/tradable-basket.csv",
         "--model",
@@ -122,8 +121,6 @@ def entry_check_opening():
         "--max-candidates",
         "10",
         "--fast-ev",
-        "--execution-mode",
-        "paper-submit",
     ]
     return _sync_and_run(cmd, f"ledger: review paper basket opening {today}")
 
@@ -135,13 +132,13 @@ def entry_check_opening():
     timeout=600,
 )
 def entry_check_pre_lunch():
-    """12:15 PM EDT: Midday candidate review and order submission."""
+    """12:15 PM EDT: Midday candidate review and paper order submission."""
     print("--- Running 12:15 PM EDT Pre-Lunch Entry Check ---")
     today = subprocess.check_output(["date", "-u", "+%F"], text=True).strip()
     cmd = [
         sys.executable,
         "-m",
-        "extrapcap.orchestration.basket_cycle_cli",
+        "extrapcap.orchestration.basket_cycle",
         "--basket",
         "data/universe/tradable-basket.csv",
         "--model",
@@ -151,8 +148,6 @@ def entry_check_pre_lunch():
         "--max-candidates",
         "10",
         "--fast-ev",
-        "--execution-mode",
-        "paper-submit",
     ]
     return _sync_and_run(cmd, f"ledger: review paper basket pre-lunch {today}")
 
@@ -164,13 +159,13 @@ def entry_check_pre_lunch():
     timeout=600,
 )
 def entry_check_afternoon():
-    """3:00 PM EDT: Afternoon candidate review and order submission."""
+    """3:00 PM EDT: Afternoon candidate review and paper order submission."""
     print("--- Running 3:00 PM EDT Afternoon Entry Check ---")
     today = subprocess.check_output(["date", "-u", "+%F"], text=True).strip()
     cmd = [
         sys.executable,
         "-m",
-        "extrapcap.orchestration.basket_cycle_cli",
+        "extrapcap.orchestration.basket_cycle",
         "--basket",
         "data/universe/tradable-basket.csv",
         "--model",
@@ -180,8 +175,6 @@ def entry_check_afternoon():
         "--max-candidates",
         "10",
         "--fast-ev",
-        "--execution-mode",
-        "paper-submit",
     ]
     return _sync_and_run(cmd, f"ledger: review paper basket afternoon {today}")
 
@@ -199,9 +192,7 @@ def position_exit_check():
     cmd = [
         sys.executable,
         "-m",
-        "extrapcap.execution.manage_live_cli",
-        "--execution-mode",
-        "paper-submit",
+        "extrapcap.execution.position_manager",
         "--as-of",
         today,
     ]
@@ -221,8 +212,8 @@ def post_close_reconciliation():
     cmd = [
         sys.executable,
         "-m",
-        "extrapcap.execution.reconcile_cli",
-        "--date",
+        "extrapcap.execution.account_sync",
+        "--as-of",
         today,
     ]
     return _sync_and_run(cmd, f"ledger: reconcile paper account {today}")

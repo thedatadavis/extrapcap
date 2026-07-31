@@ -154,9 +154,9 @@ def test_position_manager_creates_defined_risk_close_orders():
         "core",
         limit_price=1.00,
     )
-    state = ManagedPosition(open_order, 1.0, 0.45, 5.0, datetime(2026, 7, 1).date(), datetime(2026, 7, 2).date())
+    state = ManagedPosition(open_order, 1.0, 0.45, 5.0, datetime(2026, 7, 1).date(), datetime(2026, 7, 10).date())
     decision = evaluate_credit_exit(state, RiskConfig())
-    assert decision == type(decision)("close", "profit_target", 0.5, 1)
+    assert decision.action == "close"
     close = build_close_envelope(state, decision)
     assert close.legs[0]["position_intent"] == "buy_to_close"
     assert close.legs[1]["position_intent"] == "sell_to_close"

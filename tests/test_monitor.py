@@ -1,7 +1,7 @@
 from datetime import date
 import json
 
-from extrapcap.execution.live_position_manager import manage_live_positions
+from extrapcap.execution.position_manager import manage_live_positions
 from extrapcap.execution.monitor import ExecutionMonitor
 from extrapcap.execution.orders import OrderEnvelope
 from extrapcap.ledger import AuditLedger
@@ -33,8 +33,8 @@ def test_live_position_manager_marks_held_legs_and_dry_runs_close(tmp_path):
         def chain_all(self, *args, **kwargs):
             return {
                 "snapshots": {
-                    "SPY260724P00739000": {"latestQuote": {"bp": 0.50, "ap": 0.60}},
-                    "SPY260724P00734000": {"latestQuote": {"bp": 0.45, "ap": 0.55}},
+                    "SPY260724P00739000": {"latestQuote": {"bp": 0.08, "ap": 0.10}},
+                    "SPY260724P00734000": {"latestQuote": {"bp": 0.05, "ap": 0.07}},
                 }
             }, DataTier.INDICATIVE
 
@@ -71,7 +71,7 @@ def test_live_position_manager_marks_held_legs_and_dry_runs_close(tmp_path):
         json.dumps({
             "client_order_id": envelope.client_order_id,
             "payload": envelope.alpaca_payload(),
-            "metadata": {"entry_credit": 0.40, "spread_width": 5.0, "opened_at": "2026-07-21"},
+            "metadata": {"entry_credit": 0.40, "spread_width": 5.0, "opened_at": "2026-07-21", "strategy_variant": "fast_ev"},
         }) + "\n",
         encoding="utf-8",
     )
