@@ -106,18 +106,26 @@ class NebiusReviewer:
         return judgment
 
     def daily_note(self, summary: dict) -> dict:
-        """Return a bounded portfolio note; the model cannot change execution state."""
+        """Return a bounded portfolio note and WSJ-style summary; the model cannot change execution state."""
         judgment = self._request_json(
-            """Write a concise daily paper-trading note from the supplied ledger summary.
-Return JSON with exactly these useful fields: note (string), anomalies (array of strings),
-"risk_posture" (normal/watch/escalate), and reason (string). Do not invent trades, prices,
-performance, or external news. Treat missing data as an anomaly.""",
+            """You are a senior financial journalist writing for The Wall Street Journal's Markets section.
+Write a professional, authoritative, Wall Street Journal (WSJ) style daily market and quantitative strategy summary based strictly on the provided ledger metrics.
+
+Return JSON with exactly these fields:
+- "wsj_summary": A 2-paragraph Wall Street Journal style financial narrative summarizing market environment, relative-return streak screening, Bayesian win probability thresholds, and option spread expected value / capital preservation decisions.
+- "note": A concise 1-2 sentence executive summary.
+- "anomalies": An array of string anomaly identifiers (or empty array if none).
+- "risk_posture": Exactly "normal", "watch", or "escalate".
+- "reason": A brief explanation of the rationale.
+
+Do not invent unsupplied stock prices, corporate earnings, external market events, or trades. Rely strictly on the facts supplied in the input summary.""",
             {"summary": summary},
             thinking_effort="max",
         )
         if not isinstance(judgment.get("note"), str) or not isinstance(judgment.get("anomalies"), list):
             return {
                 "note": "Nebius daily note unavailable; review the deterministic ledger report.",
+                "wsj_summary": None,
                 "anomalies": ["invalid_or_missing_nebius_daily_note"],
                 "risk_posture": "escalate",
                 "reason": "Nebius returned an invalid daily note",

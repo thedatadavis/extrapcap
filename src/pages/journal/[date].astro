@@ -1,4 +1,6 @@
 ---
+import fs from 'node:fs';
+import path from 'node:path';
 import Shell from '../../layouts/Shell.astro';
 import { formatDate, journal, latestAccount, readoutFor } from '../../data/journal';
 
@@ -67,6 +69,17 @@ const tickersTable = clearedGateTickers.length > 0 ? clearedGateTickers : Array.
 const reconciliationItem = entry.entries.find((item) => item.kind === 'reconciliation' || item.positions !== undefined);
 const activePositions = reconciliationItem?.positions ?? [];
 const openOrders = reconciliationItem?.openOrders ?? [];
+
+let wsjSummary: string | null = null;
+try {
+  const reportPath = path.join(process.cwd(), 'reports', `daily-${entry.date}.json`);
+  if (fs.existsSync(reportPath)) {
+    const reportData = JSON.parse(fs.readFileSync(reportPath, 'utf8'));
+    wsjSummary = reportData.portfolio_note?.wsj_summary || null;
+  }
+} catch (e) {
+  wsjSummary = null;
+}
 ---
 
 <Shell>
@@ -147,15 +160,23 @@ const openOrders = reconciliationItem?.openOrders ?? [];
         <section class="written-summary" style="background:#eeeee8; padding:28px 30px; margin-bottom:42px;">
           <h2 style="font-family:var(--serif); font-size:26px; font-weight:400; margin-bottom:14px;">Daily Performance &amp; Rationale Summary</h2>
           <div class="readout-body" style="max-width:100%; display:grid; gap:16px; color:#4b4c48; font-size:15px; line-height:1.65;">
-            <p>
-              <strong>Market Environment &amp; Signal Screening:</strong> On {formatDate(entry.date)}, the 2-sided Bayesian Fast EV engine evaluated {evaluatedCount} tickers across our active trading basket relative to SPY benchmark returns. {passedGateCount} tickers met quantitative relative-return streak boundaries (|Z| &ge; 2.0){passedProbCount > 0 ? `, and ${passedProbCount} tickers achieved empirical reversion probabilities above the required win probability threshold (P > 0.51).` : `, but all candidates registered empirical reversion probabilities at or below the P \u2264 0.51 threshold.`}
-            </p>
-            <p>
-              <strong>Execution &amp; Capital Protection:</strong> {submittedCount > 0 ? `The system placed ${submittedCount} paper order${submittedCount > 1 ? 's' : ''} today following positive expected value evaluation.` : `Because zero candidate vertical option spreads achieved the positive expected value threshold (EV \u2265 $10.00) after option pricing and spread liquidity screening, the system safely deferred entry and placed 0 new paper orders today, preserving capital in neutral market conditions.`}
-            </p>
-            <p>
-              <strong>Active Position Management:</strong> {activePositions.length === 0 ? `Account reconciliation confirmed 0 active positions held in the Alpaca account. All portfolio equity ($${(latestAccount?.balance ?? 100000).toLocaleString('en-US')}) remains 100% in cash with zero open order or position risk.` : `Monitored ${activePositions.length} active position${activePositions.length > 1 ? 's' : ''} in the Alpaca account under our exit heuristics.`}
-            </p>
+            {wsjSummary ? (
+              wsjSummary.split('\n\n').map((paragraph) => (
+                <p>{paragraph}</p>
+              ))
+            ) : (
+              <>
+                <p>
+                  <strong>Market Environment &amp; Signal Screening:</strong> On {formatDate(entry.date)}, the 2-sided Bayesian Fast EV engine evaluated {evaluatedCount} tickers across our active trading basket relative to SPY benchmark returns. {passedGateCount} tickers met quantitative relative-return streak boundaries (|Z| &ge; 2.0){passedProbCount > 0 ? `, and ${passedProbCount} tickers achieved empirical reversion probabilities above the required win probability threshold (P > 0.51).` : `, but all candidates registered empirical reversion probabilities at or below the P \u2264 0.51 threshold.`}
+                </p>
+                <p>
+                  <strong>Execution &amp; Capital Protection:</strong> {submittedCount > 0 ? `The system placed ${submittedCount} paper order${submittedCount > 1 ? 's' : ''} today following positive expected value evaluation.` : `Because zero candidate vertical option spreads achieved the positive expected value threshold (EV \u2265 $10.00) after option pricing and spread liquidity screening, the system safely deferred entry and placed 0 new paper orders today, preserving capital in neutral market conditions.`}
+                </p>
+                <p>
+                  <strong>Active Position Management:</strong> {activePositions.length === 0 ? `Account reconciliation confirmed 0 active positions held in the Alpaca account. All portfolio equity ($${(latestAccount?.balance ?? 100000).toLocaleString('en-US')}) remains 100% in cash with zero open order or position risk.` : `Monitored ${activePositions.length} active position${activePositions.length > 1 ? 's' : ''} in the Alpaca account under our exit heuristics.`}
+                </p>
+              </>
+            )}
           </div>
         </section>
       </div>
