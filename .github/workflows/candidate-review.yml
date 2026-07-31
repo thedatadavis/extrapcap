@@ -41,14 +41,12 @@ jobs:
           ALPACA_API_KEY: ${{ secrets.ALPACA_API_KEY }}
           ALPACA_SECRET_KEY: ${{ secrets.ALPACA_SECRET_KEY }}
           NEBIUS_API_KEY: ${{ secrets.NEBIUS_API_KEY }}
-          SNIPER_MODEL_PATH: models/sniper.cbm
           EXTRAPCAP_EARNINGS_CALENDAR: data/events/earnings.csv
           EXTRAPCAP_NEWS_EVENTS: data/events/news.csv
           EXTRAPCAP_NEWS_LLM: 'true'
         run: >-
           python -m extrapcap.orchestration.basket_cycle
           --basket data/universe/tradable-basket.csv
-          --model "$SNIPER_MODEL_PATH"
           --expiration-gte "$(date -u +%F)"
           --max-candidates 10
           --fast-ev

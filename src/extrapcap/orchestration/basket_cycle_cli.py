@@ -108,8 +108,8 @@ def score_core_candidates(
 
 def run_basket(
     basket: str | Path,
-    model: str,
-    expiration_gte: str,
+    model: str | Path | None = None,
+    expiration_gte: str | None = None,
     expiration_lte: str | None = None,
     *,
     execution_mode: str = "dry-run",
@@ -128,17 +128,14 @@ def run_basket(
     audit = ledger or AuditLedger()
     results = []
     selections = basket_rows(basket)
-    ranked, model_buckets = score_core_candidates(
-        selections,
-        model,
-        z_threshold=z_threshold,
-        model_loader=model_loader,
-    )
+    expiration_gte = expiration_gte or date.today().isoformat()
     crash_enabled = execution_mode in {"dry-run", "paper-submit"} and paper_crash_protocol_enabled()
     from ..orchestration.paper_run import get_bayesian_model
-    bayes_model = get_bayesian_model() if fast_ev else None
+    bayes_model = get_bayesian_model()
 
-    if fast_ev:
+    if fast_ev or not model:
+        ranked = selections
+        model_buckets = {}
         tradeable_candidates = []
         for selection in selections:
             dec = core_streak_gate(selection, z_threshold, fast_ev=True)
@@ -156,6 +153,12 @@ def run_basket(
             if dec.allowed and prob > 0.50:
                 tradeable_candidates.append(selection)
     else:
+        ranked, model_buckets = score_core_candidates(
+            selections,
+            model,
+            z_threshold=z_threshold,
+            model_loader=model_loader,
+        )
         tradeable_candidates = [
             selection
             for selection in ranked
@@ -170,8 +173,8 @@ def run_basket(
     for selection in selections:
         ticker = selection["ticker"]
         decision = core_streak_gate(selection, z_threshold, fast_ev=fast_ev)
-        model_bucket = model_buckets.get(ticker)
-        prob = selection.get("reversion_probability") or 0.0
+        model_bucket = model_buckets.get(ticker) or selection.get("model_bucket") or ("bayesian_ev" if fast_ev else "core_reversion")
+        prob = selection.get("reversion_probability") or selection.get("model_probability") or 0.0
         selection = {
             **selection,
             "selection_rank": selection_ranks.get(ticker),
@@ -279,23 +282,22 @@ def basket_run_succeeded(results: list[dict]) -> bool:
 def main() -> None:
     parser = argparse.ArgumentParser(description="Run the provider-backed cycle over the streak-screen basket")
     parser.add_argument("--basket", default="data/universe/tradable-basket.csv")
-    parser.add_argument("--model", default=os.getenv("SNIPER_MODEL_PATH"))
-    parser.add_argument("--expiration-gte", required=True)
-    parser.add_argument("--expiration-lte")
+    parser.add_argument("--model", default=os.getenv("SNIPER_MODEL_PATH"), help="Path to CatBoost model (deprecated, defaults to Bayesian EV engine)")
+    parser.add_argument("--expiration-gte", default=None)
+    parser.add_argument("--expiration-lte", default=None)
     parser.add_argument("--execution-mode", choices=("dry-run", "paper-submit", "live-submit"), default="dry-run")
     parser.add_argument("--timeframe", choices=("1Day", "1Min", "5Min", "15Min", "1Hour"), default="1Day")
     parser.add_argument("--review-phase", choices=("entry", "opening_prep"), default="entry")
     parser.add_argument("--z-threshold", type=float, default=-2.0)
     parser.add_argument("--max-candidates", type=int, default=10)
-    parser.add_argument("--fast-ev", action="store_true", help="Enable Fast EV (>= $10) review mode")
+    parser.add_argument("--fast-ev", action="store_true", default=True, help="Enable Fast EV (>= $10) review mode")
     parser.add_argument("--min-ev", type=float, default=10.0, help="Minimum Expected Value threshold in dollars")
     args = parser.parse_args()
-    if not args.model:
-        parser.error("--model or SNIPER_MODEL_PATH is required")
+    expiration_gte = args.expiration_gte or date.today().isoformat()
     results = run_basket(
         args.basket,
         args.model,
-        args.expiration_gte,
+        expiration_gte,
         args.expiration_lte,
         execution_mode=args.execution_mode,
         timeframe=args.timeframe,

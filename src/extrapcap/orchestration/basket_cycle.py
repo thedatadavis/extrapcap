@@ -130,6 +130,7 @@ def run_basket(
     from ..orchestration.paper_run import get_bayesian_model
     bayes_model = get_bayesian_model()
 
+    crash_enabled = paper_crash_protocol_enabled()
     if fast_ev:
         tradeable_candidates = []
         for selection in selections:
@@ -148,12 +149,7 @@ def run_basket(
             if dec.allowed and prob > 0.50:
                 tradeable_candidates.append(selection)
     else:
-        tradeable_candidates = [
-            selection
-            for selection in ranked
-            if selection["model_bucket"] in {"premium_candidate", "watch_list"}
-            or (crash_enabled and selection["model_bucket"] == "crash_protocol")
-        ]
+        tradeable_candidates = selections
     selected_tickers = {selection["ticker"] for selection in tradeable_candidates[:max_candidates]}
     selection_ranks = {
         selection["ticker"]: rank
@@ -163,7 +159,7 @@ def run_basket(
     for selection in selections:
         ticker = selection["ticker"]
         decision = core_streak_gate(selection, z_threshold, fast_ev=fast_ev)
-        model_bucket = model_buckets.get(ticker)
+        model_bucket = selection.get("model_bucket") or "bayesian_ev"
         prob = selection.get("reversion_probability") or 0.0
         selection = {
             **selection,
@@ -266,7 +262,7 @@ def run_basket(
 def main() -> None:
     parser = argparse.ArgumentParser(description="Run active paper trading cycle across tradable basket")
     parser.add_argument("--basket", required=True, help="Path to tradable basket CSV")
-    parser.add_argument("--model", required=True, help="Path to CatBoost model")
+    parser.add_argument("--model", default=None, help="Path to model (deprecated, defaults to Bayesian EV engine)")
     parser.add_argument("--expiration-gte", required=True, help="Minimum option expiration YYYY-MM-DD")
     parser.add_argument("--expiration-lte", default=None, help="Maximum option expiration YYYY-MM-DD")
     parser.add_argument("--timeframe", default="1Day")
