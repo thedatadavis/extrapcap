@@ -55,18 +55,38 @@ def evaluate_credit_exit(
     position: ManagedPosition,
     config: RiskConfig | None = None,
 ) -> ExitDecision:
-    """Evaluate hard rules for credit spread exit."""
+    """Evaluate hard rules and mean-reversal heuristics for credit spread exit."""
     cfg = config or RiskConfig()
     profit_target = getattr(cfg, "profit_target_pct", getattr(cfg, "core_profit_target_pct", 0.5))
+    early_profit_target = getattr(cfg, "early_profit_target_pct", 0.35)
+    early_profit_days = getattr(cfg, "early_profit_target_days", 2)
     stop_loss_mult = getattr(cfg, "stop_loss_multiplier", getattr(cfg, "core_stop_loss_multiple", 2.0))
-    max_days = getattr(cfg, "max_holding_days", getattr(cfg, "core_time_stop_days", 14))
+    max_days = getattr(cfg, "max_holding_days", getattr(cfg, "core_time_stop_days", 4))
 
+    # 1. 35% Early profit capture within first 48h (capital velocity rule)
+    if position.days_held <= early_profit_days and position.return_on_capital >= early_profit_target:
+        return ExitDecision("close", f"early_profit_target_{int(early_profit_target * 100)}pct_{early_profit_days}d")
+
+    # 2. Standard 50% max profit target
     if position.return_on_capital >= profit_target:
         return ExitDecision("close", f"profit_target_{int(profit_target * 100)}pct")
+
+    # 3. Z-Score & Streak Reversal Signal Exit
+    selection_context = getattr(position.envelope, "selection_context", None) or {}
+    robust_z = selection_context.get("current_robust_z") or selection_context.get("robust_z")
+    streak_dir = selection_context.get("current_streak_direction") or selection_context.get("streak_direction")
+    entry_dir = selection_context.get("entry_streak_direction") or selection_context.get("streak_direction")
+    if robust_z is not None and abs(float(robust_z)) < 0.5 and streak_dir and entry_dir and streak_dir != entry_dir:
+        return ExitDecision("close", "zscore_streak_reversal_exit")
+
+    # 4. Stop loss
     if position.loss_amount >= position.max_loss * stop_loss_mult:
         return ExitDecision("close", f"stop_loss_{stop_loss_mult}x_max_loss")
+
+    # 5. 4-day time stop (empirical mean-reversal window)
     if position.days_held >= max_days:
         return ExitDecision("close", f"max_holding_{max_days}d")
+
     return ExitDecision("hold", "risk_rules_satisfied")
 
 
@@ -81,7 +101,7 @@ def evaluate_debit_exit(
     cfg = config or RiskConfig()
     profit_target = getattr(cfg, "profit_target_pct", getattr(cfg, "core_profit_target_pct", 0.5))
     stop_loss_mult = getattr(cfg, "stop_loss_multiplier", getattr(cfg, "core_stop_loss_multiple", 2.0))
-    max_days = getattr(cfg, "max_holding_days", getattr(cfg, "core_time_stop_days", 14))
+    max_days = getattr(cfg, "max_holding_days", getattr(cfg, "core_time_stop_days", 4))
 
     days_held = max(0, (as_of - opened_at).days)
     if days_held >= max_days:
@@ -104,7 +124,7 @@ def evaluate_fast_ev_exit(
     as_of: date,
     dte: int,
 ) -> ExitDecision:
-    """3-Part Fast EV Exit Heuristic."""
+    """Empirically-calibrated Fast EV Exit Heuristic."""
     days_held = max(0, (as_of - opened_at).days)
     if is_debit:
         profit = current_value - entry_cost
@@ -113,17 +133,20 @@ def evaluate_fast_ev_exit(
             return ExitDecision("close", "fast_ev_50pct_max_profit")
         if entry_cost > 0 and (current_value / entry_cost) <= 0.50:
             return ExitDecision("close", "fast_ev_50pct_stop_loss")
-        if dte <= 5 or days_held >= 14:
+        if dte <= 2 or days_held >= 4:
             return ExitDecision("close", f"fast_ev_time_exit_dte{dte}_held{days_held}d")
     else:
         max_profit = max(0.01, entry_cost)
         profit = entry_cost - current_value
+        # Early 35% profit capture within 48h
+        if days_held <= 2 and max_profit > 0 and (profit / max_profit) >= 0.35:
+            return ExitDecision("close", "fast_ev_35pct_early_profit_2d")
         if max_profit > 0 and (profit / max_profit) >= 0.50:
             return ExitDecision("close", "fast_ev_50pct_max_profit")
         max_loss = max(0.01, spread_width - entry_cost)
         if max_loss > 0 and (current_value - entry_cost) >= max_loss * 0.50:
             return ExitDecision("close", "fast_ev_50pct_max_loss_stop")
-        if dte <= 5 or days_held >= 14:
+        if dte <= 2 or days_held >= 4:
             return ExitDecision("close", f"fast_ev_time_exit_dte{dte}_held{days_held}d")
     return ExitDecision("hold", "fast_ev_rules_satisfied")
 
