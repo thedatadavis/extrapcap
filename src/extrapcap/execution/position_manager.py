@@ -186,6 +186,91 @@ def _read_registry(path: str | Path) -> list[dict]:
     return rows
 
 
+def _synthesize_records_from_unmatched(
+    broker_positions: list[dict],
+    records: list[dict],
+    as_of: date,
+) -> list[dict]:
+    """Dynamically reconstruct position records from active broker positions if registry records are missing."""
+    registered_contracts = set()
+    for record in records:
+        for leg in record.get("payload", {}).get("legs", []):
+            registered_contracts.add(str(leg.get("symbol", "")).upper())
+
+    unmatched_groups = {}
+    for pos in broker_positions:
+        sym = str(pos.get("symbol", "")).upper()
+        qty = float(pos.get("qty", 0) or 0)
+        if qty == 0 or sym in registered_contracts:
+            continue
+        try:
+            parsed = parse_occ_option_symbol(sym)
+            key = (parsed.underlying, parsed.expiration, parsed.option_type)
+            unmatched_groups.setdefault(key, []).append((parsed, pos))
+        except (ValueError, KeyError):
+            continue
+
+    synthetic = []
+    for (underlying, expiration, opt_type), items in unmatched_groups.items():
+        if len(items) != 2 or opt_type != "P":
+            continue
+        short_tuple = next((item for item in items if float(item[1].get("qty", 0)) < 0), None)
+        long_tuple = next((item for item in items if float(item[1].get("qty", 0)) > 0), None)
+        if not short_tuple or not long_tuple:
+            continue
+        short_parsed, short_pos = short_tuple
+        long_parsed, long_pos = long_tuple
+        if long_parsed.strike >= short_parsed.strike:
+            continue
+
+        spread_width = short_parsed.strike - long_parsed.strike
+        short_price = abs(float(short_pos.get("avg_entry_price") or 0))
+        long_price = abs(float(long_pos.get("avg_entry_price") or 0))
+        entry_credit = max(0.01, round(short_price - long_price, 2)) if short_price > long_price else round(spread_width * 0.25, 2)
+
+        created_at_str = short_pos.get("created_at") or long_pos.get("created_at")
+        if created_at_str:
+            try:
+                opened_at = date.fromisoformat(str(created_at_str)[:10])
+            except ValueError:
+                opened_at = as_of
+        else:
+            opened_at = as_of
+
+        qty = abs(int(float(short_pos.get("qty", 1))))
+        synthetic.append({
+            "client_order_id": f"syn-{underlying}-{expiration.isoformat()}",
+            "payload": {
+                "symbol": underlying,
+                "side": "sell_to_open",
+                "sleeve": "core",
+                "limit_price": entry_credit,
+                "qty": qty,
+                "legs": [
+                    {
+                        "symbol": short_parsed.symbol,
+                        "side": "sell",
+                        "position_intent": "sell_to_open",
+                        "ratio_qty": 1,
+                    },
+                    {
+                        "symbol": long_parsed.symbol,
+                        "side": "buy",
+                        "position_intent": "buy_to_open",
+                        "ratio_qty": 1,
+                    },
+                ],
+            },
+            "metadata": {
+                "opened_at": opened_at.isoformat(),
+                "entry_credit": entry_credit,
+                "spread_width": spread_width,
+                "strategy_variant": "fast_ev",
+            },
+        })
+    return synthetic
+
+
 def manage_live_positions(
     client,
     options: AlpacaOptionsData,
@@ -195,7 +280,7 @@ def manage_live_positions(
     as_of: date | None = None,
     risk_config: RiskConfig | None = None,
 ) -> list[dict]:
-    """Mark registry-backed held verticals and submit exit paper orders when hard rules trigger."""
+    """Mark registry-backed and active broker positions and submit exit paper orders when hard rules trigger."""
     as_of = as_of or date.today()
     cfg = risk_config or RiskConfig()
     ledger = ledger or AuditLedger()
@@ -205,12 +290,14 @@ def manage_live_positions(
             result = {"status": "skipped", "reason": "broker market clock closed"}
             ledger.append("risk", result, as_of)
             return [result]
+    broker_positions = client.positions()
     held = {
         str(position.get("symbol", "")).upper()
-        for position in client.positions()
+        for position in broker_positions
         if float(position.get("qty", 0) or 0) != 0
     }
     records = _read_registry(registry_path)
+    records = list(records) + _synthesize_records_from_unmatched(broker_positions, records, as_of)
     results = []
     for record in records:
         payload = record.get("payload", {})
