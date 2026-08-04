@@ -7,7 +7,14 @@ The system has two sleeves:
 - **Core premium engine:** defined-risk put spreads, with baseline and higher-POP OTM variants.
 - **Asymmetric opportunity engine:** a separately budgeted sleeve funded only from realized core premium.
 
-This repository currently provides the deterministic research core: typed configuration, robust relative-return signals, trade construction, sleeve funding, hard risk checks, and an offline backtest engine. Alpaca and Nebius adapters are environment-driven. Paper trading remains the default; a live Alpaca route exists for controlled validation but cannot submit unless its separate live switch is explicitly enabled.
+This repository provides the research core, trade construction, risk engine, Modal serverless execution pipeline, and Cloudflare Pages SSR dashboard backed by Cloudflare D1.
+
+## System Architecture
+
+- **Compute Platform**: [Modal](https://modal.com) — Serverless Python crons for market data refresh, streak screening, pre-market prep, candidate review, position management, reconciliation, and daily EOD reporting.
+- **Database**: Cloudflare D1 — Managed SQLite database storing all trading events, active positions, order registries, stock bars, and account history.
+- **Dashboard**: [Cloudflare Pages](https://extrapcap.pages.dev) — Astro SSR web application with real-time D1 bindings and an interactive option spread visualizer.
+- **Admin Console**: Available at `/admin` (password-protected) for monitoring workflow execution runs and position status.
 
 ## Quick start
 
@@ -20,51 +27,33 @@ python -m extrapcap.backtest.cli --input examples/sample_bars.csv
 python -m extrapcap.backtest.compare_cli --input examples/sample_bars.csv
 python -m extrapcap.research.matrix_cli --input examples/sample_bars.csv
 python -m extrapcap.backtest.chain_cli --input examples/sample_option_observations.csv
-python -m extrapcap.orchestration.paper_run_cli --help
-python -m extrapcap.orchestration.paper_run_cli --symbol ABC --price 100 --contracts examples/sample_contracts.json --snapshot examples/sample_snapshot.json --probability 0.72 --execution-mode dry-run
-python -m extrapcap.data.refresh_cli --symbols SPY,AAPL --days 365
-python -m extrapcap.earnings --date "$(date -u +%F)"
-python -m extrapcap.data.features_cli --input data/normalized/bars.csv
-python -m extrapcap.models.score_cli --input data/features/features.csv --model models/sniper.cbm
-python -m extrapcap.universe.cli --output-dir data/universe
-# then pass the timestamped greenlist CSV to extrapcap.universe.streak_cli
-python -m extrapcap.diagnostics --require-ready
-python -m extrapcap.playback_cli --date 2026-07-22
-python -m extrapcap.reporting.daily_cli --date 2026-07-22
-python -m extrapcap.execution.position_manager_cli --help
-python -m extrapcap.execution.manage_live_cli --help
-python -m extrapcap.historical_options_cli --help
-python -m extrapcap.orchestration.basket_cycle_cli --help
 ```
 
-The sample run writes a JSON report under `reports/`. Real API keys are not needed for the offline path.
+## Modal Deployment
 
-Provider refreshes derive their symbol list from the pinned Greenlist plus SPY, batch and paginate the Alpaca request, and write `bars.csv` plus a `bars.csv.metadata.json` provenance sidecar containing the request window, feed, symbols, row counts, observed date bounds, and missing-symbol coverage. The streak screen fails closed unless every accepted Greenlist ticker has completed bars.
-Only completed daily sessions are retained; a current-session partial bar cannot form a streak or model feature. The free Nasdaq expected-earnings adapter writes a seven-day blackout window plus provenance metadata. Missing, stale, or incomplete calendar coverage vetoes entry. Nasdaq labels these dates as algorithmic expectations based on historical reporting dates, so the artifact is a conservative exclusion input rather than an assertion of a confirmed company announcement.
+```bash
+# Set credentials in Modal secrets
+modal secret create alpaca-paper ALPACA_API_KEY=... ALPACA_SECRET_KEY=...
+modal secret create nebius NEBIUS_API_KEY=...
+modal secret create cloudflare-api CF_APP_URL=https://extrapcap.pages.dev CF_API_TOKEN=...
 
-The intraday diagnostic uses `python -m extrapcap.orchestration.intraday_cli` for one provider-backed 1-minute scan. It is manual-only and defaults to dry-run; it is not part of the live paper schedule. A versioned Sniper artifact is required for either execution mode.
+# Deploy cron functions
+modal deploy modal_app/app.py
+```
 
-The live paper operating chain is split into idempotent GitHub Actions for bar refresh, streak screening, model-scoring and ranking of the screened basket, provider-backed review of the top 10, paper execution, reconciliation, and daily reporting. Standalone research feature generation, model scoring, and Greenlist-only refreshes remain manual utilities. Risk and account thresholds can veto any of the 10 before execution. Repository-writing jobs share one concurrency group, commit deterministic artifact paths, and trigger an Astro rebuild from the resulting logs and reports.
+## Cloudflare D1 & Pages Deployment
 
-Before every entry path, the system checks the selected Alpaca account's `/v2/clock`, reconstructs same-day symbol orders from both Alpaca `/v2/orders` and the Git registry, applies cooldown/order-count rules, and rejects a second submission for the same completed signal even if the option contract or limit price changes. The account gate also requires an active, unblocked account, options trading level 3, sufficient options buying power, bounded aggregate/ticker/sector risk, and a fresh quote on both vertical legs. The versioned basket's streak, relative return, and robust Z must match a fresh provider recomputation.
+```bash
+# Build and deploy Astro SSR application
+pnpm build
+pnpm wrangler pages deploy dist --project-name=extrapcap
+
+# Database migrations
+pnpm wrangler d1 execute extrapcap --remote --file=schema.sql
+```
 
 ## Operating modes
 
 `end_of_day`, `hybrid`, and `intraday_loop` are configuration choices, not separate strategies. The first implementation consumes bars supplied by a data adapter, so the same strategy can be tested at daily or intraday frequency without changing decision logic.
 
-Research results must distinguish reconstructed/approximated option data from historical chain data. Do not treat a high win rate as proof of quality; inspect expectancy, drawdown, tail loss, fill assumptions, and sleeve contribution together. Production matrix runs accept `--basket data/universe/tradable-basket.csv` to keep the streak-screened universe aligned with research.
-
-The tradable-basket screen also uses the completed relative-return streak. A streak is a signed run of stock outperformance or underperformance versus SPY; the default screen retains lengths 2 through 7, records every decision, and is eligible for the next session only after the close. The current bullish core route requires a negative streak and robust Z at or below `-2.0`, ranking longer streaks first. Positive streaks are journaled under a deferred bearish-watch route rather than entering a bull-put spread.
-
-Every dated ledger event carries a stable journal envelope with ticker, OCC
-contract IDs, parsed expiration/type/strike details, strategy and sleeve,
-model bucket, data tier, status, and readable title. The Astro site reads every
-ledger category plus the latest real-bar comparison report at build time, so a
-workflow commit to the `ops` branch updates the journal without a hand-maintained frontend fixture.
-
-See `docs/charter.md`, `docs/architecture.md`, `docs/strategy/variants.md`, and `docs/roadmap.md` for the current scope and explicit TODOs.
-
-## Safety boundary
-
-The execution adapter defaults to `dry-run` against `https://paper-api.alpaca.markets/v2`. Paper submission requires `ALPACA_PAPER=true` and `EXTRAPCAP_PAPER_SUBMIT_ENABLED=true`; scheduled workflows remain paper-only. Manual CLIs also accept `live-submit`, but that path requires `ALPACA_PAPER=false`, the exact `https://api.alpaca.markets/v2` endpoint, separate `ALPACA_LIVE_API_KEY` / `ALPACA_LIVE_SECRET_KEY` credentials, and `EXTRAPCAP_LIVE_SUBMIT_ENABLED=true`. The live switch defaults to false and is checked inside the adapter before any live account is constructed. Short options are represented only as defined-risk verticals. The LLM reviewer can veto or escalate a candidate, but cannot override hard risk controls.
-Daily reports are deterministic by default. GitHub Actions enables the optional Nebius note with the NEBIUS_API_KEY secret; missing or malformed model output escalates and never changes execution state.
+The tradable-basket screen uses the completed relative-return streak versus SPY. The default screen retains lengths 2 through 7, records every decision, and ranks longer negative streaks with robust Z at or below `-2.0` first.

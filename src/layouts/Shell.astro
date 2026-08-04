@@ -1,28 +1,48 @@
 ---
-import { formatDate, formatMonth, latestJournalDate, journal, months } from '../data/journal';
+import { formatDate, formatMonth, getJournal } from '../data/journal';
 import '../styles/global.css';
+
+const db = (Astro.locals as any).runtime?.env?.DB;
+const journal = await getJournal(db);
+
+const months = journal.reduce<Record<string, typeof journal>>((groups, entry) => {
+  const month = entry.date.slice(0, 7);
+  (groups[month] ??= []).push(entry);
+  return groups;
+}, {});
+
+const latestJournalDate = journal[0]?.date;
 const currentPath = Astro.url.pathname;
-const base = import.meta.env.BASE_URL;
 ---
 
-<div class="site-shell">
-  <aside class="sidebar">
-    <a class="wordmark" href={`${base}/`}>Extrapolation<br />Capital</a>
-    <p class="sidebar-intro">A paper-traded options research journal studying streaks, mean reversion, and extrapolation bias.</p>
-    <nav aria-label="Primary navigation">
-      <a class:list={{ active: currentPath === `${base}/` || currentPath === `${base}` }} href={`${base}/`}>Overview</a>
-      <a class:list={{ active: currentPath.includes('/positions/active') }} href={`${base}/positions/active/`}>Active Positions</a>
-      <p class="nav-heading">Journal</p>
-      {Object.entries(months).map(([month, entries], index) => (
-        <details open={index === 0} class="month-folder">
-          <summary><span>{formatMonth(month)}</span><span class="count">{entries.length}</span></summary>
-          <div class="date-list">
-            {entries.map((entry) => <a class:list={{ active: currentPath.includes(`/journal/${entry.date}`) }} href={`${base}/journal/${entry.date}/`}>{entry.date.slice(8)}</a>)}
-          </div>
-        </details>
-      ))}
-    </nav>
-    <div class="sidebar-footer"><span class="status-dot"></span> Paper only · {latestJournalDate ? 'updated ' + formatDate(latestJournalDate) : 'awaiting first event'}</div>
-  </aside>
-  <main class="main-content"><slot /></main>
-</div>
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Extrapolation Capital</title>
+  </head>
+  <body>
+    <div class="site-shell">
+      <aside class="sidebar">
+        <a class="wordmark" href="/">Extrapolation<br />Capital</a>
+        <p class="sidebar-intro">A paper-traded options research journal studying streaks, mean reversion, and extrapolation bias.</p>
+        <nav aria-label="Primary navigation">
+          <a class:list={{ active: currentPath === '/' || currentPath === '' }} href="/">Overview</a>
+          <a class:list={{ active: currentPath.includes('/positions/active') }} href="/positions/active">Active Positions</a>
+          <p class="nav-heading">Journal</p>
+          {Object.entries(months).map(([month, entries], index) => (
+            <details open={index === 0} class="month-folder">
+              <summary><span>{formatMonth(month)}</span><span class="count">{entries.length}</span></summary>
+              <div class="date-list">
+                {entries.map((entry) => <a class:list={{ active: currentPath.includes(`/journal/${entry.date}`) }} href={`/journal/${entry.date}`}>{entry.date.slice(8)}</a>)}
+              </div>
+            </details>
+          ))}
+        </nav>
+        <div class="sidebar-footer"><span class="status-dot"></span> Paper only · {latestJournalDate ? 'updated ' + formatDate(latestJournalDate) : 'awaiting first event'}</div>
+      </aside>
+      <main class="main-content"><slot /></main>
+    </div>
+  </body>
+</html>

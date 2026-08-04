@@ -1,0 +1,52 @@
+---
+import Shell from '../../layouts/Shell.astro';
+
+let errorMessage = '';
+
+if (Astro.request.method === 'POST') {
+  try {
+    const formData = await Astro.request.formData();
+    const password = formData.get('password')?.toString();
+    const envPass = (Astro.locals as any).runtime?.env?.ADMIN_PASSWORD || 'tigger';
+
+    if (password === envPass) {
+      Astro.cookies.set('xpc_admin', 'authenticated', {
+        path: '/',
+        httpOnly: true,
+        secure: true,
+        sameSite: 'strict',
+        maxAge: 60 * 60 * 24 * 7, // 7 days
+      });
+      return Astro.redirect('/admin');
+    } else {
+      errorMessage = 'Invalid admin password.';
+    }
+  } catch (err: any) {
+    errorMessage = err.message;
+  }
+}
+---
+
+<Shell>
+  <header class="topbar">
+    <a href="/" class="back-link">← Public Dashboard</a>
+    <span>Extrapcap Admin Authentication</span>
+  </header>
+
+  <article class="journal-page" style="max-width: 440px;">
+    <h1>Admin Login 🔒</h1>
+    <p class="lede">Enter password to access Extrapcap management tools.</p>
+
+    {errorMessage && <div style="color: var(--red); background: rgba(155,94,80,0.1); padding: 12px 14px; border-radius: 4px; margin-bottom: 20px; font-size: 13px;">{errorMessage}</div>}
+
+    <form method="POST" style="display: flex; flex-direction: column; gap: 16px;">
+      <label style="display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: var(--muted); font-family: var(--mono); text-transform: uppercase;">
+        Password
+        <input type="password" name="password" required autofocus style="padding: 10px 12px; border-radius: 4px; border: 1px solid var(--faint); background: #eeeee8; color: var(--ink); font-size: 14px;" />
+      </label>
+      <button type="submit" style="padding: 12px; border-radius: 4px; border: none; background: var(--green); color: #fff; font-weight: 600; cursor: pointer; font-size: 14px; font-family: var(--sans);">
+        Authenticate 🔒
+      </button>
+    </form>
+  </article>
+</Shell>

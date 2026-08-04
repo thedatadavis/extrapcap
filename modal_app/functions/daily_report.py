@@ -1,0 +1,45 @@
+import time
+from datetime import datetime, timezone
+import modal
+from modal_app.app import app, image, secrets
+from modal_app.cf_client import CloudflareAPIClient
+
+
+@app.function(
+    image=image,
+    secrets=secrets,
+    schedule=modal.Cron("45 20 * * 1-5"),
+    timeout=600,
+)
+def daily_report():
+    """Daily EOD Operations Report Cron (8:45 PM UTC / 4:45 PM EDT)."""
+    cf = CloudflareAPIClient()
+    start_time = time.time()
+    run_id = cf.register_run("daily_report")
+
+    try:
+        from extrapcap.reporting.daily import generate_daily_report
+
+        today_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        report = generate_daily_report(as_of_date=today_str)
+
+        event = {
+            "journal": {
+                "event_id": f"evt-report-{today_str}",
+                "trading_day": today_str,
+                "category": "reports",
+                "kind": "daily_report",
+                "title": f"Daily Operations Report · {today_str}",
+                "status": "completed",
+                "reason": report.get("summary", "Daily report generated."),
+            },
+            "report": report,
+        }
+
+        cf.append_events([event])
+        cf.complete_run(run_id, summary={"report_date": today_str}, start_time=start_time)
+        return {"status": "success", "report_date": today_str}
+
+    except Exception as e:
+        cf.fail_run(run_id, error=str(e), start_time=start_time)
+        raise

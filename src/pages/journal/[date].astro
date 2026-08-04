@@ -1,15 +1,15 @@
 ---
-import fs from 'node:fs';
-import path from 'node:path';
 import Shell from '../../layouts/Shell.astro';
-import { formatDate, journal, latestAccount, readoutFor } from '../../data/journal';
+import { formatDate, getJournal, readoutFor } from '../../data/journal';
 
-export function getStaticPaths() {
-  return journal.map((entry) => ({ params: { date: entry.date }, props: { entry } }));
+const { date } = Astro.params;
+const db = (Astro.locals as any).runtime?.env?.DB;
+const journal = await getJournal(db);
+const entry = journal.find((e) => e.date === date);
+
+if (!entry) {
+  return Astro.redirect('/404');
 }
-
-const { entry } = Astro.props;
-const base = import.meta.env.BASE_URL;
 
 // Use structured summary layout for 2026-07-30 and future reports
 const isStructuredLayout = entry.date >= '2026-07-30';
@@ -28,21 +28,21 @@ entry.entries.forEach((item) => {
 
   const ctx = item.selectionContext ?? {};
   const sigGate = ctx.signal_gate ?? {};
-  const isGateAllowed = sigGate.allowed === true || item.reason === 'approved' || (ctx.robust_z !== undefined && Math.abs(ctx.robust_z) >= 2.0);
+
+  const existing = tickerMap.get(ticker);
+  const isGateAllowed = sigGate.decision === 'allow' || item.status === 'selected' || existing?.isGateAllowed;
+
   if (isGateAllowed) gateTickers.add(ticker);
 
-  const prob = item.modelProbability ?? ctx.reversion_probability ?? ctx.model_probability;
-  const existing = tickerMap.get(ticker);
-  const bestProb = typeof prob === 'number' ? prob : (existing?.prob ?? null);
+  const prob = typeof item.modelProbability === 'number'
+    ? item.modelProbability
+    : typeof ctx.reversion_probability === 'number'
+      ? ctx.reversion_probability
+      : undefined;
 
+  const bestProb = prob !== undefined ? prob : existing?.prob;
 
-
-  if (
-    item.status === 'submitted' ||
-    item.status === 'paper_submit' ||
-    item.kind === 'paper_order' ||
-    item.decision === 'go'
-  ) {
+  if (item.status === 'submitted' || item.kind === 'paper_order' || item.clientOrderId) {
     submittedTickers.add(ticker);
   }
 
@@ -50,7 +50,7 @@ entry.entries.forEach((item) => {
     item.status === 'filled' ||
     item.status === 'partially_filled' ||
     item.kind === 'paper_fill' ||
-    (item.filled_qty !== undefined && item.filled_qty > 0)
+    (item.marketData?.filled_qty !== undefined && item.marketData.filled_qty > 0)
   ) {
     filledTickers.add(ticker);
   }
@@ -93,113 +93,116 @@ const activePositions = reconciliationItem?.positions ?? [];
 const openOrders = reconciliationItem?.openOrders ?? [];
 
 let wsjSummary: string | null = null;
-try {
-  const reportPath = path.join(process.cwd(), 'reports', `daily-${entry.date}.json`);
-  if (fs.existsSync(reportPath)) {
-    const reportData = JSON.parse(fs.readFileSync(reportPath, 'utf8'));
-    wsjSummary = reportData.portfolio_note?.wsj_summary || null;
-  }
-} catch (e) {
-  wsjSummary = null;
+const dailyReportEvent = entry.entries.find((e) => e.kind === 'daily_report' || e.category === 'reports');
+if (dailyReportEvent?.marketData?.wsj_summary) {
+  wsjSummary = String(dailyReportEvent.marketData.wsj_summary);
 }
 ---
 
 <Shell>
-  <header class="topbar"><a class="back-link" href={`${base}/`}>← Overview</a><span>Daily journal</span></header>
-  <article class="journal-page" style={isStructuredLayout ? "max-width:960px;" : ""}>
+  <header class="topbar"><a class="back-link" href="/">← Overview</a><span>Daily journal</span></header>
+  <article class="journal-page">
     <h1>{formatDate(entry.date)}</h1>
     <p class="lede">A plain-language account of market moves considered, evaluation funnel metrics, and options execution records.</p>
 
     {isStructuredLayout ? (
-      <div class="journal-structured">
+      <div>
         {/* 1. Top Level Funnel Summary */}
-        <section class="funnel-summary" style="margin-bottom:36px;">
-          <h2 style="font-size:18px; margin-bottom:14px;">Evaluation Funnel Summary</h2>
-          <div class="metric-grid">
-            <div class="metric">
-              <span>Evaluated Basket</span>
-              <strong>{evaluatedCount}</strong>
-              <small>Total Tickers Screened</small>
+        <section class="dashboard-section" style="padding-bottom: 36px;">
+          <div class="section-heading">
+            <div>
+              <h2>Evaluation Funnel Summary</h2>
+              <p>Mean-reversion candidates, signal filtering, model approvals, and execution</p>
             </div>
-            <div class="metric">
-              <span>Streak &amp; Z Gate</span>
-              <strong>{passedGateCount}</strong>
-              <small>Passed Quantitative Streak</small>
-            </div>
-            <div class="metric">
-              <span>Reversion Prob</span>
-              <strong>{passedProbCount}</strong>
-              <small>Met P &gt; 50% Threshold</small>
-            </div>
-            <div class="metric">
-              <span>Orders Filled</span>
-              <strong>{filledCount}</strong>
-              <small>Paper Orders Filled</small>
-            </div>
+          </div>
+          <div class="metric-grid" style="grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));">
+            <div class="metric"><span>Evaluated</span><strong>{evaluatedCount}</strong><small>Candidates</small></div>
+            <div class="metric"><span>Signal Passed</span><strong>{passedGateCount}</strong><small>Cleared streak</small></div>
+            <div class="metric"><span>Model Approved</span><strong>{passedProbCount}</strong><small>P(reversion) &gt; 50%</small></div>
+            <div class="metric"><span>Orders Submitted</span><strong>{submittedCount}</strong><small>Paper queue</small></div>
+            <div class="metric"><span>Filled Trades</span><strong>{filledCount}</strong><small>Broker fills</small></div>
           </div>
         </section>
 
-        {/* 2. Final Tickers Evaluated Table */}
-        <section class="tickers-table-section" style="margin-bottom:48px;">
-          <h2 style="font-size:18px; margin-bottom:6px;">Final Evaluated Tickers &amp; Core Metrics</h2>
-          <p class="data-note" style="margin-bottom:14px;">SPY-relative return streaks, robust Z-scores, and Bayesian reversion probabilities for screened tickers.</p>
-          <div class="trade-table-wrap">
-            <table class="trade-table">
-              <thead>
-                <tr>
-                  <th>Ticker</th>
-                  <th>Sector</th>
-                  <th>Streak</th>
-                  <th>Robust Z</th>
-                  <th>Reversion Prob</th>
-                  <th>Status</th>
-                  <th>Reason</th>
-                </tr>
-              </thead>
-              <tbody>
-                {tickersTable.slice(0, 30).map((row) => (
-                  <tr class={row.isProbAllowed ? '' : 'row-dimmed'}>
-                    <td class="ticker-cell">{row.ticker}</td>
-                    <td>{row.sector}</td>
-                    <td style="text-transform:capitalize;">{row.direction} · {row.length}d</td>
-                    <td style="font-family:var(--mono);">{typeof row.robustZ === 'number' ? (row.robustZ > 0 ? `+${row.robustZ.toFixed(2)}` : row.robustZ.toFixed(2)) : 'N/A'}</td>
-                    <td style="font-family:var(--mono);">{typeof row.prob === 'number' ? `${(row.prob * 100).toFixed(2)}%` : 'N/A'}</td>
-                    <td>
-                      <span class:list={['action-pill', row.status === 'submitted' ? 'entry' : row.status === 'deferred' ? '' : 'exit']}>
-                        {row.status}
-                      </span>
-                    </td>
-                    <td style="color:var(--muted); font-size:11px;">{row.reason}</td>
+        {/* 2. Executive Commentary */}
+        {wsjSummary && (
+          <section class="dashboard-section" style="padding-bottom: 36px;">
+            <div class="context-panel" style="background:#eeeee8; padding:20px; border-left:3px solid var(--green);">
+              <h2 style="font-size:15px; margin-bottom:8px; color:var(--green);">WSJ Daily Commentary & Portfolio Note</h2>
+              <p style="font-size:14px; line-height:1.6; margin:0;">{wsjSummary}</p>
+            </div>
+          </section>
+        )}
+
+        {/* 3. Screened Candidates Breakdown */}
+        {tickersTable.length > 0 && (
+          <section class="trades-section">
+            <div class="section-heading">
+              <div>
+                <h2>Candidate Screening & Model Decisions</h2>
+                <p>Filter state and model win-probability metrics</p>
+              </div>
+            </div>
+            <div class="trade-table-wrap">
+              <table class="trade-table">
+                <thead>
+                  <tr>
+                    <th>Ticker</th>
+                    <th>Sector</th>
+                    <th>Streak</th>
+                    <th>Robust Z</th>
+                    <th>Model P(reversion)</th>
+                    <th>Funnel Stage</th>
+                    <th>Decision / Reason</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          {tickersTable.length > 30 && <p class="chart-note" style="margin-top:8px;">Showing top 30 evaluated candidates out of {tickersTable.length} total screened tickers.</p>}
-        </section>
+                </thead>
+                <tbody>
+                  {tickersTable.map((row) => (
+                    <tr>
+                      <td class="ticker-cell"><strong>{row.ticker}</strong></td>
+                      <td style="font-size:12px; color:var(--muted);">{row.sector}</td>
+                      <td>{row.length > 0 ? `${row.length}d (${row.direction})` : '—'}</td>
+                      <td>{row.robustZ !== undefined ? Number(row.robustZ).toFixed(2) : '—'}</td>
+                      <td>{typeof row.prob === 'number' ? `${(row.prob * 100).toFixed(1)}%` : '—'}</td>
+                      <td>
+                        <span class:list={['action-pill', row.status.includes('filled') ? 'entry' : row.isGateAllowed ? 'neutral' : 'exit']}>
+                          {row.status.includes('filled') ? 'Filled' : row.isGateAllowed ? 'Screen Passed' : 'Filtered'}
+                        </span>
+                      </td>
+                      <td style="font-size:12px; max-width:260px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">{row.reason}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        )}
 
-        {/* 3. Written Daily Summary */}
-        <section class="written-summary" style="background:#eeeee8; padding:28px 30px; margin-bottom:42px;">
-          <h2 style="font-family:var(--serif); font-size:26px; font-weight:400; margin-bottom:14px;">Daily Performance &amp; Rationale Summary</h2>
-          <div class="readout-body" style="max-width:100%; display:grid; gap:16px; color:#4b4c48; font-size:15px; line-height:1.65;">
-            {wsjSummary ? (
-              wsjSummary.split('\n\n').map((paragraph) => (
-                <p>{paragraph}</p>
-              ))
-            ) : (
-              <>
-                <p>
-                  <strong>Market Environment &amp; Signal Screening:</strong> On {formatDate(entry.date)}, the 2-sided Bayesian Fast EV engine evaluated {evaluatedCount} tickers across our active trading basket relative to SPY benchmark returns. {passedGateCount} tickers met quantitative relative-return streak boundaries (|Z| &ge; 2.0){passedProbCount > 0 ? `, and ${passedProbCount} tickers achieved empirical reversion probabilities above the required win probability threshold (P > 0.51).` : `, but all candidates registered empirical reversion probabilities at or below the P \u2264 0.51 threshold.`}
-                </p>
-                <p>
-                  <strong>Execution &amp; Capital Protection:</strong> {submittedCount > 0 ? `The system placed ${submittedCount} paper order${submittedCount > 1 ? 's' : ''} today following positive expected value evaluation.` : `Because zero candidate vertical option spreads achieved the positive expected value threshold (EV \u2265 $10.00) after option pricing and spread liquidity screening, the system safely deferred entry and placed 0 new paper orders today, preserving capital in neutral market conditions.`}
-                </p>
-                <p>
-                  <strong>Active Position Management:</strong> {activePositions.length === 0 ? `Account reconciliation confirmed 0 active positions held in the Alpaca account. All portfolio equity ($${(latestAccount?.balance ?? 100000).toLocaleString('en-US')}) remains 100% in cash with zero open order or position risk.` : `Monitored ${activePositions.length} active position${activePositions.length > 1 ? 's' : ''} in the Alpaca account under our exit heuristics.`}
-                </p>
-              </>
-            )}
+        {/* 4. Active Portfolio Snapshot */}
+        <section class="trades-section" style="padding-top: 18px;">
+          <div class="section-heading">
+            <div>
+              <h2>Active Open Positions & Working Orders</h2>
+              <p>Reconciled portfolio state for this session</p>
+            </div>
           </div>
+          {activePositions.length > 0 || openOrders.length > 0 ? (
+            <div style="display:flex; flex-direction:column; gap:12px;">
+              {activePositions.map((pos: any) => (
+                <div style="background:#eeeee8; padding:16px 20px; border-radius:4px; display:flex; justify-content:space-between; align-items:center;">
+                  <div>
+                    <strong style="font-size:15px; margin-right:10px;">{pos.symbol ?? pos.ticker}</strong>
+                    <span style="font-size:12px; color:var(--muted);">{pos.qty ?? pos.quantity} contracts · Expiration {pos.expiration}</span>
+                  </div>
+                  <div>
+                    <span class="action-pill">Short ${pos.short_strike} / Long ${pos.long_strike}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div class="empty-state">No active positions or pending orders recorded for this session.</div>
+          )}
         </section>
       </div>
     ) : (
@@ -207,34 +210,17 @@ try {
         {entry.entries.map((item) => {
           const readout = readoutFor(item);
           return (
-          <section class="entry-card">
-            <div class="entry-meta">
-              <span>{readout.label}</span>
-              <span class:list={['decision', item.decision]}>{readout.status}</span>
-            </div>
-            <h2>{readout.headline}</h2>
-            <p class="readout-body">{readout.body}</p>
-            <details class="technical-details">
-              <summary>Technical record</summary>
-              <dl>
-                <div><dt>Ticker</dt><dd>{item.ticker ?? 'Not applicable'}</dd></div>
-                <div><dt>Event</dt><dd>{item.kind === 'paper_order' ? 'order' : item.kind.replaceAll('_', ' ')}</dd></div>
-                {item.selectionContext?.sector && <div><dt>Sector</dt><dd>{item.selectionContext.sector}</dd></div>}
-                {item.selectionContext?.streak_length !== undefined && <div><dt>Streak</dt><dd>{item.selectionContext.streak_direction} · {item.selectionContext.streak_length} sessions · signed {item.selectionContext.signed_streak}</dd></div>}
-                {item.selectionContext?.relative_return !== undefined && <div><dt>Formation</dt><dd>{(Number(item.selectionContext.relative_return) * 100).toFixed(2)}% versus SPY · robust Z {Number(item.selectionContext.robust_z).toFixed(2)}</dd></div>}
-                {item.dataTier && <div><dt>Data tier</dt><dd>{item.dataTier}</dd></div>}
-                {item.signalId && <div><dt>Signal ID</dt><dd><code>{item.signalId}</code></dd></div>}
-                {item.clientOrderId && <div><dt>Client order</dt><dd><code>{item.clientOrderId}</code></dd></div>}
-                {item.riskSnapshot?.options_trading_level !== undefined && <div><dt>Account gate</dt><dd>Options Level {item.riskSnapshot.options_trading_level} · {item.riskSnapshot.trading_blocked ? 'blocked' : 'available'}</dd></div>}
-                <div><dt>Reason</dt><dd>{item.reason}</dd></div>
-              </dl>
-              {item.contractIds.length > 0 && <div class="contract-list"><h3>Contract IDs</h3>{item.contractIds.map((contractId) => <p><code>{contractId}</code></p>)}</div>}
-            </details>
-          </section>
+            <article class="entry-card">
+              <div class="entry-meta">
+                <span>{readout.label}</span>
+                <span class:list={['action-pill', readout.status.includes('exit') ? 'exit' : '']}>{readout.status}</span>
+              </div>
+              <h2>{readout.headline}</h2>
+              <p class="readout-body">{readout.body}</p>
+            </article>
           );
         })}
       </div>
     )}
-    <p class="journal-footnote">These entries describe decisions and proposed orders; they do not confirm that an order was filled.</p>
   </article>
 </Shell>

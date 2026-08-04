@@ -1,7 +1,9 @@
 import { defineConfig } from 'astro/config';
+import cloudflare from '@astrojs/cloudflare';
 
 export default defineConfig({
-  site: 'https://thedatadavis.github.io',
-  base: '/extrapcap',
-  output: 'static',
+  output: 'server',
+  adapter: cloudflare({
+    imageService: 'passthrough',
+  }),
 });

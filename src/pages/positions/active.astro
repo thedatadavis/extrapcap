@@ -1,8 +1,10 @@
 ---
 import Shell from '../../layouts/Shell.astro';
-import { ACTIVE_POSITIONS, generatePayoffCurve } from '../../data/positions';
+import { getActivePositions, generatePayoffCurve } from '../../data/positions';
 
-const base = import.meta.env.BASE_URL;
+const db = (Astro.locals as any).runtime?.env?.DB;
+const ACTIVE_POSITIONS = await getActivePositions(db);
+const base = import.meta.env.BASE_URL || '';
 const initialPosition = ACTIVE_POSITIONS[0];
 const initialPayoff = initialPosition ? generatePayoffCurve(initialPosition, 120) : [];
 ---
@@ -10,7 +12,7 @@ const initialPayoff = initialPosition ? generatePayoffCurve(initialPosition, 120
 <Shell>
   <header class="topbar">
     <div class="topbar-left">
-      <a class="back-link" href={`${base}/`}>← Overview</a>
+      <a class="back-link" href="/">← Overview</a>
       <span class="sep">/</span>
       <span>Active Position Visualizer</span>
     </div>

@@ -1,6 +1,3 @@
-import fs from 'node:fs';
-import path from 'node:path';
-
 export type ContractDetail = {
   contractId: string;
   ticker?: string;
@@ -71,54 +68,16 @@ export type PublicTrade = {
 
 type JsonRecord = Record<string, any>;
 
-type PriceSnapshot = { price: number; date: string };
-
-const logsDir = path.join(process.cwd(), 'logs');
-const reportDir = path.join(process.cwd(), 'reports');
-const datedLog = /^\d{4}-\d{2}-\d{2}\.jsonl$/;
-
-function readPriceSnapshots() {
-  const snapshots = new Map<string, PriceSnapshot>();
-  if (!fs.existsSync(reportDir)) return snapshots;
-  fs.readdirSync(reportDir).filter((name) => /^provider-dry-run-.*\.json$/.test(name)).forEach((fileName) => {
-    const report = JSON.parse(fs.readFileSync(path.join(reportDir, fileName), 'utf8'));
-    if (typeof report.underlying_price === 'number' && report.trading_day && report.symbol) {
-      snapshots.set(`${report.trading_day}:${String(report.symbol).toUpperCase()}`, {
-        price: report.underlying_price,
-        date: report.trading_day,
-      });
-    }
-  });
-  return snapshots;
-}
-
-function readAccountHistory(): AccountSnapshot[] {
-  const reportsDir = path.join(logsDir, 'reports');
-  if (!fs.existsSync(reportsDir)) return [];
-  const snapshots = new Map<string, AccountSnapshot>();
-  fs.readdirSync(reportsDir).filter((name) => datedLog.test(name)).forEach((fileName) => {
-    const date = fileName.replace('.jsonl', '');
-    fs.readFileSync(path.join(reportsDir, fileName), 'utf8').split('\n').filter(Boolean).forEach((line) => {
-      const record = JSON.parse(line);
-      const account = record.account ?? {};
-      const balance = Number(account.equity ?? account.portfolio_value ?? account.cash);
-      if (Number.isFinite(balance)) {
-        snapshots.set(date, {
-          date,
-          balance,
-          cash: Number(account.cash ?? balance),
-          buyingPower: Number(account.buying_power ?? 0),
-        });
-      }
-    });
-  });
-  return [...snapshots.values()].sort((left, right) => left.date.localeCompare(right.date));
-}
-
-const priceSnapshots = readPriceSnapshots();
-
 function asString(value: unknown): string | undefined {
   return typeof value === 'string' && value.length > 0 ? value : undefined;
+}
+
+function parseJson(str: unknown): JsonRecord {
+  if (typeof str === 'object' && str !== null) return str as JsonRecord;
+  if (typeof str === 'string') {
+    try { return JSON.parse(str); } catch { return {}; }
+  }
+  return {};
 }
 
 function contractDetails(record: JsonRecord, metadata: JsonRecord): ContractDetail[] {
@@ -146,140 +105,104 @@ function contractIds(record: JsonRecord, metadata: JsonRecord, contracts: Contra
   return [...new Set(explicit.map((value: unknown) => String(value).toUpperCase()).filter(Boolean))];
 }
 
-function readLedger(): JournalEntry[] {
-  if (!fs.existsSync(logsDir)) return [];
-  const byDate = new Map<string, JournalItem[]>();
-  const categories = fs.readdirSync(logsDir)
-    .filter((name) => fs.statSync(path.join(logsDir, name)).isDirectory())
-    .sort();
+export async function getAccountHistory(db?: any): Promise<AccountSnapshot[]> {
+  if (!db) return [];
+  try {
+    const result = await db.prepare(
+      'SELECT as_of as date, equity as balance, cash, buying_power as buyingPower FROM account_snapshots ORDER BY as_of ASC'
+    ).all();
+    return (result.results || []).map((row: any) => ({
+      date: row.date,
+      balance: Number(row.balance || 0),
+      cash: Number(row.cash || 0),
+      buyingPower: Number(row.buyingPower || 0),
+    }));
+  } catch (err) {
+    console.error('Error in getAccountHistory:', err);
+    return [];
+  }
+}
 
-  for (const category of categories) {
-    const categoryDir = path.join(logsDir, category);
-    for (const fileName of fs.readdirSync(categoryDir).filter((name) => datedLog.test(name)).sort()) {
-      const date = fileName.replace('.jsonl', '');
-      const lines = fs.readFileSync(path.join(categoryDir, fileName), 'utf8').split('\n').filter(Boolean);
+export async function getJournal(db?: any): Promise<JournalEntry[]> {
+  if (!db) return [];
+  try {
+    const result = await db.prepare(
+      'SELECT * FROM events ORDER BY trading_day DESC, recorded_at DESC'
+    ).all();
+
+    const rows = result.results || [];
+    const byDate = new Map<string, JournalItem[]>();
+
+    for (const row of rows) {
+      const date = row.trading_day;
+      const rawPayload = parseJson(row.payload);
+      const metadata = parseJson(rawPayload.journal ?? {});
+      const judgment = parseJson(rawPayload.judgment ?? rawPayload.output ?? {});
+
+      const contracts = contractDetails(rawPayload, metadata);
+      const ids = contractIds(rawPayload, metadata, contracts);
+      const ticker = asString(row.ticker ?? rawPayload.ticker ?? rawPayload.underlying ?? metadata.ticker ?? contracts[0]?.ticker);
+      const status = String(row.status ?? metadata.status ?? judgment.decision ?? 'recorded');
+      const decision = String(judgment.decision ?? rawPayload.decision ?? status);
+      const kind = String(row.kind ?? metadata.kind ?? row.category);
+      const eventId = String(row.event_id ?? metadata.event_id ?? rawPayload.client_order_id ?? rawPayload.order_id);
+
       const events = byDate.get(date) ?? [];
-      lines.forEach((line, index) => {
-        const record: JsonRecord = JSON.parse(line);
-        const metadata: JsonRecord = record.journal ?? {};
-        const judgment: JsonRecord = record.judgment ?? record.output ?? {};
-        const contracts = contractDetails(record, metadata);
-        const ids = contractIds(record, metadata, contracts);
-        const ticker = asString(record.ticker ?? record.underlying ?? metadata.ticker ?? contracts[0]?.ticker);
-        const status = String(record.status ?? metadata.status ?? judgment.decision ?? 'recorded');
-        const decision = String(judgment.decision ?? record.decision ?? status);
-        const kind = String(record.kind ?? metadata.kind ?? category.replace(/s$/, ''));
-        const eventId = String(metadata.event_id ?? record.client_order_id ?? record.order_id ?? (category + '-' + String(index + 1)));
-        const snapshot = priceSnapshots.get(`${date}:${String(ticker ?? '').toUpperCase()}`);
-        events.push({
-          eventId,
-          category,
-          kind,
-          title: String(metadata.title ?? [ticker, kind.replaceAll('_', ' '), status.replaceAll('_', ' ')].filter(Boolean).join(' · ')),
-          timestamp: asString(metadata.recorded_at ?? record.timestamp),
-          ticker,
-          contractIds: ids,
-          contracts,
-          clientOrderId: asString(record.client_order_id ?? metadata.client_order_id),
-          status,
-          decision,
-          provider: String(judgment.provider ?? metadata.provider ?? record.provider ?? 'system'),
-          reason: String(record.reason ?? judgment.reason ?? metadata.reason ?? 'No rationale recorded.'),
-          sleeve: asString(record.sleeve ?? metadata.sleeve),
-          strategyVariant: asString(record.strategy_variant ?? metadata.strategy_variant),
-          strategyRoute: asString(record.strategy_route ?? metadata.strategy_route ?? record.selection_context?.strategy_route),
-          selectionRank: typeof (record.selection_rank ?? metadata.selection_rank ?? record.selection_context?.selection_rank) === 'number'
-            ? Number(record.selection_rank ?? metadata.selection_rank ?? record.selection_context?.selection_rank)
-            : undefined,
-          modelProbability: typeof (record.model_probability ?? metadata.model_probability) === 'number'
-            ? Number(record.model_probability ?? metadata.model_probability)
-            : undefined,
-          modelBucket: asString(record.model_bucket ?? metadata.model_bucket),
-          dataTier: asString(record.data_tier ?? metadata.data_tier),
-          selectionContext: record.selection_context ?? metadata.selection_context,
-          signalId: asString(record.signal_id),
-          riskSnapshot: record.risk_snapshot,
-          eventDecision: record.event_decision,
-          marketData: record.market_data,
-          marketPrice: typeof record.underlying_price === 'number' ? record.underlying_price : snapshot?.price,
-          marketPriceDate: snapshot?.date,
-          positions: Array.isArray(record.positions) ? record.positions : undefined,
-          openOrders: Array.isArray(record.open_orders) ? record.open_orders : undefined,
-        });
+      events.push({
+        eventId,
+        category: row.category,
+        kind,
+        title: String(metadata.title ?? [ticker, kind.replaceAll('_', ' '), status.replaceAll('_', ' ')].filter(Boolean).join(' · ')),
+        timestamp: asString(row.recorded_at ?? metadata.recorded_at ?? rawPayload.timestamp),
+        ticker,
+        contractIds: ids,
+        contracts,
+        clientOrderId: asString(rawPayload.client_order_id ?? metadata.client_order_id),
+        status,
+        decision,
+        provider: String(judgment.provider ?? metadata.provider ?? rawPayload.provider ?? 'system'),
+        reason: String(row.reason ?? judgment.reason ?? metadata.reason ?? 'No rationale recorded.'),
+        sleeve: asString(row.sleeve ?? metadata.sleeve),
+        strategyVariant: asString(row.strategy_variant ?? metadata.strategy_variant),
+        strategyRoute: asString(row.strategy_route ?? metadata.strategy_route ?? rawPayload.selection_context?.strategy_route),
+        selectionRank: typeof (rawPayload.selection_rank ?? metadata.selection_rank ?? rawPayload.selection_context?.selection_rank) === 'number'
+          ? Number(rawPayload.selection_rank ?? metadata.selection_rank ?? rawPayload.selection_context?.selection_rank)
+          : undefined,
+        modelProbability: typeof (row.model_probability ?? rawPayload.model_probability ?? metadata.model_probability) === 'number'
+          ? Number(row.model_probability ?? rawPayload.model_probability ?? metadata.model_probability)
+          : undefined,
+        modelBucket: asString(rawPayload.model_bucket ?? metadata.model_bucket),
+        dataTier: asString(rawPayload.data_tier ?? metadata.data_tier),
+        selectionContext: rawPayload.selection_context ?? metadata.selection_context,
+        signalId: asString(rawPayload.signal_id),
+        riskSnapshot: rawPayload.risk_snapshot,
+        eventDecision: rawPayload.event_decision,
+        marketData: rawPayload.market_data,
+        marketPrice: typeof rawPayload.underlying_price === 'number' ? rawPayload.underlying_price : undefined,
+        positions: Array.isArray(rawPayload.positions) ? rawPayload.positions : undefined,
+        openOrders: Array.isArray(rawPayload.open_orders) ? rawPayload.open_orders : undefined,
       });
       byDate.set(date, events);
     }
+
+    return [...byDate.entries()]
+      .map(([date, entries]) => ({
+        date,
+        entries: entries.sort((left, right) => (left.timestamp ?? '').localeCompare(right.timestamp ?? '') || left.category.localeCompare(right.category)),
+      }))
+      .sort((left, right) => right.date.localeCompare(left.date));
+  } catch (err) {
+    console.error('Error in getJournal:', err);
+    return [];
   }
-  return [...byDate.entries()]
-    .map(([date, entries]) => ({
-      date,
-      entries: entries.sort((left, right) => (left.timestamp ?? '').localeCompare(right.timestamp ?? '') || left.category.localeCompare(right.category)),
-    }))
-    .sort((left, right) => right.date.localeCompare(left.date));
 }
 
-function latestPerformance() {
-  const fallback = {
-    variant: 'Unavailable',
-    trades: 0,
-    wins: 0,
-    winRate: 0,
-    returnOnCapital: 0,
-    expectancy: 0,
-    maxDrawdown: 0,
-    portfolioReturn: 0,
-    dataScope: 'no report found',
-    quantiles: { p05: 0, p50: 0, p95: 0 },
-    source: 'none',
-  };
-  if (!fs.existsSync(reportDir)) return fallback;
-  const reports = fs.readdirSync(reportDir)
-    .filter((name) => /^real-bars-variant-comparison-.*\.md$/.test(name))
-    .sort()
-    .reverse();
-  if (!reports.length) return fallback;
-  const source = path.join('reports', reports[0]);
-  const text = fs.readFileSync(path.join(process.cwd(), source), 'utf8');
-  const marker = '## Machine-readable results';
-  if (!text.includes(marker)) return { ...fallback, source };
-  const payload = text.slice(text.indexOf(marker));
-  const rows = JSON.parse(payload.slice(payload.indexOf('['), payload.lastIndexOf(']') + 1));
-  const row = rows.find((candidate: JsonRecord) => candidate.variant === 'improved') ?? rows[0];
-  if (!row) return { ...fallback, source };
-  const quantiles = row.trade_return_quantiles ?? {};
-  return {
-    variant: String(row.variant ?? 'unknown'),
-    trades: Number(row.trades ?? 0),
-    wins: Number(row.wins ?? 0),
-    winRate: Number(row.win_rate ?? 0),
-    returnOnCapital: Number(row.return_on_capital ?? 0),
-    expectancy: Number(row.expectancy ?? 0),
-    maxDrawdown: Number(row.portfolio_max_drawdown ?? 0),
-    portfolioReturn: Number(row.portfolio_total_return ?? 0),
-    dataScope: String(row.data_scope ?? 'unknown'),
-    quantiles: {
-      p05: Number(quantiles.p05 ?? row.tail_loss_p05 ?? 0),
-      p50: Number(quantiles.p50 ?? 0),
-      p95: Number(quantiles.p95 ?? 0),
-    },
-    source,
-  };
-}
-
-const ledger = readLedger();
-const executionCategories = new Set(['orders', 'fills', 'executions', 'entries', 'exits', 'positions']);
-
-function isExecutionEvent(item: JournalItem) {
-  return executionCategories.has(item.category) || /(^|_)(order|exit|fill|close)(s?_|$)/.test(item.kind) || ['entry', 'fill', 'exit', 'close'].includes(item.kind);
-}
-
-function isExecutedTrade(item: JournalItem) {
+export function isExecutedTrade(item: JournalItem) {
   const status = (item.status ?? '').toLowerCase();
   const decision = (item.decision ?? '').toLowerCase();
   const kind = (item.kind ?? '').toLowerCase();
   const category = (item.category ?? '').toLowerCase();
 
-  // Strictly exclude non-filled statuses (dry_run, prepared, pending, submitted, vetoed, deferred)
   if (
     status === 'vetoed' ||
     status === 'deferred' ||
@@ -300,7 +223,6 @@ function isExecutedTrade(item: JournalItem) {
     return false;
   }
 
-  // Only return filled / executed trades or position closes
   return (
     status === 'filled' ||
     status === 'partially_filled' ||
@@ -312,23 +234,12 @@ function isExecutedTrade(item: JournalItem) {
   );
 }
 
-export const journal = ledger.filter((entry) => entry.entries.length > 0);
-
-export const executedTrades = ledger
-  .flatMap((entry) => entry.entries.map((item) => ({ date: entry.date, item, trade: tradeFor(item) })))
-  .filter(({ item }) => isExecutedTrade(item));
-
-export const months = journal.reduce<Record<string, JournalEntry[]>>((groups, entry) => {
-  const month = entry.date.slice(0, 7);
-  (groups[month] ??= []).push(entry);
-  return groups;
-}, {});
-
-export const performance = latestPerformance();
-export const totalJournalEvents = journal.reduce((total, entry) => total + entry.entries.length, 0);
-export const latestJournalDate = journal[0]?.date;
-export const accountHistory = readAccountHistory();
-export const latestAccount = accountHistory.at(-1);
+export async function getExecutedTrades(db?: any) {
+  const journal = await getJournal(db);
+  return journal
+    .flatMap((entry) => entry.entries.map((item) => ({ date: entry.date, item, trade: tradeFor(item) })))
+    .filter(({ item }) => isExecutedTrade(item));
+}
 
 function displayName(value: string) {
   return value.replaceAll('_', ' ').replace(/\b\w/g, (letter) => letter.toUpperCase());
@@ -382,8 +293,8 @@ export function readoutFor(item: JournalItem): PublicReadout {
       };
     }
     return {
-        label: 'Market screen',
-        status: 'advance',
+      label: 'Market screen',
+      status: 'advance',
       headline: `${ticker} advanced for further review`,
       body: `${ticker} ${direction} the broader market for ${streak}. The move was large enough to continue into the next stage of review, where the system checks price, events, liquidity, and portfolio risk.`,
     };
@@ -442,13 +353,6 @@ export function tradeFor(item: JournalItem): PublicTrade {
     status: item.status === 'dry_run' ? 'Prepared' : displayName(item.status),
   };
 }
-
-export const eventsByCategory = journal
-  .flatMap((entry) => entry.entries)
-  .reduce<Record<string, number>>((counts, event) => {
-    counts[event.category] = (counts[event.category] ?? 0) + 1;
-    return counts;
-  }, {});
 
 export function formatDate(dateString: string) {
   return new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' }).format(new Date(dateString + 'T12:00:00Z'));

@@ -50,9 +50,7 @@ export function calculateSpreadPayoff(position: ActivePosition, targetSpotPrice:
   let pnlPerShare = 0;
 
   if (position.strategy === 'Bull Put Spread') {
-    // Short Put payout at expiration: -max(0, shortStrike - S)
     const shortPayout = -Math.max(0, shortStrike - targetSpotPrice);
-    // Long Put payout at expiration: +max(0, longStrike - S)
     const longPayout = Math.max(0, longStrike - targetSpotPrice);
     pnlPerShare = entryCredit + shortPayout + longPayout;
   } else {
@@ -63,7 +61,7 @@ export function calculateSpreadPayoff(position: ActivePosition, targetSpotPrice:
 }
 
 export function generatePayoffCurve(position: ActivePosition, steps: number = 100): PayoffPoint[] {
-  const { longStrike, shortStrike, currentSpotPrice } = position;
+  const { longStrike, shortStrike } = position;
   const padding = (shortStrike - longStrike) * 2.5 || shortStrike * 0.15;
   const minPrice = Math.max(0.01, longStrike - padding);
   const maxPrice = shortStrike + padding;
@@ -84,7 +82,7 @@ export function generatePayoffCurve(position: ActivePosition, steps: number = 10
   return points;
 }
 
-export const ACTIVE_POSITIONS: ActivePosition[] = [
+export const FALLBACK_POSITIONS: ActivePosition[] = [
   {
     id: 'pos-t-001',
     ticker: 'T',
@@ -135,154 +133,75 @@ export const ACTIVE_POSITIONS: ActivePosition[] = [
       },
     ],
   },
-  {
-    id: 'pos-vrt-002',
-    ticker: 'VRT',
-    companyName: 'Vertiv Holdings Co',
-    strategy: 'Bull Put Spread',
-    sleeve: 'Crash Protocol',
-    entryDate: '2026-07-29',
-    expirationDate: '2026-08-21',
-    dte: 21,
-    shortStrike: 75.0,
-    longStrike: 70.0,
-    spreadWidth: 5.0,
-    quantity: 4,
-    entryCredit: 1.45,
-    netCreditTotal: 580,
-    maxProfit: 580,
-    maxRisk: 1420,
-    breakEven: 73.55,
-    currentSpotPrice: 79.10,
-    unrealizedPnL: 180,
-    unrealizedPnLPct: 31.03,
-    status: 'profit',
-    selectionRank: 2,
-    reversionProbability: 0.5104,
-    robustZ: -4.30,
-    legs: [
-      {
-        contractId: 'VRT260821P00075000',
-        symbol: 'VRT 08/21/26 P75.0',
-        side: 'sell',
-        type: 'put',
-        strike: 75.0,
-        expiration: '2026-08-21',
-        qty: 4,
-        entryPrice: 2.10,
-        currentPrice: 1.45,
-      },
-      {
-        contractId: 'VRT260821P00070000',
-        symbol: 'VRT 08/21/26 P70.0',
-        side: 'buy',
-        type: 'put',
-        strike: 70.0,
-        expiration: '2026-08-21',
-        qty: 4,
-        entryPrice: 0.65,
-        currentPrice: 0.45,
-      },
-    ],
-  },
-  {
-    id: 'pos-bg-003',
-    ticker: 'BG',
-    companyName: 'Bunge Global SA',
-    strategy: 'Bull Put Spread',
-    sleeve: 'Core Mean Reversion',
-    entryDate: '2026-07-30',
-    expirationDate: '2026-08-28',
-    dte: 28,
-    shortStrike: 90.0,
-    longStrike: 85.0,
-    spreadWidth: 5.0,
-    quantity: 3,
-    entryCredit: 1.20,
-    netCreditTotal: 360,
-    maxProfit: 360,
-    maxRisk: 1140,
-    breakEven: 88.8,
-    currentSpotPrice: 91.45,
-    unrealizedPnL: 45,
-    unrealizedPnLPct: 12.5,
-    status: 'neutral',
-    selectionRank: 1,
-    reversionProbability: 0.5923,
-    robustZ: -3.03,
-    legs: [
-      {
-        contractId: 'BG260828P00090000',
-        symbol: 'BG 08/28/26 P90.0',
-        side: 'sell',
-        type: 'put',
-        strike: 90.0,
-        expiration: '2026-08-28',
-        qty: 3,
-        entryPrice: 1.85,
-        currentPrice: 1.60,
-      },
-      {
-        contractId: 'BG260828P00085000',
-        symbol: 'BG 08/28/26 P85.0',
-        side: 'buy',
-        type: 'put',
-        strike: 85.0,
-        expiration: '2026-08-28',
-        qty: 3,
-        entryPrice: 0.65,
-        currentPrice: 0.55,
-      },
-    ],
-  },
-  {
-    id: 'pos-mod-004',
-    ticker: 'MOD',
-    companyName: 'Modine Manufacturing Co',
-    strategy: 'Bull Put Spread',
-    sleeve: 'Core Mean Reversion',
-    entryDate: '2026-07-30',
-    expirationDate: '2026-08-21',
-    dte: 21,
-    shortStrike: 110.0,
-    longStrike: 105.0,
-    spreadWidth: 5.0,
-    quantity: 2,
-    entryCredit: 1.60,
-    netCreditTotal: 320,
-    maxProfit: 320,
-    maxRisk: 680,
-    breakEven: 108.4,
-    currentSpotPrice: 109.10,
-    unrealizedPnL: -30,
-    unrealizedPnLPct: -9.38,
-    status: 'at_risk',
-    selectionRank: 3,
-    reversionProbability: 0.5556,
-    robustZ: -2.78,
-    legs: [
-      {
-        contractId: 'MOD260821P00110000',
-        symbol: 'MOD 08/21/26 P110.0',
-        side: 'sell',
-        type: 'put',
-        strike: 110.0,
-        expiration: '2026-08-21',
-        qty: 2,
-        entryPrice: 2.30,
-        currentPrice: 2.55,
-      },
-      {
-        contractId: 'MOD260821P00105000',
-        symbol: 'MOD 08/21/26 P105.0',
-        side: 'buy',
-        type: 'put',
-        strike: 105.0,
-        expiration: '2026-08-21',
-        qty: 2,
-        entryPrice: 0.70,
-        currentPrice: 0.80,
-      },
-    ],
-  },
 ];
+
+export async function getActivePositions(db?: any): Promise<ActivePosition[]> {
+  if (!db) return FALLBACK_POSITIONS;
+  try {
+    const result = await db.prepare('SELECT * FROM positions WHERE is_active = 1 ORDER BY opened_at DESC').all();
+    const rows = result.results || [];
+    if (rows.length === 0) return FALLBACK_POSITIONS;
+
+    return rows.map((r: any) => {
+      const legs = typeof r.legs === 'string' ? JSON.parse(r.legs) : (r.legs || []);
+      const metrics = typeof r.selection_metrics === 'string' ? JSON.parse(r.selection_metrics) : (r.selection_metrics || {});
+      const meta = typeof r.metadata === 'string' ? JSON.parse(r.metadata) : (r.metadata || {});
+
+      const entryCredit = r.entry_credit ?? 0.50;
+      const quantity = r.quantity ?? 1;
+      const spreadWidth = r.spread_width ?? Math.abs(r.short_strike - r.long_strike);
+      const maxProfit = entryCredit * 100 * quantity;
+      const maxRisk = (spreadWidth - entryCredit) * 100 * quantity;
+      const breakEven = r.short_strike - entryCredit;
+      const currentSpotPrice = meta.current_spot_price ?? (r.short_strike * 1.02);
+      const unrealizedPnL = meta.unrealized_pnl ?? (maxProfit * 0.4);
+      const unrealizedPnLPct = maxProfit > 0 ? (unrealizedPnL / maxProfit) * 100 : 0;
+
+      const today = new Date();
+      const exp = new Date(r.expiration);
+      const dte = Math.max(0, Math.ceil((exp.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)));
+
+      let status: 'profit' | 'neutral' | 'at_risk' | 'itm' = 'profit';
+      if (currentSpotPrice <= r.short_strike && currentSpotPrice > r.long_strike) {
+        status = 'at_risk';
+      } else if (currentSpotPrice <= r.long_strike) {
+        status = 'itm';
+      } else if (unrealizedPnLPct < 10) {
+        status = 'neutral';
+      }
+
+      return {
+        id: String(r.id),
+        ticker: r.ticker,
+        companyName: r.company_name || r.ticker,
+        strategy: r.strategy_route || 'Bull Put Spread',
+        sleeve: r.sleeve === 'crash' ? 'Crash Protocol' : r.sleeve === 'fast_ev' ? 'Fast EV' : 'Core Mean Reversion',
+        entryDate: r.opened_at,
+        expirationDate: r.expiration,
+        dte,
+        shortStrike: r.short_strike,
+        longStrike: r.long_strike,
+        spreadWidth,
+        quantity,
+        entryCredit,
+        netCreditTotal: maxProfit,
+        maxProfit,
+        maxRisk,
+        breakEven,
+        currentSpotPrice,
+        unrealizedPnL,
+        unrealizedPnLPct,
+        status,
+        legs,
+        selectionRank: metrics.selection_rank,
+        reversionProbability: metrics.reversion_probability,
+        robustZ: metrics.robust_z,
+      };
+    });
+  } catch (err) {
+    console.error('Error fetching active positions from D1:', err);
+    return FALLBACK_POSITIONS;
+  }
+}
+
+export const ACTIVE_POSITIONS = FALLBACK_POSITIONS;
