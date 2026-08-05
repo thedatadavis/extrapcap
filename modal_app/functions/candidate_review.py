@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 import modal
 from modal_app.app import app, image, secrets
 from modal_app.cf_client import CloudflareAPIClient
+from modal_app.notifier import format_candidate_orders_text, format_error_alert_text, send_resend_email
 
 
 @app.function(
@@ -31,14 +32,26 @@ def candidate_review(execution_mode: str = "paper-submit"):
         events = results.get("events", [])
         cf.append_events(events)
 
-        orders_submitted = [e for e in events if e.get("journal", {}).get("kind") == "paper_order"]
+        orders_submitted = [e for e in events if e.get("journal", {}).get("kind") in ("paper_order", "order_submit")]
         cf.complete_run(
             run_id,
             summary={"evaluated": len(events), "orders_submitted": len(orders_submitted)},
             start_time=start_time,
         )
+
+        # Smart filtering: send email ONLY if paper orders were submitted
+        if orders_submitted:
+            send_resend_email(
+                subject=f"[Extrapcap] 🎯 {len(orders_submitted)} Paper Order(s) Submitted · {today_str}",
+                text=format_candidate_orders_text(today_str, orders_submitted),
+            )
+
         return {"status": "success", "evaluated": len(events), "submitted": len(orders_submitted)}
 
     except Exception as e:
         cf.fail_run(run_id, error=str(e), start_time=start_time)
+        send_resend_email(
+            subject="[Extrapcap] ⚠️ Candidate Review Failure Alert",
+            text=format_error_alert_text("candidate_review", str(e)),
+        )
         raise

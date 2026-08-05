@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 import modal
 from modal_app.app import app, image, secrets
 from modal_app.cf_client import CloudflareAPIClient
+from modal_app.notifier import format_error_alert_text, format_position_exits_text, send_resend_email
 
 
 @app.function(
@@ -38,6 +39,7 @@ def position_management():
         # Report events and closed positions to Cloudflare D1
         closed_count = 0
         events_to_post = []
+        exit_events = []
 
         for record in records:
             events_to_post.append(record)
@@ -47,11 +49,24 @@ def position_management():
                 if pos_id:
                     cf.close_position(pos_id, reason)
                 closed_count += 1
+                exit_events.append(record)
 
         cf.append_events(events_to_post)
         cf.complete_run(run_id, summary={"evaluated": len(records), "exits_triggered": closed_count}, start_time=start_time)
+
+        # Smart filtering: send email ONLY if positions were closed
+        if closed_count > 0:
+            send_resend_email(
+                subject=f"[Extrapcap] 🛑 {closed_count} Position Exit(s) Executed · {today_str}",
+                text=format_position_exits_text(today_str, exit_events),
+            )
+
         return {"status": "success", "evaluated": len(records), "closed": closed_count}
 
     except Exception as e:
         cf.fail_run(run_id, error=str(e), start_time=start_time)
+        send_resend_email(
+            subject="[Extrapcap] ⚠️ Position Management Failure Alert",
+            text=format_error_alert_text("position_management", str(e)),
+        )
         raise

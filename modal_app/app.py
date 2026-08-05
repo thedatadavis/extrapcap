@@ -25,6 +25,7 @@ secrets = [
     modal.Secret.from_name("alpaca-paper"),   # ALPACA_API_KEY, ALPACA_SECRET_KEY
     modal.Secret.from_name("nebius"),          # NEBIUS_API_KEY
     modal.Secret.from_name("cloudflare-api"),  # CF_APP_URL, CF_API_TOKEN
+    modal.Secret.from_name("resend"),          # RESEND_API_KEY, RECIPIENT_EMAIL, SENDER_EMAIL
 ]
 
 # Register functions

@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 import modal
 from modal_app.app import app, image, secrets
 from modal_app.cf_client import CloudflareAPIClient
+from modal_app.notifier import format_daily_report_text, format_error_alert_text, send_resend_email
 
 
 @app.function(
@@ -38,8 +39,28 @@ def daily_report():
 
         cf.append_events([event])
         cf.complete_run(run_id, summary={"report_date": today_str}, start_time=start_time)
+
+        # Send daily executive report email
+        summary_info = {
+            "evaluated": report.get("evaluated_count", 0),
+            "passed_gate": report.get("passed_gate_count", 0),
+            "passed_prob": report.get("passed_prob_count", 0),
+            "submitted": report.get("submitted_count", 0),
+            "filled": report.get("filled_count", 0),
+            "wsj_summary": report.get("portfolio_note", {}).get("wsj_summary") or report.get("summary", "No market commentary recorded."),
+        }
+
+        send_resend_email(
+            subject=f"[Extrapcap] Daily Executive Report · {today_str}",
+            text=format_daily_report_text(today_str, summary_info, []),
+        )
+
         return {"status": "success", "report_date": today_str}
 
     except Exception as e:
         cf.fail_run(run_id, error=str(e), start_time=start_time)
+        send_resend_email(
+            subject="[Extrapcap] ⚠️ Daily Report Failure Alert",
+            text=format_error_alert_text("daily_report", str(e)),
+        )
         raise

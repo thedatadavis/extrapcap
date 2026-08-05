@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 import modal
 from modal_app.app import app, image, secrets
 from modal_app.cf_client import CloudflareAPIClient
+from modal_app.notifier import format_error_alert_text, format_reconciliation_text, send_resend_email
 
 
 @app.function(
@@ -36,8 +37,19 @@ def reconciliation():
 
         cf.record_account(snapshot)
         cf.complete_run(run_id, summary={"equity": snapshot["equity"], "cash": snapshot["cash"]}, start_time=start_time)
+
+        # Send daily reconciliation snapshot email
+        send_resend_email(
+            subject=f"[Extrapcap] Reconciliation Report · {today_str} (${snapshot['equity']:,.0f})",
+            text=format_reconciliation_text(snapshot),
+        )
+
         return {"status": "success", "snapshot": snapshot}
 
     except Exception as e:
         cf.fail_run(run_id, error=str(e), start_time=start_time)
+        send_resend_email(
+            subject="[Extrapcap] ⚠️ Reconciliation Workflow Failure",
+            text=format_error_alert_text("reconciliation", str(e)),
+        )
         raise
