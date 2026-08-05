@@ -24,7 +24,7 @@ def position_management():
         from extrapcap.execution.position_manager import manage_live_positions
 
         key, secret = require_paper_credentials()
-        paper_client = AlpacaPaperClient(key, secret)
+        paper_client = AlpacaPaperClient.from_env()
         options_client = AlpacaOptionsData(key, secret)
 
         # Execute position manager loop

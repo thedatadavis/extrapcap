@@ -18,11 +18,9 @@ def reconciliation():
     run_id = cf.register_run("reconciliation")
 
     try:
-        from extrapcap.secrets import require_paper_credentials
         from extrapcap.execution.alpaca import AlpacaPaperClient
 
-        key, secret = require_paper_credentials()
-        client = AlpacaPaperClient(key, secret)
+        client = AlpacaPaperClient.from_env()
         account = client.account()
 
         today_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")

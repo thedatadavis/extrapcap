@@ -8,7 +8,7 @@ from modal_app.cf_client import CloudflareAPIClient
 @app.function(
     image=image,
     secrets=secrets,
-    schedule=modal.Cron("45 13,15 16,0 19 * * 1-5"),
+    schedule=modal.Cron("45 13,15,19 * * 1-5"),
     timeout=600,
 )
 def candidate_review(execution_mode: str = "paper-submit"):

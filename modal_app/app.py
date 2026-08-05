@@ -2,7 +2,7 @@ import modal
 
 app = modal.App("extrapcap")
 
-# Modal container image with extrapcap installed
+# Modal container image with extrapcap and modal_app installed
 image = (
     modal.Image.debian_slim(python_version="3.12")
     .pip_install(
@@ -13,9 +13,11 @@ image = (
         "requests>=2.31.0",
         "pytz>=2024.1",
     )
-    .add_local_dir("src/extrapcap", remote_path="/root/src/extrapcap")
-    .add_local_file("pyproject.toml", remote_path="/root/pyproject.toml")
-    .run_commands("pip install -e /root")
+    .add_local_dir("src/extrapcap", remote_path="/root/src/extrapcap", copy=True)
+    .add_local_dir("modal_app", remote_path="/root/modal_app", copy=True)
+    .add_local_file("pyproject.toml", remote_path="/root/pyproject.toml", copy=True)
+    .run_commands("pip install -e /root", "pip install -e /root/modal_app || true")
+    .env({"PYTHONPATH": "/root:/root/src"})
 )
 
 # Secrets required across Modal functions
