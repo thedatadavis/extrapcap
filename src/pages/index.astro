@@ -73,10 +73,6 @@ const formattedAsOf = new Date(asOfTime).toLocaleString('en-US', {
       </div>
       <div class="cron-sync-actions">
         <span class="auto-sync-label" id="as-of-label">As of {formattedAsOf}</span>
-        <button id="sync-now-btn" class="sync-btn" type="button" aria-label="Refresh page data">
-          <span class="sync-icon">🔄</span>
-          <span class="sync-btn-text">Refresh</span>
-        </button>
       </div>
     </div>
     <div class="cron-sync-meta-grid">
@@ -208,12 +204,5 @@ const formattedAsOf = new Date(asOfTime).toLocaleString('en-US', {
     canvas?.addEventListener('pointerdown', selectPoint);
     new ResizeObserver(draw).observe(canvas);
     draw();
-
-    // On-demand refresh button handler
-    const syncBtn = document.querySelector('#sync-now-btn');
-    syncBtn?.addEventListener('click', () => {
-      syncBtn.classList.add('spinning');
-      window.location.reload();
-    });
   </script>
 </Shell>

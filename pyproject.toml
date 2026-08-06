@@ -17,7 +17,7 @@ research = ["catboost>=1.2", "scikit-learn>=1.5"]
 where = ["src"]
 
 [tool.pytest.ini_options]
-pythonpath = ["src"]
+pythonpath = ["src", "."]
 testpaths = ["tests"]
 
 [tool.ruff]

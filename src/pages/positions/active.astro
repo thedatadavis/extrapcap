@@ -52,9 +52,6 @@ const formattedAsOf = new Date(latestRunTime).toLocaleString('en-US', {
       <span class="badge-label">As of {formattedAsOf}</span>
       <div style="display: flex; align-items: center; gap: 8px; margin-top: 4px;">
         <strong class="badge-count">{ACTIVE_POSITIONS.length} Active</strong>
-        <button id="refresh-positions-btn" class="sync-btn" type="button" aria-label="Refresh active positions">
-          <span class="sync-icon">🔄</span>
-        </button>
       </div>
     </div>
   </section>
@@ -514,12 +511,6 @@ const formattedAsOf = new Date(latestRunTime).toLocaleString('en-US', {
 
   tickerSearch?.addEventListener('input', renderSidebarList);
   sortSelect?.addEventListener('change', renderSidebarList);
-
-  // Refresh button handler
-  document.getElementById('refresh-positions-btn')?.addEventListener('click', function() {
-    this.classList.add('spinning');
-    window.location.reload();
-  });
 
   // Initialize view
   renderSidebarList();

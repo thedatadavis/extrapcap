@@ -29,6 +29,16 @@ if (db) {
     console.error('Error loading admin stats:', err);
   }
 }
+
+const coreWorkflows = [
+  { name: 'candidate_review', label: 'Candidate Review', icon: '🎯', desc: 'Market-hours option entry reviews' },
+  { name: 'opening_prep', label: 'Opening Prep', icon: '🌅', desc: 'Pre-market candidate evaluation' },
+  { name: 'position_management', label: 'Position Management', icon: '📈', desc: 'Held positions profit & exit checks' },
+  { name: 'reconciliation', label: 'Reconciliation', icon: '⚖️', desc: 'Paper account equity & cash sync' },
+  { name: 'daily_report', label: 'Daily Report', icon: '📊', desc: 'EOD operations report & email summary' },
+  { name: 'data_refresh', label: 'Data Refresh', icon: '🔄', desc: 'Daily market bars & universe refresh' },
+  { name: 'streak_screen', label: 'Streak Screen', icon: '⚡', desc: 'Screen greenlist into tradable basket' },
+];
 ---
 
 <Shell>
@@ -45,11 +55,11 @@ if (db) {
 
   <section class="dashboard-intro">
     <h1>Admin Console 🔒</h1>
-    <p>Real-time D1 system state, Modal execution runs, and position tracking.</p>
+    <p>Real-time D1 system state, Modal execution runs, and core workflow controls.</p>
   </section>
 
   <!-- Health & Stats Overview -->
-  <section class="dashboard-section" style="padding-bottom: 48px;">
+  <section class="dashboard-section" style="padding-bottom: 28px;">
     <div class="metric-grid">
       <div class="metric">
         <span>Events Recorded</span>
@@ -74,12 +84,42 @@ if (db) {
     </div>
   </section>
 
-  <!-- Workflow Runs Table -->
+  <!-- Core Workflow Trigger Controls -->
+  <section class="trades-section" style="padding-bottom: 36px;">
+    <div class="section-heading">
+      <div>
+        <h2>Core Workflow Controls</h2>
+        <p>Trigger core strategy processes on-demand and log rich run metadata to D1</p>
+      </div>
+    </div>
+    <div class="workflow-trigger-grid">
+      {coreWorkflows.map((wf) => (
+        <div class="workflow-trigger-card">
+          <div class="wf-card-header">
+            <span class="wf-icon">{wf.icon}</span>
+            <strong class="wf-title">{wf.label}</strong>
+          </div>
+          <p class="wf-desc">{wf.desc}</p>
+          <button
+            type="button"
+            class="trigger-wf-btn"
+            data-workflow={wf.name}
+            data-label={wf.label}
+          >
+            Trigger {wf.label}
+          </button>
+        </div>
+      ))}
+    </div>
+    <div id="trigger-alert" class="trigger-alert-box" hidden></div>
+  </section>
+
+  <!-- Workflow Runs Table with Rich Metadata -->
   <section class="trades-section">
     <div class="section-heading">
       <div>
-        <h2>Modal Workflow Execution Runs</h2>
-        <p>Recent automated crons and ad-hoc executions</p>
+        <h2>Modal Workflow Execution Runs & Metadata</h2>
+        <p>Execution logs, run metadata summaries, and status tracking stored in D1</p>
       </div>
     </div>
     {runs.length > 0 ? (
@@ -92,20 +132,24 @@ if (db) {
               <th>Status</th>
               <th>Duration</th>
               <th>Run ID</th>
+              <th>Run Metadata / Summary</th>
             </tr>
           </thead>
           <tbody>
             {runs.map((r) => (
               <tr>
-                <td>{r.started_at}</td>
+                <td style="white-space: nowrap;">{r.started_at ? r.started_at.replace('T', ' ').slice(0, 19) : '—'}</td>
                 <td><strong>{r.workflow}</strong></td>
                 <td>
                   <span class:list={['action-pill', r.status === 'completed' ? '' : r.status === 'failed' ? 'exit' : 'neutral']}>
                     {r.status}
                   </span>
                 </td>
-                <td>{r.duration_s ? `${r.duration_s.toFixed(1)}s` : '—'}</td>
+                <td>{r.duration_s !== null && r.duration_s !== undefined ? `${r.duration_s.toFixed(1)}s` : '—'}</td>
                 <td style="font-family: var(--mono); font-size: 11px; color: var(--muted);">{r.run_id}</td>
+                <td style="font-family: var(--mono); font-size: 10px; color: var(--ink); max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                  {r.summary || r.error || '—'}
+                </td>
               </tr>
             ))}
           </tbody>
@@ -162,3 +206,129 @@ if (db) {
     )}
   </section>
 </Shell>
+
+<script>
+  const alertBox = document.getElementById('trigger-alert');
+
+  document.querySelectorAll('.trigger-wf-btn').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const workflow = btn.getAttribute('data-workflow');
+      const label = btn.getAttribute('data-label');
+      if (!workflow) return;
+
+      btn.setAttribute('disabled', 'true');
+      btn.textContent = `Triggering...`;
+
+      try {
+        const res = await fetch('/api/trigger', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ workflow }),
+        });
+        const data = await res.json();
+
+        if (alertBox) {
+          alertBox.removeAttribute('hidden');
+          if (data.success) {
+            alertBox.className = 'trigger-alert-box success';
+            alertBox.innerHTML = `<strong>✅ ${label} Triggered</strong> · Run ID: <code>${data.run_id}</code> logged to D1 runs table.`;
+          } else {
+            alertBox.className = 'trigger-alert-box error';
+            alertBox.innerHTML = `<strong>⚠️ Trigger Error:</strong> ${data.error || 'Failed to trigger workflow'}`;
+          }
+        }
+      } catch (err: any) {
+        if (alertBox) {
+          alertBox.removeAttribute('hidden');
+          alertBox.className = 'trigger-alert-box error';
+          alertBox.innerHTML = `<strong>⚠️ Request Error:</strong> ${err.message}`;
+        }
+      } finally {
+        btn.removeAttribute('disabled');
+        btn.textContent = `Trigger ${label}`;
+      }
+    });
+  });
+</script>
+
+<style>
+  .workflow-trigger-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 16px;
+    margin-bottom: 16px;
+  }
+  .workflow-trigger-card {
+    background: #eeeee8;
+    border: 1px solid rgba(32, 33, 31, 0.08);
+    border-radius: 6px;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .wf-card-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .wf-icon {
+    font-size: 18px;
+  }
+  .wf-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--ink);
+  }
+  .wf-desc {
+    font-size: 11px;
+    color: var(--muted);
+    margin: 0;
+    line-height: 1.35;
+  }
+  .trigger-wf-btn {
+    width: 100%;
+    padding: 8px 12px;
+    background: var(--paper);
+    border: 1px solid rgba(32, 33, 31, 0.2);
+    border-radius: 4px;
+    font-family: var(--sans);
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--ink);
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .trigger-wf-btn:hover:not(:disabled) {
+    background: var(--ink);
+    color: var(--paper);
+    border-color: var(--ink);
+  }
+  .trigger-wf-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  .trigger-alert-box {
+    padding: 12px 16px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-family: var(--sans);
+    margin-top: 8px;
+  }
+  .trigger-alert-box.success {
+    background: #d8e4db;
+    color: var(--green);
+    border: 1px solid rgba(73, 107, 86, 0.2);
+  }
+  .trigger-alert-box.error {
+    background: #f4e1dd;
+    color: var(--red);
+    border: 1px solid rgba(155, 94, 80, 0.2);
+  }
+  .trigger-alert-box code {
+    font-family: var(--mono);
+    font-size: 11px;
+  }
+</style>
