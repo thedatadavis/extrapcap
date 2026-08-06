@@ -1,4 +1,3 @@
-import os
 import time
 from datetime import datetime, timezone
 import modal
@@ -23,17 +22,13 @@ def opening_prep():
 
         today_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
-        # Primary: Query dynamic basket snapshot from D1 database
+        # Fetch dynamic active basket directly from Cloudflare D1 database
         d1_basket = cf.get_basket()
-        if d1_basket and len(d1_basket) > 0:
-            target_basket = d1_basket
-        else:
-            # Fallback: Local CSV basket bundled in container image
-            basket_path = "data/universe/tradable-basket.csv"
-            target_basket = basket_path if os.path.exists(basket_path) else "data/universe/greenlist-20260731T082041Z.csv"
+        if not d1_basket:
+            raise RuntimeError("No active basket found in Cloudflare D1 database for opening_prep.")
 
         results = run_basket(
-            basket=target_basket,
+            basket=d1_basket,
             expiration_gte=today_str,
             max_candidates=10,
             review_phase="opening_prep",

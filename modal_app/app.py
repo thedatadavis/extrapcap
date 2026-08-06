@@ -14,8 +14,6 @@ image = (
     )
     .add_local_dir("src/extrapcap", remote_path="/root/src/extrapcap", copy=True)
     .add_local_dir("modal_app", remote_path="/root/modal_app", copy=True)
-    .add_local_dir("data", remote_path="/root/data", copy=True)
-    .add_local_dir("examples", remote_path="/root/examples", copy=True)
     .add_local_file("pyproject.toml", remote_path="/root/pyproject.toml", copy=True)
     .run_commands("pip install -e /root")
     .env({"PYTHONPATH": "/root:/root/src"})
