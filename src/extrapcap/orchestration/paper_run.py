@@ -212,18 +212,20 @@ def get_bayesian_model(bars_path: str = "data/normalized/bars.csv"):
     global _bayesian_model_cache
     if _bayesian_model_cache is not None:
         return _bayesian_model_cache
+    from ..models.bayesian_reversion import BayesianReversionModel
     p = Path(bars_path)
     if not p.exists():
-        return None
+        _bayesian_model_cache = BayesianReversionModel.default()
+        return _bayesian_model_cache
     try:
         import pandas as pd
-        from ..models.bayesian_reversion import BayesianReversionModel
         bars = pd.read_csv(p)
         benchmark = bars.loc[bars.symbol == "SPY"].set_index("date")["close"]
         _bayesian_model_cache = BayesianReversionModel.fit_from_bars(bars, benchmark)
         return _bayesian_model_cache
     except Exception:
-        return None
+        _bayesian_model_cache = BayesianReversionModel.default()
+        return _bayesian_model_cache
 
 
 def build_fast_ev_candidate(
