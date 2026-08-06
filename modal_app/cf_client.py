@@ -49,11 +49,12 @@ class CloudflareAPIClient:
         except Exception as e:
             print(f"Warning: Failed to fail run {run_id}: {e}")
 
-    def append_events(self, events: list[dict]):
+    def append_events(self, events: list[dict], run_id: str = None):
         if not events:
             return
+        payload = [{"run_id": run_id, **evt} if run_id else evt for evt in events]
         try:
-            self.client.post("/api/events", json=events)
+            self.client.post("/api/events", json=payload)
         except Exception as e:
             print(f"Warning: Failed to append events: {e}")
 
@@ -65,10 +66,11 @@ class CloudflareAPIClient:
             print(f"Warning: Failed to fetch active positions: {e}")
             return []
 
-    def close_position(self, pos_id: int, reason: str):
+    def close_position(self, pos_id: int, reason: str, run_id: str = None):
         try:
             self.client.patch("/api/positions", json={
                 "id": pos_id,
+                "run_id": run_id,
                 "is_active": False,
                 "close_reason": reason,
                 "closed_at": time.strftime("%Y-%m-%d"),
@@ -84,23 +86,29 @@ class CloudflareAPIClient:
         except Exception as e:
             print(f"Warning: Failed to upsert bars: {e}")
 
-    def store_basket(self, as_of: str, rows: list[dict]):
+    def store_basket(self, as_of: str, rows: list[dict], run_id: str = None):
         try:
-            self.client.post("/api/basket", json={"as_of": as_of, "rows": rows})
+            self.client.post("/api/basket", json={"as_of": as_of, "run_id": run_id, "rows": rows})
         except Exception as e:
             print(f"Warning: Failed to store basket: {e}")
 
-    def get_basket(self, as_of: str = None) -> list[dict]:
+    def get_basket(self, as_of: str = None, run_id: str = None) -> list[dict]:
         try:
-            url = f"/api/basket?as_of={as_of}" if as_of else "/api/basket"
+            params = []
+            if as_of:
+                params.append(f"as_of={as_of}")
+            if run_id:
+                params.append(f"run_id={run_id}")
+            url = f"/api/basket?{'&'.join(params)}" if params else "/api/basket"
             res = self.client.get(url)
             return res.json() if res.status_code == 200 else []
         except Exception as e:
             print(f"Warning: Failed to fetch basket from D1: {e}")
             return []
 
-    def record_account(self, snapshot: dict):
+    def record_account(self, snapshot: dict, run_id: str = None):
         try:
-            self.client.post("/api/account", json=snapshot)
+            payload = {"run_id": run_id, **snapshot} if run_id else snapshot
+            self.client.post("/api/account", json=payload)
         except Exception as e:
             print(f"Warning: Failed to record account snapshot: {e}")

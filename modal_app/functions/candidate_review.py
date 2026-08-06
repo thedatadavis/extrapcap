@@ -31,12 +31,11 @@ def candidate_review():
         results = run_basket(
             basket=d1_basket,
             expiration_gte=today_str,
-            max_candidates=10,
             fast_ev=True,
         )
 
         events = results if isinstance(results, list) else []
-        cf.append_events(events)
+        cf.append_events(events, run_id=run_id)
 
         orders_submitted = [
             e for e in events
@@ -44,22 +43,24 @@ def candidate_review():
         ]
         cf.complete_run(
             run_id,
-            summary={"evaluated": len(events), "orders_submitted": len(orders_submitted)},
+            summary={"evaluated": len(events), "submitted": len(orders_submitted)},
             start_time=start_time,
         )
 
         if orders_submitted:
+            email_body = format_candidate_orders_text(orders_submitted, today_str)
             send_resend_email(
-                subject=f"[Extrapcap] 🎯 {len(orders_submitted)} Paper Order(s) Submitted · {today_str}",
-                text=format_candidate_orders_text(today_str, orders_submitted),
+                subject=f"[Extrapcap] 🎯 Candidate Orders Executed ({today_str})",
+                text_content=email_body,
             )
 
         return {"status": "success", "evaluated": len(events), "submitted": len(orders_submitted)}
 
     except Exception as e:
         cf.fail_run(run_id, error=str(e), start_time=start_time)
+        alert_body = format_error_alert_text("Candidate Review", str(e))
         send_resend_email(
             subject="[Extrapcap] ⚠️ Candidate Review Failure Alert",
-            text=format_error_alert_text("candidate_review", str(e)),
+            text_content=alert_body,
         )
         raise

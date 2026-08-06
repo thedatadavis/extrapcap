@@ -7,6 +7,7 @@ export const GET: APIRoute = async ({ request, locals }) => {
 
     const url = new URL(request.url);
     const day = url.searchParams.get('day');
+    const runId = url.searchParams.get('run_id');
     const ticker = url.searchParams.get('ticker');
     const category = url.searchParams.get('category');
     const limit = parseInt(url.searchParams.get('limit') || '500', 10);
@@ -14,6 +15,10 @@ export const GET: APIRoute = async ({ request, locals }) => {
     let sql = 'SELECT * FROM events WHERE 1=1';
     const params: any[] = [];
 
+    if (runId) {
+      sql += ' AND run_id = ?';
+      params.push(runId);
+    }
     if (day) {
       sql += ' AND trading_day = ?';
       params.push(day);
@@ -49,14 +54,15 @@ export const POST: APIRoute = async ({ request, locals }) => {
 
     const stmt = db.prepare(`
       INSERT OR IGNORE INTO events
-      (event_id, trading_day, category, kind, ticker, status, reason, sleeve, strategy_variant, strategy_route, model_probability, payload)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      (event_id, run_id, trading_day, category, kind, ticker, status, reason, sleeve, strategy_variant, strategy_route, model_probability, payload)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     const batch = events.map((e: any) => {
       const j = e.journal ?? {};
       return stmt.bind(
         j.event_id || e.event_id || `evt-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`,
+        e.run_id || j.run_id || null,
         j.trading_day || e.trading_day || new Date().toISOString().split('T')[0],
         j.category || e.category || 'general',
         j.kind || e.kind || null,

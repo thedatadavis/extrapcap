@@ -34,10 +34,10 @@ def streak_screen():
         basket_df = filter_tradable_basket(greenlist=accepted_greenlist)
         rows = basket_df.to_dict(orient="records")
 
-        # Store in D1
-        cf.store_basket(as_of=today_str, rows=rows)
+        # Store in D1 with run_id provenance
+        cf.store_basket(as_of=today_str, rows=rows, run_id=run_id)
         cf.complete_run(run_id, summary={"tradable_candidates": len(rows)}, start_time=start_time)
-        return {"status": "success", "candidates_count": len(rows)}
+        return {"status": "success", "candidates_count": len(rows), "run_id": run_id}
 
     except Exception as e:
         cf.fail_run(run_id, error=str(e), start_time=start_time)

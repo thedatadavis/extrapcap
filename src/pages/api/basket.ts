@@ -7,11 +7,15 @@ export const GET: APIRoute = async ({ request, locals }) => {
 
     const url = new URL(request.url);
     const date = url.searchParams.get('as_of');
+    const runId = url.searchParams.get('run_id');
 
     let sql = 'SELECT * FROM basket';
     const params: any[] = [];
 
-    if (date) {
+    if (runId) {
+      sql += ' WHERE run_id = ?';
+      params.push(runId);
+    } else if (date) {
       sql += ' WHERE as_of = ?';
       params.push(date);
     } else {
@@ -34,16 +38,18 @@ export const POST: APIRoute = async ({ request, locals }) => {
 
     const data = await request.json();
     const as_of = data.as_of || new Date().toISOString().split('T')[0];
+    const run_id = data.run_id || `run-${Date.now()}`;
     const rows = Array.isArray(data.rows) ? data.rows : (Array.isArray(data) ? data : []);
 
     const stmt = db.prepare(`
       INSERT OR REPLACE INTO basket
-      (as_of, symbol, sector, robust_z, signed_streak, streak_length, streak_direction, features)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      (as_of, run_id, symbol, sector, robust_z, signed_streak, streak_length, streak_direction, features)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     const batch = rows.map((r: any) => stmt.bind(
       as_of,
+      run_id,
       r.symbol || r.ticker,
       r.sector || null,
       r.robust_z ?? null,
@@ -57,7 +63,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
       await db.batch(batch);
     }
 
-    return new Response(JSON.stringify({ success: true, count: batch.length }), {
+    return new Response(JSON.stringify({ success: true, count: batch.length, run_id }), {
       headers: { 'Content-Type': 'application/json' },
     });
   } catch (err: any) {
