@@ -26,15 +26,27 @@ secrets = [
     modal.Secret.from_name("resend"),
 ]
 
-# Explicitly import all function modules to register @app.function definitions
-from modal_app.functions import (
-    candidate_review,
-    daily_report,
-    data_refresh,
-    improvement_loop,
-    live_cycle,
-    opening_prep,
-    position_management,
-    reconciliation,
-    streak_screen,
-)
+import sys
+
+
+def load_all_functions():
+    """Register all cron workflow functions on the app for deployment."""
+    from modal_app.functions import (
+        candidate_review,
+        daily_report,
+        data_refresh,
+        improvement_loop,
+        live_cycle,
+        opening_prep,
+        position_management,
+        reconciliation,
+        streak_screen,
+    )
+
+
+# Automatically load all functions when deploying or running app.py directly.
+# When running an individual function file (e.g. streak_screen.py), that file registers itself.
+if any("app.py" in arg for arg in sys.argv) or __name__ == "__main__":
+    load_all_functions()
+
+
