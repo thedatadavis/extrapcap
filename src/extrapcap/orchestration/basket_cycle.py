@@ -40,14 +40,22 @@ def _optional_bool(value) -> bool | None:
     return str(value).strip().lower() in {"true", "1", "yes"}
 
 
-def basket_rows(path_or_rows: str | Path | list[dict]) -> list[dict]:
+def basket_rows(path_or_rows: str | Path | list[dict] | None = None) -> list[dict]:
     if isinstance(path_or_rows, list):
         rows = path_or_rows
         source_name = "d1_database"
     else:
-        with Path(path_or_rows).open(newline="", encoding="utf-8") as handle:
-            rows = list(csv.DictReader(handle))
-        source_name = str(path_or_rows)
+        rows = []
+        try:
+            from modal_app.cf_client import CloudflareAPIClient
+            client = CloudflareAPIClient()
+            rows = client.get_basket()
+        except Exception:
+            rows = []
+        if not rows and path_or_rows and Path(path_or_rows).exists():
+            with Path(path_or_rows).open(newline="", encoding="utf-8") as handle:
+                rows = list(csv.DictReader(handle))
+        source_name = "d1_database"
     symbol_key = "symbol" if rows and "symbol" in rows[0] else "ticker"
     selected = []
     for row in rows:

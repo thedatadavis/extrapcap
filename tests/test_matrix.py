@@ -5,8 +5,17 @@ from extrapcap.research.matrix import Scenario, run_matrix
 from extrapcap.backtest.engine import run_backtest
 
 
+def _make_sample_bars():
+    dates = pd.date_range("2024-01-20", periods=5)
+    rows = []
+    for d in dates:
+        rows.append({"date": d, "symbol": "SPY", "open": 400.0, "high": 405.0, "low": 399.0, "close": 402.0, "volume": 1000000})
+        rows.append({"date": d, "symbol": "ABC", "open": 100.0, "high": 102.0, "low": 98.0, "close": 95.0, "volume": 500000})
+    return pd.DataFrame(rows)
+
+
 def test_research_matrix_marks_missing_dependencies_instead_of_faking_results():
-    bars = pd.read_csv("examples/sample_bars.csv", parse_dates=["date"])
+    bars = _make_sample_bars()
     benchmark = bars.loc[bars.symbol == "SPY"].set_index("date")["close"]
     results = run_matrix(
         bars[bars.symbol != "SPY"],
@@ -21,7 +30,7 @@ def test_research_matrix_marks_missing_dependencies_instead_of_faking_results():
 
 
 def test_news_matrix_uses_structural_risk_events_as_vetoes():
-    bars = pd.read_csv("examples/sample_bars.csv", parse_dates=["date"])
+    bars = _make_sample_bars()
     benchmark = bars.loc[bars.symbol == "SPY"].set_index("date")["close"]
     news = pd.DataFrame({
         "date": pd.to_datetime(["2024-01-24"]),
@@ -56,7 +65,7 @@ def test_intraday_modes_apply_session_window_and_duplicate_gates():
 
 
 def test_backtest_enforces_ticker_and_sector_caps_when_metadata_is_available():
-    bars = pd.read_csv("examples/sample_bars.csv", parse_dates=["date"])
+    bars = _make_sample_bars()
     benchmark = bars.loc[bars.symbol == "SPY"].set_index("date")["close"]
     cfg = AppConfig(strategy=StrategyConfig(z_window=5, z_threshold=-0.5))
     cfg.risk.max_ticker_concentration_pct = 0.001

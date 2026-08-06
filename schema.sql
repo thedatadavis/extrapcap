@@ -130,3 +130,31 @@ CREATE TABLE IF NOT EXISTS bars (
     PRIMARY KEY (date, symbol)
 );
 CREATE INDEX IF NOT EXISTS idx_bars_symbol ON bars(symbol, date);
+
+-- 8. Stock greenlist universe metadata
+CREATE TABLE IF NOT EXISTS universe (
+    symbol                TEXT PRIMARY KEY NOT NULL,
+    sector                TEXT NOT NULL,
+    avg_volume            INTEGER,
+    market_cap            REAL,
+    cap_tier              TEXT,
+    exchange              TEXT,
+    weekly_options        INTEGER DEFAULT 0,
+    penny_pricing         INTEGER DEFAULT 0,
+    options_volume        INTEGER,
+    updated_at            TEXT DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_universe_sector ON universe(sector);
+
+-- 9. Structural risk events (News & Earnings vetoes)
+CREATE TABLE IF NOT EXISTS risk_events (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    symbol      TEXT NOT NULL,
+    event_type  TEXT NOT NULL, -- 'earnings' or 'news'
+    event_date  TEXT NOT NULL,
+    headline    TEXT,
+    veto_reason TEXT,
+    recorded_at TEXT DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_risk_events_symbol ON risk_events(symbol, event_date);
+

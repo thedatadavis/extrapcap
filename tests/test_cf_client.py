@@ -65,3 +65,34 @@ def test_cf_client_register_and_complete_run(monkeypatch):
     cf.complete_run(run_id, summary={"evaluated": 5}, start_time=100.0)
     assert patched[0][0] == "/api/runs"
     assert patched[0][1]["status"] == "completed"
+
+
+def test_cf_client_universe_and_risk_events(monkeypatch):
+    posted = []
+
+    class FakeResponse:
+        status_code = 200
+        def json(self):
+            return [{"symbol": "AAPL", "sector": "Technology"}]
+
+    class FakeClient:
+        def __init__(self, **kwargs):
+            pass
+        def get(self, url):
+            return FakeResponse()
+        def post(self, url, json=None):
+            posted.append((url, json))
+            return FakeResponse()
+
+    monkeypatch.setattr(httpx, "Client", FakeClient)
+    cf = CloudflareAPIClient()
+    univ = cf.get_universe(symbol="AAPL")
+    assert len(univ) == 1
+    assert univ[0]["symbol"] == "AAPL"
+
+    cf.store_universe([{"symbol": "AAPL", "sector": "Technology"}])
+    assert posted[0][0] == "/api/universe"
+
+    cf.store_risk_events([{"symbol": "AAPL", "event_type": "earnings", "event_date": "2026-08-10"}])
+    assert posted[1][0] == "/api/risk_events"
+

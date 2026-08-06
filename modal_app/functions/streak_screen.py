@@ -34,10 +34,13 @@ def streak_screen():
         basket_df = filter_tradable_basket(greenlist=accepted_greenlist)
         rows = basket_df.to_dict(orient="records")
 
+        # Store greenlist universe metadata in D1
+        cf.store_universe(accepted_greenlist)
+
         # Store in D1 with run_id provenance
         cf.store_basket(as_of=today_str, rows=rows, run_id=run_id)
-        cf.complete_run(run_id, summary={"tradable_candidates": len(rows)}, start_time=start_time)
-        return {"status": "success", "candidates_count": len(rows), "run_id": run_id}
+        cf.complete_run(run_id, summary={"universe_count": len(accepted_greenlist), "tradable_candidates": len(rows)}, start_time=start_time)
+        return {"status": "success", "universe_count": len(accepted_greenlist), "candidates_count": len(rows), "run_id": run_id}
 
     except Exception as e:
         cf.fail_run(run_id, error=str(e), start_time=start_time)

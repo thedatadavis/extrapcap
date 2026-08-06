@@ -25,6 +25,11 @@ def opening_prep():
         # Fetch dynamic active basket directly from Cloudflare D1 database
         d1_basket = cf.get_basket()
         if not d1_basket:
+            from modal_app.functions.streak_screen import streak_screen
+            streak_screen()
+            d1_basket = cf.get_basket()
+
+        if not d1_basket:
             raise RuntimeError("No active basket found in Cloudflare D1 database for opening_prep.")
 
         results = run_basket(
@@ -37,7 +42,7 @@ def opening_prep():
         )
 
         events = results if isinstance(results, list) else []
-        cf.append_events(events)
+        cf.append_events(events, run_id=run_id)
         cf.complete_run(run_id, summary={"evaluated": len(events)}, start_time=start_time)
         return {"status": "success", "evaluated": len(events)}
 

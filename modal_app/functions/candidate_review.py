@@ -26,6 +26,11 @@ def candidate_review():
         # Fetch dynamic active basket directly from Cloudflare D1 database
         d1_basket = cf.get_basket()
         if not d1_basket:
+            from modal_app.functions.streak_screen import streak_screen
+            streak_screen()
+            d1_basket = cf.get_basket()
+
+        if not d1_basket:
             raise RuntimeError("No active basket found in Cloudflare D1 database for candidate_review.")
 
         results = run_basket(

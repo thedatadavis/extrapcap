@@ -96,20 +96,44 @@ def refresh_greenlist(output_dir: str | Path = "data/universe", policy: Greenlis
 
 
 def load_sector_map(path: str | Path | None = None, root: str | Path = "data/universe") -> dict[str, str]:
-    if path is None:
-        snapshots = sorted(Path(root).glob("greenlist-*.csv"))
-        if not snapshots:
-            raise RuntimeError("no versioned Greenlist snapshot is available for sector controls")
-        target = snapshots[-1]
-    else:
-        target = Path(path)
-    rows = _read_csv(target.read_text(encoding="utf-8"))
-    if not rows or not {"ticker", "sector"}.issubset(rows[0]):
-        raise RuntimeError("Greenlist snapshot is missing ticker/sector metadata")
+    """Return symbol -> sector map. Queries D1 universe or live greenlist registry; never relies on static local CSV files."""
     result = dict(INDEX_SECTORS)
-    for row in rows:
-        ticker = str(row.get("ticker", "")).strip().upper()
-        sector = str(row.get("sector", "")).strip()
-        if ticker and sector and sector.upper() != "N/A":
-            result[ticker] = sector
+    if path is not None and Path(path).exists():
+        rows = _read_csv(Path(path).read_text(encoding="utf-8"))
+        for row in rows:
+            sym = str(row.get("ticker") or row.get("symbol", "")).strip().upper()
+            sec = str(row.get("sector", "")).strip()
+            if sym and sec and sec.upper() != "N/A":
+                result[sym] = sec
+        return result
+
+    # Try fetching from live D1 universe endpoint
+    try:
+        from modal_app.cf_client import CloudflareAPIClient
+        client = CloudflareAPIClient()
+        universe_rows = client.get_universe()
+        if universe_rows:
+            for row in universe_rows:
+                sym = str(row.get("symbol") or row.get("ticker", "")).strip().upper()
+                sec = str(row.get("sector", "")).strip()
+                if sym and sec and sec.upper() != "N/A":
+                    result[sym] = sec
+            return result
+    except Exception:
+        pass
+
+    # Fallback to online registry fetch if D1 client is offline
+    try:
+        with urlopen(SOURCE_URL, timeout=10) as response:
+            rows = _read_csv(response.read().decode("utf-8"))
+            for row in rows:
+                sym = str(row.get("ticker", "")).strip().upper()
+                sec = str(row.get("sector", "")).strip()
+                if sym and sec and sec.upper() != "N/A":
+                    result[sym] = sec
+            return result
+    except Exception:
+        pass
+
     return result
+

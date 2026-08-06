@@ -154,3 +154,40 @@ def decision_from_csv(path: str | Path, symbol: str, trading_day: date, reviewer
             if judgment.get("category") != "noise_or_opinion" or judgment.get("structural_risk") is not False:
                 return EventDecision("structural_risk", False, f"llm:{judgment.get('reason', 'escalated')}")
     return EventDecision("noise_or_opinion", True, "no dated structural-risk event")
+
+
+def event_decision_for_ticker(symbol: str, trading_day: date, cf_client=None) -> EventDecision:
+    """Evaluate structural risk and earnings blackout for symbol from D1 risk_events table."""
+    ticker = symbol.upper()
+    if cf_client is None:
+        try:
+            from modal_app.cf_client import CloudflareAPIClient
+            cf_client = CloudflareAPIClient()
+        except Exception:
+            cf_client = None
+
+    if cf_client is not None:
+        try:
+            risk_records = cf_client.get_risk_events(symbol=ticker)
+            for record in risk_records:
+                evt_type = str(record.get("event_type") or "").lower()
+                evt_date_str = record.get("event_date")
+                if evt_type == "earnings" and evt_date_str:
+                    try:
+                        evt_date = date.fromisoformat(evt_date_str)
+                        decision = earnings_blackout(trading_day, evt_date)
+                        if not decision.allowed:
+                            return decision
+                    except Exception:
+                        pass
+                elif evt_type == "news":
+                    headline = str(record.get("headline") or "")
+                    if headline:
+                        local_dec = classify_headline(headline)
+                        if not local_dec.allowed:
+                            return local_dec
+        except Exception:
+            pass
+
+    return EventDecision("noise_or_opinion", True, "no structural risk or earnings blackout detected")
+

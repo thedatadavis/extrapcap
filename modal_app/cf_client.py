@@ -78,6 +78,15 @@ class CloudflareAPIClient:
         except Exception as e:
             print(f"Warning: Failed to close position {pos_id}: {e}")
 
+    def get_bars(self, symbol: str = None, limit: int = 5000) -> list[dict]:
+        try:
+            url = f"/api/bars?symbol={symbol}&limit={limit}" if symbol else f"/api/bars?limit={limit}"
+            res = self.client.get(url)
+            return res.json() if res.status_code == 200 else []
+        except Exception as e:
+            print(f"Warning: Failed to fetch bars: {e}")
+            return []
+
     def upsert_bars(self, bars: list[dict]):
         if not bars:
             return
@@ -85,6 +94,50 @@ class CloudflareAPIClient:
             self.client.post("/api/bars", json=bars)
         except Exception as e:
             print(f"Warning: Failed to upsert bars: {e}")
+
+    def get_universe(self, symbol: str = None, sector: str = None) -> list[dict]:
+        try:
+            params = []
+            if symbol:
+                params.append(f"symbol={symbol}")
+            if sector:
+                params.append(f"sector={sector}")
+            url = f"/api/universe?{'&'.join(params)}" if params else "/api/universe"
+            res = self.client.get(url)
+            return res.json() if res.status_code == 200 else []
+        except Exception as e:
+            print(f"Warning: Failed to fetch universe: {e}")
+            return []
+
+    def store_universe(self, rows: list[dict]):
+        if not rows:
+            return
+        try:
+            self.client.post("/api/universe", json=rows)
+        except Exception as e:
+            print(f"Warning: Failed to store universe: {e}")
+
+    def get_risk_events(self, symbol: str = None, event_type: str = None) -> list[dict]:
+        try:
+            params = []
+            if symbol:
+                params.append(f"symbol={symbol}")
+            if event_type:
+                params.append(f"type={event_type}")
+            url = f"/api/risk_events?{'&'.join(params)}" if params else "/api/risk_events"
+            res = self.client.get(url)
+            return res.json() if res.status_code == 200 else []
+        except Exception as e:
+            print(f"Warning: Failed to fetch risk events: {e}")
+            return []
+
+    def store_risk_events(self, events: list[dict]):
+        if not events:
+            return
+        try:
+            self.client.post("/api/risk_events", json=events)
+        except Exception as e:
+            print(f"Warning: Failed to store risk events: {e}")
 
     def store_basket(self, as_of: str, rows: list[dict], run_id: str = None):
         try:
