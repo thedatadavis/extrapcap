@@ -155,10 +155,10 @@ def run_basket(
                 tradeable_candidates.append(selection)
     else:
         tradeable_candidates = selections
-    selected_tickers = {selection["ticker"] for selection in tradeable_candidates[:max_candidates]}
+    selected_tickers = {selection["ticker"] for selection in tradeable_candidates}
     selection_ranks = {
         selection["ticker"]: rank
-        for rank, selection in enumerate(tradeable_candidates[:max_candidates], start=1)
+        for rank, selection in enumerate(tradeable_candidates, start=1)
     }
     results = []
     for selection in selections:
@@ -175,13 +175,11 @@ def run_basket(
         }
         crash_candidate = model_bucket == "crash_protocol" and crash_enabled
         is_tradeable = (prob > 0.50) if fast_ev else (model_bucket in {"premium_candidate", "watch_list"})
-        if not decision.allowed or (not is_tradeable and not crash_candidate) or ticker not in selected_tickers:
+        if not decision.allowed or (not is_tradeable and not crash_candidate):
             if not decision.allowed:
                 reason = decision.reason
-            elif not is_tradeable:
-                reason = f"bayes prob {prob:.4f} <= 0.50" if fast_ev else (model_bucket or "model_score_unavailable")
             else:
-                reason = "candidate_limit"
+                reason = f"bayes prob {prob:.4f} <= 0.50" if fast_ev else (model_bucket or "model_score_unavailable")
             status = "vetoed" if not decision.allowed else "deferred"
             event = {
                 "kind": "basket_selection",

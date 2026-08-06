@@ -75,10 +75,9 @@ def test_basket_cycle_scores_then_ranks_model_candidates_before_provider_calls(t
         model_loader=fake_model_loader,
     )
 
-    assert [row[0][0] for row in calls] == ["LONG"]
+    assert set([row[0][0] for row in calls]) == {"LONG", "SHRT", "POS"}
     assert calls[0][1]["selection_context"]["selection_rank"] == 1
     by_ticker = {result["ticker"]: result for result in results}
-    assert by_ticker["SHRT"]["reason"] == "candidate_limit"
     assert by_ticker["WEAK"]["reason"] == "robust_z_above_entry_threshold"
     assert by_ticker["POS"]["strategy_route"] == "bearish_reversal_watch"
     signal_path = next((tmp_path / "logs" / "signals").glob("*.jsonl"))
