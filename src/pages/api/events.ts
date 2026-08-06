@@ -85,3 +85,17 @@ export const POST: APIRoute = async ({ request, locals }) => {
     return new Response(JSON.stringify({ error: err.message }), { status: 500 });
   }
 };
+
+export const DELETE: APIRoute = async ({ request, locals }) => {
+  try {
+    const db = (locals as any).runtime?.env?.DB;
+    if (!db) return new Response(JSON.stringify({ error: 'DB not available' }), { status: 500 });
+
+    const result = await db.prepare("DELETE FROM events WHERE status = 'error'").run();
+    return new Response(JSON.stringify({ success: true, changes: result.meta?.changes || 0 }), {
+      headers: { 'Content-Type': 'application/json' },
+    });
+  } catch (err: any) {
+    return new Response(JSON.stringify({ error: err.message }), { status: 500 });
+  }
+};

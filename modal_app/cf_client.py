@@ -10,7 +10,7 @@ class CloudflareAPIClient:
     def __init__(self):
         self.base_url = os.environ.get("CF_APP_URL", "https://extrapcap.pages.dev").rstrip("/")
         self.token = os.environ.get("CF_API_TOKEN", "")
-        self.headers = {"Authorization": f"Bearer {self.token}"}
+        self.headers = {"Authorization": f"Bearer {self.token}"} if self.token else {}
         self.client = httpx.Client(base_url=self.base_url, headers=self.headers, timeout=30.0)
 
     def register_run(self, workflow: str) -> str:
@@ -54,7 +54,9 @@ class CloudflareAPIClient:
             return
         payload = [{"run_id": run_id, **evt} if run_id else evt for evt in events]
         try:
-            self.client.post("/api/events", json=payload)
+            res = self.client.post("/api/events", json=payload)
+            if res.status_code != 200:
+                print(f"Warning: Failed to append events (HTTP {res.status_code}): {res.text}")
         except Exception as e:
             print(f"Warning: Failed to append events: {e}")
 

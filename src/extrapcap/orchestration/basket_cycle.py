@@ -205,10 +205,13 @@ def run_basket(
             audit.append("signals", event, date.today(), deduplicate=True)
             results.append(
                 {
+                    "category": "signals",
+                    "kind": "basket_selection",
                     "ticker": ticker,
                     "status": status,
                     "reason": reason,
                     "strategy_route": decision.strategy_route,
+                    "model_probability": selection.get("model_probability") or selection.get("reversion_probability"),
                     "selection_context": selection,
                 }
             )
@@ -234,10 +237,13 @@ def run_basket(
         if prep_only:
             results.append(
                 {
+                    "category": "signals",
+                    "kind": "basket_selection",
                     "ticker": ticker,
                     "status": "prep_only",
                     "reason": "opening_prep_candidate",
                     "strategy_route": decision.strategy_route,
+                    "model_probability": selection.get("model_probability") or selection.get("reversion_probability"),
                     "selection_context": selection,
                 }
             )

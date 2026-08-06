@@ -25,6 +25,7 @@ const filledTickers = new Set();
 entry.entries.forEach((item) => {
   const ticker = item.ticker ?? item.selectionContext?.ticker;
   if (!ticker) return;
+  if (item.status === 'error' || item.reason?.includes('Greenlist')) return;
   evaluatedTickers.add(ticker);
 
   const ctx = item.selectionContext ?? {};
