@@ -25,14 +25,14 @@ const filledTickers = new Set();
 entry.entries.forEach((item) => {
   const ticker = item.ticker ?? item.selectionContext?.ticker;
   if (!ticker) return;
-  if (item.status === 'error' || item.reason?.includes('Greenlist')) return;
+  if (item.reason?.includes('Greenlist')) return;
   evaluatedTickers.add(ticker);
 
   const ctx = item.selectionContext ?? {};
   const sigGate = ctx.signal_gate ?? {};
 
   const existing = tickerMap.get(ticker);
-  const isGateAllowed = sigGate.decision === 'allow' || item.status === 'selected' || existing?.isGateAllowed;
+  const isGateAllowed = sigGate.decision === 'allow' || item.status === 'selected' || item.status === 'candidate_reviewed' || item.status === 'deferred' || existing?.isGateAllowed;
 
   if (isGateAllowed) gateTickers.add(ticker);
 
@@ -63,10 +63,10 @@ entry.entries.forEach((item) => {
 
   tickerMap.set(ticker, {
     ticker,
-    sector: ctx.sector ?? existing?.sector ?? 'Unknown',
-    direction: ctx.streak_direction ?? existing?.direction ?? 'flat',
-    length: ctx.streak_length ?? existing?.length ?? 0,
-    robustZ: ctx.robust_z ?? existing?.robustZ,
+    sector: ctx.sector ?? (item as any).sector ?? existing?.sector ?? 'Unknown',
+    direction: ctx.streak_direction ?? (item as any).streak_direction ?? (item as any).direction ?? existing?.direction ?? 'flat',
+    length: ctx.streak_length ?? (item as any).streak_length ?? (item as any).length ?? existing?.length ?? 0,
+    robustZ: ctx.robust_z ?? (item as any).robust_z ?? (item as any).robustZ ?? existing?.robustZ,
     prob: bestProb,
     status: finalStatus,
     reason: finalReason,

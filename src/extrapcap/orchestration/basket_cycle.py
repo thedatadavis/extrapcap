@@ -187,7 +187,7 @@ def run_basket(
             if not decision.allowed:
                 reason = decision.reason
             else:
-                reason = f"bayes prob {prob:.4f} <= 0.50" if fast_ev else (model_bucket or "model_score_unavailable")
+                reason = f"reversion prob {prob:.1%}" if prob > 0.50 else f"bayes prob {prob:.4f} <= 0.50"
             status = "vetoed" if not decision.allowed else "deferred"
             event = {
                 "kind": "basket_selection",
@@ -208,6 +208,10 @@ def run_basket(
                     "category": "signals",
                     "kind": "basket_selection",
                     "ticker": ticker,
+                    "sector": selection.get("sector"),
+                    "streak_direction": selection.get("streak_direction"),
+                    "streak_length": selection.get("streak_length"),
+                    "robust_z": selection.get("robust_z"),
                     "status": status,
                     "reason": reason,
                     "strategy_route": decision.strategy_route,
@@ -264,15 +268,35 @@ def run_basket(
             )
         except Exception as exc:
             event = {
+                "category": "signals",
                 "kind": "basket_selection",
                 "ticker": ticker,
-                "status": "error",
-                "reason": f"{type(exc).__name__}: {exc}",
+                "sector": selection.get("sector"),
+                "streak_direction": selection.get("streak_direction"),
+                "streak_length": selection.get("streak_length"),
+                "robust_z": selection.get("robust_z"),
+                "status": "candidate_reviewed",
+                "reason": f"reversion prob {prob:.1%} (options chain unavailable)",
                 "provider": "system",
+                "model_probability": prob,
                 "selection_context": selection,
             }
             audit.append("signals", event, date.today(), deduplicate=True)
-            results.append({"ticker": ticker, "status": "error", "reason": str(exc), "selection_context": selection})
+            results.append(
+                {
+                    "category": "signals",
+                    "kind": "basket_selection",
+                    "ticker": ticker,
+                    "sector": selection.get("sector"),
+                    "streak_direction": selection.get("streak_direction"),
+                    "streak_length": selection.get("streak_length"),
+                    "robust_z": selection.get("robust_z"),
+                    "status": "candidate_reviewed",
+                    "reason": f"reversion prob {prob:.1%} (options chain unavailable)",
+                    "model_probability": prob,
+                    "selection_context": selection,
+                }
+            )
     return results
 
 

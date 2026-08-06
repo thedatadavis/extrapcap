@@ -10,7 +10,12 @@ class CloudflareAPIClient:
     def __init__(self):
         self.base_url = os.environ.get("CF_APP_URL", "https://extrapcap.pages.dev").rstrip("/")
         self.token = os.environ.get("CF_API_TOKEN", "")
-        self.headers = {"Authorization": f"Bearer {self.token}"} if self.token else {}
+        self.headers = {
+            "User-Agent": "Mozilla/5.0 (compatible; ExtrapcapModal/1.0)",
+            "Origin": self.base_url,
+        }
+        if self.token:
+            self.headers["Authorization"] = f"Bearer {self.token}"
         self.client = httpx.Client(base_url=self.base_url, headers=self.headers, timeout=30.0)
 
     def register_run(self, workflow: str) -> str:

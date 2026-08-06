@@ -49,11 +49,19 @@ export const POST: APIRoute = async ({ request, locals }) => {
     const db = (locals as any).runtime?.env?.DB;
     if (!db) return new Response(JSON.stringify({ error: 'DB not available' }), { status: 500 });
 
+    const url = new URL(request.url);
+    if (url.searchParams.get('clear') === 'true') {
+      const res = await db.prepare("DELETE FROM events").run();
+      return new Response(JSON.stringify({ success: true, cleared: res.meta?.changes || 0 }), {
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
     const payload = await request.json();
     const events = Array.isArray(payload) ? payload : [payload];
 
     const stmt = db.prepare(`
-      INSERT OR IGNORE INTO events
+      INSERT OR REPLACE INTO events
       (event_id, run_id, trading_day, category, kind, ticker, status, reason, sleeve, strategy_variant, strategy_route, model_probability, payload)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
@@ -91,7 +99,7 @@ export const DELETE: APIRoute = async ({ request, locals }) => {
     const db = (locals as any).runtime?.env?.DB;
     if (!db) return new Response(JSON.stringify({ error: 'DB not available' }), { status: 500 });
 
-    const result = await db.prepare("DELETE FROM events WHERE status = 'error'").run();
+    const result = await db.prepare("DELETE FROM events").run();
     return new Response(JSON.stringify({ success: true, changes: result.meta?.changes || 0 }), {
       headers: { 'Content-Type': 'application/json' },
     });
