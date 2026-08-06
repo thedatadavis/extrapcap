@@ -35,6 +35,20 @@ export const POST: APIRoute = async ({ request, locals }) => {
     if (!db) return new Response(JSON.stringify({ error: 'DB not available' }), { status: 500 });
 
     const data = await request.json();
+    const now = new Date().toISOString();
+
+    // Clean up any stale running/triggered runs for this workflow
+    if (data.workflow) {
+      try {
+        await db.prepare(`
+          UPDATE runs SET status = 'completed', finished_at = ?
+          WHERE workflow = ? AND status IN ('running', 'triggered') AND run_id != ?
+        `).bind(now, data.workflow, data.run_id || '').run();
+      } catch (e) {
+        // ignore cleanup error
+      }
+    }
+
     const stmt = db.prepare(`
       INSERT INTO runs (run_id, workflow, status, started_at)
       VALUES (?, ?, ?, ?)
@@ -44,7 +58,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
       data.run_id,
       data.workflow,
       data.status || 'running',
-      data.started_at || new Date().toISOString()
+      data.started_at || now
     ).run();
 
     return new Response(JSON.stringify({ success: true, run_id: data.run_id }), {
@@ -65,10 +79,13 @@ export const PATCH: APIRoute = async ({ request, locals }) => {
       return new Response(JSON.stringify({ error: 'run_id required' }), { status: 400 });
     }
 
+    const now = new Date().toISOString();
+    const targetStatus = data.status || 'completed';
+
     let sql = 'UPDATE runs SET status = ?, finished_at = ?';
     const params: any[] = [
-      data.status || 'completed',
-      data.finished_at || new Date().toISOString(),
+      targetStatus,
+      data.finished_at || now,
     ];
 
     if (data.duration_s !== undefined) {
@@ -88,6 +105,19 @@ export const PATCH: APIRoute = async ({ request, locals }) => {
     params.push(data.run_id || data.id);
 
     await db.prepare(sql).bind(...params).run();
+
+    // Auto-resolve any stale hanging runs for the same workflow if finishing
+    if (data.workflow) {
+      try {
+        await db.prepare(`
+          UPDATE runs SET status = ?, finished_at = ?
+          WHERE workflow = ? AND status IN ('running', 'triggered') AND run_id != ?
+        `).bind(targetStatus, now, data.workflow, data.run_id || '').run();
+      } catch (e) {
+        // ignore
+      }
+    }
+
     return new Response(JSON.stringify({ success: true }), {
       headers: { 'Content-Type': 'application/json' },
     });

@@ -19,8 +19,12 @@ if (db) {
   try {
     const runsRes = await db.prepare('SELECT * FROM runs ORDER BY started_at DESC LIMIT 5').all();
     runs = runsRes.results || [];
-    latestRun = runs[0] || null;
-    runningRuns = runs.filter((r: any) => r.status === 'running');
+    const nowMs = Date.now();
+    runningRuns = runs.filter((r: any) => {
+      if (r.status !== 'running' && r.status !== 'triggered') return false;
+      const startedMs = new Date(r.started_at || 0).getTime();
+      return (nowMs - startedMs) < 300000;
+    });
   } catch (err) {
     console.error('Error fetching runs for index:', err);
   }
