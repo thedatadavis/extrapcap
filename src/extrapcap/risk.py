@@ -39,7 +39,7 @@ class IntradayRiskState:
 
 def approve_intraday_order(state: IntradayRiskState, cfg: RiskConfig, *, is_exit: bool = False) -> RiskDecision:
     """Apply non-overridable intraday window, duplicate, cooldown, and fill gates."""
-    now = state.now or datetime.now().astimezone()
+    now = state.now or datetime.now(timezone.utc)
     if state.market_is_open is False:
         return RiskDecision(False, "broker market clock closed")
     window = execution_window(now)
