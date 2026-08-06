@@ -22,8 +22,15 @@ def opening_prep():
         from extrapcap.orchestration.basket_cycle import run_basket
 
         today_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-        basket_path = "data/universe/tradable-basket.csv"
-        target_basket = basket_path if os.path.exists(basket_path) else "data/universe/greenlist-20260731T082041Z.csv"
+
+        # Primary: Query dynamic basket snapshot from D1 database
+        d1_basket = cf.get_basket()
+        if d1_basket and len(d1_basket) > 0:
+            target_basket = d1_basket
+        else:
+            # Fallback: Local CSV basket bundled in container image
+            basket_path = "data/universe/tradable-basket.csv"
+            target_basket = basket_path if os.path.exists(basket_path) else "data/universe/greenlist-20260731T082041Z.csv"
 
         results = run_basket(
             basket=target_basket,

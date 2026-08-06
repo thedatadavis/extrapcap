@@ -90,6 +90,15 @@ class CloudflareAPIClient:
         except Exception as e:
             print(f"Warning: Failed to store basket: {e}")
 
+    def get_basket(self, as_of: str = None) -> list[dict]:
+        try:
+            url = f"/api/basket?as_of={as_of}" if as_of else "/api/basket"
+            res = self.client.get(url)
+            return res.json() if res.status_code == 200 else []
+        except Exception as e:
+            print(f"Warning: Failed to fetch basket from D1: {e}")
+            return []
+
     def record_account(self, snapshot: dict):
         try:
             self.client.post("/api/account", json=snapshot)

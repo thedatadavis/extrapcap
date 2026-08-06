@@ -40,9 +40,14 @@ def _optional_bool(value) -> bool | None:
     return str(value).strip().lower() in {"true", "1", "yes"}
 
 
-def basket_rows(path: str | Path) -> list[dict]:
-    with Path(path).open(newline="", encoding="utf-8") as handle:
-        rows = list(csv.DictReader(handle))
+def basket_rows(path_or_rows: str | Path | list[dict]) -> list[dict]:
+    if isinstance(path_or_rows, list):
+        rows = path_or_rows
+        source_name = "d1_database"
+    else:
+        with Path(path_or_rows).open(newline="", encoding="utf-8") as handle:
+            rows = list(csv.DictReader(handle))
+        source_name = str(path_or_rows)
     symbol_key = "symbol" if rows and "symbol" in rows[0] else "ticker"
     selected = []
     for row in rows:
@@ -68,7 +73,7 @@ def basket_rows(path: str | Path) -> list[dict]:
                 "volatility_context": _optional_float(row.get("volatility_context")),
                 "market_regime": _optional_float(row.get("market_regime")),
                 "intraday_range_pct": _optional_float(row.get("intraday_range_pct")),
-                "selection_source": str(path),
+                "selection_source": source_name,
             }
         )
     return sorted(selected, key=streak_priority_key)
