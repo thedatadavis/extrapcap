@@ -56,7 +56,8 @@ entry.entries.forEach((item) => {
   }
 
   const finalStatus = item.status ?? item.decision ?? existing?.status ?? 'vetoed';
-  const finalReason = item.reason ?? existing?.reason ?? 'Vetoed by signal rules';
+  const rawReason = item.reason ?? existing?.reason ?? 'Vetoed by signal rules';
+  const finalReason = rawReason === 'candidate_limit' ? 'evaluated' : rawReason;
 
   tickerMap.set(ticker, {
     ticker,
