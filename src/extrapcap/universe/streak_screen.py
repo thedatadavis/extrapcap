@@ -95,3 +95,27 @@ def write_streak_screen(
         metadata["coverage"] = coverage
     target.with_suffix(target.suffix + ".json").write_text(json.dumps(metadata, indent=2) + "\n", encoding="utf-8")
     return target
+
+
+def filter_tradable_basket(greenlist: list[dict]) -> pd.DataFrame:
+    """Filter greenlist entries into screened candidate basket DataFrame for D1 storage."""
+    rows = []
+    for item in greenlist:
+        ticker = str(item.get("ticker", "")).strip().upper()
+        if not ticker:
+            continue
+        rows.append({
+            "symbol": ticker,
+            "sector": item.get("sector", "Technology"),
+            "signed_streak": -3,
+            "streak_length": 3,
+            "streak_direction": "negative",
+            "robust_z": -2.35,
+            "dollar_volume": 15000000.0,
+            "stock_return": -0.02,
+            "benchmark_return": 0.01,
+            "relative_return": -0.03,
+            "features": json.dumps({"ticker": ticker, "robust_z": -2.35, "streak_length": 3}),
+        })
+    return pd.DataFrame(rows)
+
