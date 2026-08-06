@@ -11,7 +11,19 @@ const months = journal.reduce<Record<string, typeof journal>>((groups, entry) =>
   return groups;
 }, {});
 
-const latestJournalDate = journal[0]?.date;
+let latestActivityDate: string | null = null;
+if (db) {
+  try {
+    const lastRun = await db.prepare("SELECT finished_at, started_at FROM runs ORDER BY started_at DESC LIMIT 1").first();
+    const lastEvent = await db.prepare("SELECT recorded_at FROM events ORDER BY recorded_at DESC LIMIT 1").first();
+    const rawTs = lastRun?.finished_at || lastRun?.started_at || lastEvent?.recorded_at;
+    if (rawTs) {
+      latestActivityDate = String(rawTs).slice(0, 10);
+    }
+  } catch {}
+}
+
+const displayUpdateDate = latestActivityDate || journal[0]?.date;
 const currentPath = Astro.url.pathname;
 ---
 
@@ -40,7 +52,7 @@ const currentPath = Astro.url.pathname;
             </details>
           ))}
         </nav>
-        <div class="sidebar-footer"><span class="status-dot"></span> Paper only · {latestJournalDate ? 'updated ' + formatDate(latestJournalDate) : 'awaiting first event'}</div>
+        <div class="sidebar-footer"><span class="status-dot"></span> Paper only · {displayUpdateDate ? 'updated ' + formatDate(displayUpdateDate) : 'awaiting first event'}</div>
       </aside>
       <main class="main-content"><slot /></main>
     </div>
