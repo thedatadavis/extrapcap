@@ -1,0 +1,67 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    name: Test & Deploy Application
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e '.[dev,research]'
+
+      - name: Run Pytest
+        run: |
+          pytest
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Install Node dependencies
+        run: pnpm install
+
+      - name: Build Astro SSR App
+        run: pnpm build
+
+      - name: Deploy Cloudflare Pages & D1 Migrations
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          if [ -n "$CLOUDFLARE_API_TOKEN" ]; then
+            pnpm wrangler pages deploy dist --project-name=extrapcap
+            pnpm wrangler d1 execute extrapcap --remote --file=schema.sql
+          else
+            echo "Skipping Cloudflare deployment: CLOUDFLARE_API_TOKEN not provided in repository secrets."
+          fi
+
+      - name: Deploy Modal Serverless Crons
+        env:
+          MODAL_TOKEN_ID: ${{ secrets.MODAL_TOKEN_ID }}
+          MODAL_TOKEN_SECRET: ${{ secrets.MODAL_TOKEN_SECRET }}
+        run: |
+          if [ -n "$MODAL_TOKEN_ID" ]; then
+            pip install modal
+            modal deploy modal_app/app.py
+          else
+            echo "Skipping Modal deployment: MODAL_TOKEN_ID not provided in repository secrets."
+          fi

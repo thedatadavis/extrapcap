@@ -29,26 +29,26 @@ python -m extrapcap.research.matrix_cli --input examples/sample_bars.csv
 python -m extrapcap.backtest.chain_cli --input examples/sample_option_observations.csv
 ```
 
-## Modal Deployment
+## Automated CI/CD Deployment
+
+Pushes to the `main` branch trigger `.github/workflows/deploy.yml` which automatically:
+1. Runs the `pytest` test suite.
+2. Builds the Astro SSR application and deploys to Cloudflare Pages & D1.
+3. Deploys scheduled Python serverless crons to Modal Labs.
+
+**Required Repository Secrets**:
+- `CLOUDFLARE_API_TOKEN` & `CLOUDFLARE_ACCOUNT_ID`
+- `MODAL_TOKEN_ID` & `MODAL_TOKEN_SECRET`
+
+## Manual Modal & Cloudflare Deployment
 
 ```bash
-# Set credentials in Modal secrets
-modal secret create alpaca-paper ALPACA_API_KEY=... ALPACA_SECRET_KEY=...
-modal secret create nebius NEBIUS_API_KEY=...
-modal secret create cloudflare-api CF_APP_URL=https://extrapcap.pages.dev CF_API_TOKEN=...
-
-# Deploy cron functions
+# Modal deployment
 modal deploy modal_app/app.py
-```
 
-## Cloudflare D1 & Pages Deployment
-
-```bash
-# Build and deploy Astro SSR application
+# Cloudflare Pages & D1 deployment
 pnpm build
 pnpm wrangler pages deploy dist --project-name=extrapcap
-
-# Database migrations
 pnpm wrangler d1 execute extrapcap --remote --file=schema.sql
 ```
 
