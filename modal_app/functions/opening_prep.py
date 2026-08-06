@@ -1,3 +1,4 @@
+import os
 import time
 from datetime import datetime, timezone
 import modal
@@ -21,15 +22,19 @@ def opening_prep():
         from extrapcap.orchestration.basket_cycle import run_basket
 
         today_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        basket_path = "data/universe/tradable-basket.csv"
+        target_basket = basket_path if os.path.exists(basket_path) else "data/universe/greenlist-20260731T082041Z.csv"
+
         results = run_basket(
+            basket=target_basket,
             expiration_gte=today_str,
             max_candidates=10,
-            execution_mode="dry-run",
             review_phase="opening_prep",
             fast_ev=True,
+            prep_only=True,
         )
 
-        events = results.get("events", [])
+        events = results if isinstance(results, list) else []
         cf.append_events(events)
         cf.complete_run(run_id, summary={"evaluated": len(events)}, start_time=start_time)
         return {"status": "success", "evaluated": len(events)}

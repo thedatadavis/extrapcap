@@ -2,7 +2,6 @@ import modal
 
 app = modal.App("extrapcap")
 
-# Modal container image with extrapcap and modal_app installed
 image = (
     modal.Image.debian_slim(python_version="3.12")
     .pip_install(
@@ -20,21 +19,22 @@ image = (
     .env({"PYTHONPATH": "/root:/root/src"})
 )
 
-# Secrets required across Modal functions
 secrets = [
-    modal.Secret.from_name("alpaca-paper"),   # ALPACA_API_KEY, ALPACA_SECRET_KEY
-    modal.Secret.from_name("nebius"),          # NEBIUS_API_KEY
-    modal.Secret.from_name("cloudflare-api"),  # CF_APP_URL, CF_API_TOKEN
-    modal.Secret.from_name("resend"),          # RESEND_API_KEY, RECIPIENT_EMAIL, SENDER_EMAIL
+    modal.Secret.from_name("alpaca-paper"),
+    modal.Secret.from_name("nebius"),
+    modal.Secret.from_name("cloudflare-api"),
+    modal.Secret.from_name("resend"),
 ]
 
-# Register functions
-import modal_app.functions.data_refresh
-import modal_app.functions.streak_screen
-import modal_app.functions.opening_prep
-import modal_app.functions.candidate_review
-import modal_app.functions.position_management
-import modal_app.functions.reconciliation
-import modal_app.functions.daily_report
-import modal_app.functions.improvement_loop
-import modal_app.functions.live_cycle
+# Explicitly import all function modules to register @app.function definitions
+from modal_app.functions import (
+    candidate_review,
+    daily_report,
+    data_refresh,
+    improvement_loop,
+    live_cycle,
+    opening_prep,
+    position_management,
+    reconciliation,
+    streak_screen,
+)
