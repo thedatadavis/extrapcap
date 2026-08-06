@@ -8,7 +8,8 @@ const journal = await getJournal(db);
 const entry = journal.find((e) => e.date === date);
 
 if (!entry) {
-  return Astro.redirect('/404');
+  const latestDate = journal[0]?.date;
+  return Astro.redirect(latestDate ? `/journal/${latestDate}` : '/');
 }
 
 // Use structured summary layout for 2026-07-30 and future reports
