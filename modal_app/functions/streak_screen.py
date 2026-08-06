@@ -18,14 +18,20 @@ def streak_screen():
     run_id = cf.register_run("streak_screen")
 
     try:
-        from extrapcap.universe.greenlist import build_greenlist_snapshot
+        from urllib.request import urlopen
+        from extrapcap.universe.greenlist import SOURCE_URL, GreenlistFilter, filter_greenlist, _read_csv
         from extrapcap.universe.streak_screen import filter_tradable_basket
 
         today_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-        greenlist = build_greenlist_snapshot()
+
+        # Fetch greenlist registry from source URL
+        with urlopen(SOURCE_URL, timeout=30) as response:
+            raw_text = response.read().decode("utf-8")
+        raw_rows = _read_csv(raw_text)
+        accepted_greenlist, _ = filter_greenlist(raw_rows, GreenlistFilter())
 
         # Generate tradable basket
-        basket_df = filter_tradable_basket(greenlist=greenlist)
+        basket_df = filter_tradable_basket(greenlist=accepted_greenlist)
         rows = basket_df.to_dict(orient="records")
 
         # Store in D1
