@@ -2,11 +2,35 @@
 import Shell from '../../layouts/Shell.astro';
 import { getActivePositions, generatePayoffCurve } from '../../data/positions';
 
+if (Astro.response) {
+  Astro.response.headers.set('Cache-Control', 'public, max-age=0, must-revalidate');
+  Astro.response.headers.set('CDN-Cache-Control', 'no-cache');
+}
+
 const db = (Astro.locals as any).runtime?.env?.DB;
 const ACTIVE_POSITIONS = await getActivePositions(db);
 const base = import.meta.env.BASE_URL || '';
 const initialPosition = ACTIVE_POSITIONS[0];
 const initialPayoff = initialPosition ? generatePayoffCurve(initialPosition, 120) : [];
+
+let latestRunTime = new Date().toISOString();
+if (db) {
+  try {
+    const run = await db.prepare("SELECT * FROM runs WHERE workflow = 'position_management' ORDER BY started_at DESC LIMIT 1").first();
+    if (run?.finished_at || run?.started_at) {
+      latestRunTime = run.finished_at || run.started_at;
+    }
+  } catch {}
+}
+
+const formattedAsOf = new Date(latestRunTime).toLocaleString('en-US', {
+  month: 'short',
+  day: 'numeric',
+  year: 'numeric',
+  hour: 'numeric',
+  minute: '2-digit',
+  timeZoneName: 'short',
+});
 ---
 
 <Shell>
@@ -25,8 +49,13 @@ const initialPayoff = initialPosition ? generatePayoffCurve(initialPosition, 120
       <p class="hero-copy">Interactive options spread visualizer with payoff curves, strike crossovers, and profit potential metrics.</p>
     </div>
     <div class="header-summary-badge">
-      <span class="badge-label">Active Spreads</span>
-      <strong class="badge-count">{ACTIVE_POSITIONS.length}</strong>
+      <span class="badge-label">As of {formattedAsOf}</span>
+      <div style="display: flex; align-items: center; gap: 8px; margin-top: 4px;">
+        <strong class="badge-count">{ACTIVE_POSITIONS.length} Active</strong>
+        <button id="refresh-positions-btn" class="sync-btn" type="button" aria-label="Refresh active positions">
+          <span class="sync-icon">🔄</span>
+        </button>
+      </div>
     </div>
   </section>
 
@@ -485,6 +514,12 @@ const initialPayoff = initialPosition ? generatePayoffCurve(initialPosition, 120
 
   tickerSearch?.addEventListener('input', renderSidebarList);
   sortSelect?.addEventListener('change', renderSidebarList);
+
+  // Refresh button handler
+  document.getElementById('refresh-positions-btn')?.addEventListener('click', function() {
+    this.classList.add('spinning');
+    window.location.reload();
+  });
 
   // Initialize view
   renderSidebarList();

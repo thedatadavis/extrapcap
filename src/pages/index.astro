@@ -2,10 +2,29 @@
 import Shell from '../layouts/Shell.astro';
 import { getAccountHistory, getExecutedTrades, formatDate, getJournal } from '../data/journal';
 
+if (Astro.response) {
+  Astro.response.headers.set('Cache-Control', 'public, max-age=0, must-revalidate');
+  Astro.response.headers.set('CDN-Cache-Control', 'no-cache');
+}
+
 const db = (Astro.locals as any).runtime?.env?.DB;
 const accountHistory = await getAccountHistory(db);
 const journal = await getJournal(db);
 const executedTrades = await getExecutedTrades(db);
+
+let runs: any[] = [];
+let latestRun: any = null;
+let runningRuns: any[] = [];
+if (db) {
+  try {
+    const runsRes = await db.prepare('SELECT * FROM runs ORDER BY started_at DESC LIMIT 5').all();
+    runs = runsRes.results || [];
+    latestRun = runs[0] || null;
+    runningRuns = runs.filter((r: any) => r.status === 'running');
+  } catch (err) {
+    console.error('Error fetching runs for index:', err);
+  }
+}
 
 const recentTrades = executedTrades.map(({ date, trade }) => ({ date, trade })).slice(-8).reverse();
 const latestAccount = accountHistory.at(-1);
@@ -13,6 +32,16 @@ const firstBalance = accountHistory[0]?.balance ?? 0;
 const currentBalance = latestAccount?.balance ?? firstBalance;
 const balanceChange = currentBalance - firstBalance;
 const balanceChangePct = firstBalance ? balanceChange / firstBalance : 0;
+
+const asOfTime = latestRun?.finished_at || latestRun?.started_at || (latestAccount ? `${latestAccount.date} T00:00:00Z` : new Date().toISOString());
+const formattedAsOf = new Date(asOfTime).toLocaleString('en-US', {
+  month: 'short',
+  day: 'numeric',
+  year: 'numeric',
+  hour: 'numeric',
+  minute: '2-digit',
+  timeZoneName: 'short',
+});
 ---
 
 <Shell>
@@ -27,6 +56,46 @@ const balanceChangePct = firstBalance ? balanceChange / firstBalance : 0;
   <section class="dashboard-intro">
     <h1>Extrapolation Capital</h1>
     <p>Account balance and recent trading activity from the research system.</p>
+  </section>
+
+  <!-- Cron Job Execution Status Bar -->
+  <section class="cron-sync-card" aria-label="Cron Job Execution Status">
+    <div class="cron-sync-header">
+      <div class="cron-sync-status">
+        <span id="sync-dot" class:list={['sync-dot', runningRuns.length > 0 ? 'running' : latestRun?.status === 'failed' ? 'failed' : latestRun ? 'idle' : 'idle']}></span>
+        <span id="sync-status-text">
+          {runningRuns.length > 0
+            ? `Cron job executing: ${runningRuns[0].workflow}`
+            : latestRun
+              ? `Modal Cron: ${latestRun.workflow} (${latestRun.status})`
+              : 'Awaiting first cron execution'}
+        </span>
+      </div>
+      <div class="cron-sync-actions">
+        <span class="auto-sync-label" id="as-of-label">As of {formattedAsOf}</span>
+        <button id="sync-now-btn" class="sync-btn" type="button" aria-label="Refresh page data">
+          <span class="sync-icon">🔄</span>
+          <span class="sync-btn-text">Refresh</span>
+        </button>
+      </div>
+    </div>
+    <div class="cron-sync-meta-grid">
+      <div class="cron-meta-item">
+        <span>Last Cron Workflow</span>
+        <strong id="meta-last-run">{latestRun ? latestRun.workflow : 'None recorded'}</strong>
+        <small id="meta-last-time">{latestRun ? `${latestRun.status} (${latestRun.duration_s ? latestRun.duration_s.toFixed(1) + 's' : '—'})` : 'No runs yet'}</small>
+      </div>
+      <div class="cron-meta-item">
+        <span>Execution Schedule</span>
+        <strong>Modal Serverless Crons</strong>
+        <small>4:00 UTC · 9:00, 9:45, 12:15, 15:00, 16:45 EDT</small>
+      </div>
+      <div class="cron-meta-item">
+        <span>Data Snapshot</span>
+        <strong id="meta-sync-state">As of {latestAccount ? formatDate(latestAccount.date) : 'latest run'}</strong>
+        <small id="meta-sync-sub">Synced with Cloudflare D1</small>
+      </div>
+    </div>
   </section>
 
   <section class="balance-section" aria-labelledby="balance-title">
@@ -139,5 +208,12 @@ const balanceChangePct = firstBalance ? balanceChange / firstBalance : 0;
     canvas?.addEventListener('pointerdown', selectPoint);
     new ResizeObserver(draw).observe(canvas);
     draw();
+
+    // On-demand refresh button handler
+    const syncBtn = document.querySelector('#sync-now-btn');
+    syncBtn?.addEventListener('click', () => {
+      syncBtn.classList.add('spinning');
+      window.location.reload();
+    });
   </script>
 </Shell>
