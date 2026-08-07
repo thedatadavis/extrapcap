@@ -184,26 +184,13 @@ def run_backtest(
         if row.robust_z > cfg.strategy.z_threshold:
             continue
         if sniper is None:
-            # Explicit fallback for fixture-only research. Paper mode must pass a
-            # trained model into this function before enabling autonomous submit.
-            probability = 0.72 if row.robust_z <= cfg.strategy.z_threshold else 0.62
+            if not hasattr(row, "reversion_probability") or pd.isna(row.reversion_probability):
+                raise ValueError("backtest row missing ticker-specific reversion_probability")
+            probability = float(row.reversion_probability)
         else:
             feature_row = pd.DataFrame([{name: getattr(row, name) for name in SNIPER_FEATURES}])
             probability = float(sniper.predict_probability(feature_row)[0])
-        if probability < cfg.strategy.trap_low:
-            if include_crash_protocol:
-                crash = build_asymmetric_debit_spread(row.symbol, row.close, "bearish")
-                if crash_open_risk + crash.max_loss <= 100_000 * cfg.risk.max_asymmetric_open_risk_pct and allows_intraday_entry(row.symbol, current_date):
-                    crash_result = debit_expiration_pnl(crash, float(row.next_close))
-                    crash_trades += 1
-                    crash_pnl += crash_result
-                    pnl_events.append((pd.Timestamp(row.next_date), crash_result))
-                    crash_open_risk += crash.max_loss
-                    crash_exit_date = pd.Timestamp(row.next_date)
-                    crash_releases[crash_exit_date] = crash_releases.get(crash_exit_date, 0.0) + crash.max_loss
-            continue
-        if cfg.strategy.trap_low <= probability < cfg.strategy.trap_high:
-            trap += 1
+        if probability <= 0.50:
             continue
         spread = build_credit_spread(row.symbol, row.close, variant, cfg.strategy.spread_width)
         sector = sector_map.get(str(row.symbol).upper())

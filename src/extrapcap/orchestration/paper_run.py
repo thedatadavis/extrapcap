@@ -4,37 +4,23 @@ from dataclasses import dataclass
 from datetime import date, datetime
 import hashlib
 import json
-from pathlib import Path
 
+from ..config import RiskConfig
 from ..events import EventDecision
-from ..execution.orders import OrderEnvelope, OrderRegistry
-from ..fills import FillAssumptions, credit_fill, debit_fill
+from ..execution.orders import OrderEnvelope
+from ..fills import FillAssumptions
 from ..ledger import AuditLedger
 from ..options import DebitSpread, VerticalSpread
 from ..options_data import (
-    SelectedVertical,
+    ExpectedValueSolution,
     SelectedDebitVertical,
+    SelectedVertical,
     contracts_from_payload,
     normalize_chain,
-    select_put_vertical,
-    select_bearish_put_debit_vertical,
     select_highest_ev_vertical,
     selected_vertical_quote_quality,
 )
-from ..risk import PortfolioRiskState, RiskDecision, approve_asymmetric, approve_candidate
-from ..execution.reconcile import reconcile
-from ..config import RiskConfig, StrategyConfig
-
-
-PAPER_ORDER_ACCEPTED_STATUSES = {
-    "accepted",
-    "new",
-    "pending_new",
-    "partially_filled",
-    "filled",
-    "done_for_day",
-}
-PAPER_ORDER_REJECTED_STATUSES = {"rejected", "canceled", "expired", "suspended"}
+from ..risk import PortfolioRiskState, RiskDecision, approve_dte_risk
 
 
 @dataclass(frozen=True)
@@ -47,24 +33,29 @@ class PaperCandidate:
     risk_decision: RiskDecision
     event_decision: EventDecision
     risk_state: PortfolioRiskState
-    market_data_details: dict | None = None
-    strategy_variant: str = "improved"
-    selection_context: dict | None = None
+    market_data_details: dict
+    selection_context: dict
 
     @property
     def signal_id(self) -> str:
-        context = self.selection_context or {}
-        live_features = context.get("live_features") or {}
         identity = {
-            "trading_day": self.envelope.trading_day,
+            "day": self.envelope.trading_day,
             "ticker": self.envelope.symbol.upper(),
-            "sleeve": self.envelope.sleeve,
-            "strategy_variant": self.strategy_variant,
-            "strategy_route": context.get("strategy_route"),
-            "formation_as_of": context.get("formation_date") or live_features.get("as_of"),
+            "legs": self.envelope.legs,
+            "context": self.selection_context,
         }
-        canonical = json.dumps(identity, sort_keys=True, default=str)
-        return "sig-" + hashlib.sha256(canonical.encode()).hexdigest()[:24]
+        return "sig-" + hashlib.sha256(json.dumps(identity, sort_keys=True, default=str).encode()).hexdigest()[:24]
+
+
+def _midpoint_spread(selected, quotes: dict[str, object], *, debit: bool) -> float:
+    first = quotes[selected.long.symbol].midpoint
+    second = quotes[selected.short.symbol].midpoint
+    if first is None or second is None:
+        raise ValueError("option midpoint is unavailable")
+    value = first - second if debit else second - first
+    if value <= 0:
+        raise ValueError("option midpoint does not produce a positive spread price")
+    return round(value, 2)
 
 
 def build_candidate(
@@ -78,417 +69,103 @@ def build_candidate(
     risk_state: PortfolioRiskState,
     risk_config: RiskConfig,
     event_decision: EventDecision,
-    fill_assumptions: FillAssumptions | None = None,
-    delta_min: float = 0.15,
-    delta_max: float = 0.20,
-    width: float = 5.0,
-    strategy_variant: str = "improved",
     selection_context: dict | None = None,
     observed_at: datetime | None = None,
     max_quote_age_seconds: int = 1800,
     max_quote_spread_pct: float = 0.25,
-    min_credit_pct_width: float = 0.20,
+    min_ev: float = 0.0,
+    dte_min: int = 0,
+    dte_max: int = 21,
+    preferred_dte: int = 10,
+    widths: tuple[float, ...] = (1.0, 2.0, 2.5, 3.0, 5.0, 10.0),
 ) -> PaperCandidate:
-    assumptions = fill_assumptions or FillAssumptions()
+    if not 0 < model_probability < 1:
+        raise ValueError("model probability must be strictly between zero and one")
+    context = dict(selection_context or {})
+    direction = str(context.get("streak_direction") or "").lower()
+    if direction not in {"negative", "positive"}:
+        raise ValueError("selection context requires streak direction")
     contracts = contracts_from_payload(contracts_payload)
     quotes = normalize_chain(snapshot_payload)
-    selected = select_put_vertical(underlying, contracts, quotes, underlying_price, delta_min, delta_max, width)
-    quote_map = {quote.symbol: quote for quote in quotes}
-    fill_dollars = credit_fill(quote_map[selected.short.symbol].bid, quote_map[selected.long.symbol].ask, 1, assumptions)
-    spread = VerticalSpread(underlying, selected.short.strike, selected.long.strike, fill_dollars / 100)
-    sector = str((selection_context or {}).get("sector") or "").strip()
-    market_data_details = {
-        "data_tier": snapshot_payload.get("_data_tier"),
-        "credit_pct_width": spread.credit / spread.width,
-        "min_credit_pct_width": min_credit_pct_width,
-    }
-    quality_reason = None
-    if observed_at is not None:
-        quality_reason, quote_details = selected_vertical_quote_quality(
-            selected,
-            quotes,
-            observed_at,
-            max_age_seconds=max_quote_age_seconds,
-            max_spread_pct=max_quote_spread_pct,
-        )
-        market_data_details.update(quote_details)
-    if quality_reason:
-        risk_decision = RiskDecision(False, quality_reason)
-    elif spread.credit / spread.width < min_credit_pct_width:
-        risk_decision = RiskDecision(False, "credit_below_minimum_pct_width")
-    elif not sector or sector.upper() == "N/A":
-        risk_decision = RiskDecision(False, "sector metadata required")
-    else:
-        sector_risk = (risk_state.sector_open_risk or {}).get(sector, 0.0)
-        risk_decision = approve_candidate(spread, risk_state, risk_config, sector_risk)
-    trap_high = StrategyConfig().trap_high
-    bucket = "crash_protocol" if model_probability < 0.50 else "trap" if model_probability < trap_high else "premium_candidate"
-    envelope = OrderEnvelope(str(trading_day), underlying, "sell_to_open", selected.order_legs(), "core", limit_price=spread.credit)
-    return PaperCandidate(
-        envelope=envelope,
-        spread=spread,
-        selected=selected,
-        model_probability=model_probability,
-        model_bucket=bucket,
-        risk_decision=risk_decision,
-        event_decision=event_decision,
-        risk_state=risk_state,
-        market_data_details=market_data_details,
-        strategy_variant=strategy_variant,
-        selection_context=selection_context,
-    )
-
-
-def build_crash_candidate(
-    *,
-    underlying: str,
-    trading_day: date,
-    underlying_price: float,
-    contracts_payload: dict,
-    snapshot_payload: dict,
-    model_probability: float,
-    risk_state: PortfolioRiskState,
-    risk_config: RiskConfig,
-    event_decision: EventDecision,
-    fill_assumptions: FillAssumptions | None = None,
-    delta_min: float = 0.30,
-    delta_max: float = 0.50,
-    width: float = 10.0,
-    strategy_variant: str = "improved",
-    selection_context: dict | None = None,
-    observed_at: datetime | None = None,
-    max_quote_age_seconds: int = 1800,
-    max_quote_spread_pct: float = 0.25,
-) -> PaperCandidate:
-    assumptions = fill_assumptions or FillAssumptions()
-    contracts = contracts_from_payload(contracts_payload)
-    quotes = normalize_chain(snapshot_payload)
-    selected = select_bearish_put_debit_vertical(underlying, contracts, quotes, underlying_price, delta_min, delta_max, width)
-    quote_map = {quote.symbol: quote for quote in quotes}
-    debit_dollars = debit_fill(quote_map[selected.long.symbol].ask, quote_map[selected.short.symbol].bid, 1, assumptions)
-    spread = DebitSpread(underlying, selected.long.strike, selected.short.strike, debit_dollars / 100, sleeve="asymmetric", direction="bearish")
-    sector = str((selection_context or {}).get("sector") or "").strip()
-    market_data_details = {
-        "data_tier": snapshot_payload.get("_data_tier"),
-        "debit_pct_width": spread.debit / spread.width,
-        "reward_multiple": spread.reward_multiple,
-    }
-    quality_reason = None
-    if observed_at is not None:
-        quality_reason, quote_details = selected_vertical_quote_quality(
-            selected,
-            quotes,
-            observed_at,
-            max_age_seconds=max_quote_age_seconds,
-            max_spread_pct=max_quote_spread_pct,
-        )
-        market_data_details.update(quote_details)
-    if quality_reason:
-        risk_decision = RiskDecision(False, quality_reason)
-    elif not sector or sector.upper() == "N/A":
-        risk_decision = RiskDecision(False, "sector metadata required")
-    else:
-        risk_decision = approve_asymmetric(spread, risk_state, risk_config)
-    envelope = OrderEnvelope(str(trading_day), underlying, "buy_to_open", selected.order_legs(), "asymmetric", limit_price=spread.debit)
-    return PaperCandidate(
-        envelope=envelope,
-        spread=spread,
-        selected=selected,
-        model_probability=model_probability,
-        model_bucket="crash_protocol",
-        risk_decision=risk_decision,
-        event_decision=event_decision,
-        risk_state=risk_state,
-        market_data_details=market_data_details,
-        strategy_variant=strategy_variant,
-        selection_context=selection_context,
-    )
-
-
-_bayesian_model_cache = None
-
-
-def get_bayesian_model(bars_path: str = "data/normalized/bars.csv"):
-    global _bayesian_model_cache
-    if _bayesian_model_cache is not None:
-        return _bayesian_model_cache
-    from ..models.bayesian_reversion import BayesianReversionModel
-    p = Path(bars_path)
-    if not p.exists():
-        _bayesian_model_cache = BayesianReversionModel.default()
-        return _bayesian_model_cache
-    try:
-        import pandas as pd
-        bars = pd.read_csv(p)
-        benchmark = bars.loc[bars.symbol == "SPY"].set_index("date")["close"]
-        _bayesian_model_cache = BayesianReversionModel.fit_from_bars(bars, benchmark)
-        return _bayesian_model_cache
-    except Exception:
-        _bayesian_model_cache = BayesianReversionModel.default()
-        return _bayesian_model_cache
-
-
-def build_fast_ev_candidate(
-    *,
-    underlying: str,
-    trading_day: date,
-    underlying_price: float,
-    contracts_payload: dict,
-    snapshot_payload: dict,
-    model_probability: float,
-    risk_state: PortfolioRiskState,
-    risk_config: RiskConfig,
-    event_decision: EventDecision,
-    strategy_variant: str = "fast_ev",
-    selection_context: dict | None = None,
-    min_ev: float = 10.0,
-    bayes_model=None,
-) -> PaperCandidate:
-    """Build a candidate by scanning all available vertical spreads for highest EV >= $10.00."""
-    ctx = selection_context or {}
-    streak_direction = str(ctx.get("streak_direction") or "negative")
-    streak_length = int(ctx.get("streak_length") or 2)
-    sector = str(ctx.get("sector") or "Unknown").strip()
-    day_of_week = trading_day.weekday()
-
-    if bayes_model is True:
-        bayes_model = get_bayesian_model()
-
-    if bayes_model is not None and hasattr(bayes_model, "predict_reversion_probability"):
-        reversion_prob = bayes_model.predict_reversion_probability(
-            streak_length=streak_length,
-            streak_direction=streak_direction,
-            day_of_week=day_of_week,
-            sector=sector,
-        )
-    else:
-        reversion_prob = float(model_probability)
-
-    if reversion_prob <= 0.50:
-        raise ValueError(f"reversion probability {reversion_prob:.4f} <= 0.50 threshold")
-
-    contracts = contracts_from_payload(contracts_payload)
-    quotes = normalize_chain(snapshot_payload)
-    sol = select_highest_ev_vertical(
+    solution: ExpectedValueSolution = select_highest_ev_vertical(
         underlying,
         contracts,
         quotes,
         underlying_price,
-        reversion_prob,
+        model_probability,
         min_ev=min_ev,
-        streak_direction=streak_direction,
+        widths=widths,
+        streak_direction=direction,
+        trading_day=trading_day,
+        dte_min=dte_min,
+        dte_max=dte_max,
+        preferred_dte=preferred_dte,
     )
-    spread = sol.spread
-    selected = sol.selected
-    market_data_details = {
-        "data_tier": snapshot_payload.get("_data_tier"),
-        "expected_value": sol.expected_value,
-        "max_profit": sol.max_profit,
-        "max_risk": sol.max_risk,
-        "reversion_probability": reversion_prob,
-    }
-    if not sector or sector.upper() == "N/A":
+    selected = solution.selected
+    quote_map = {quote.symbol: quote for quote in quotes}
+    is_debit = isinstance(solution.spread, DebitSpread)
+    price = _midpoint_spread(selected, quote_map, debit=is_debit)
+    spread = DebitSpread(underlying, selected.long.strike, selected.short.strike, price, direction=solution.spread.direction) if is_debit else VerticalSpread(underlying, selected.short.strike, selected.long.strike, price)
+    sector = str(context.get("sector") or "").strip()
+    if not sector or sector.upper() in {"N/A", "UNKNOWN"}:
         risk_decision = RiskDecision(False, "sector metadata required")
-    elif isinstance(spread, DebitSpread):
-        risk_decision = approve_asymmetric(spread, risk_state, risk_config)
     else:
-        sector_risk = (risk_state.sector_open_risk or {}).get(sector, 0.0)
-        risk_decision = approve_candidate(spread, risk_state, risk_config, sector_risk)
-
-    if isinstance(spread, DebitSpread):
-        envelope = OrderEnvelope(
-            str(trading_day), underlying, "buy_to_open", selected.order_legs(), "asymmetric", limit_price=spread.debit
-        )
-    else:
-        envelope = OrderEnvelope(
-            str(trading_day), underlying, "sell_to_open", selected.order_legs(), "core", limit_price=spread.credit
-        )
-
-    return PaperCandidate(
-        envelope=envelope,
-        spread=spread,
-        selected=selected,
-        model_probability=reversion_prob,
-        model_bucket="fast_ev_candidate",
-        risk_decision=risk_decision,
-        event_decision=event_decision,
-        risk_state=risk_state,
-        market_data_details=market_data_details,
-        strategy_variant=strategy_variant,
-        selection_context=selection_context,
-    )
+        risk_decision = approve_dte_risk(spread, risk_state, risk_config, solution.dte, (risk_state.sector_open_risk or {}).get(sector, 0.0))
+    quality_reason = None
+    details = {
+        "data_tier": snapshot_payload.get("_data_tier"),
+        "expected_value": solution.expected_value,
+        "max_profit": solution.max_profit,
+        "max_risk": solution.max_risk,
+        "expiration": solution.expiration,
+        "dte": solution.dte,
+        "reversion_probability": model_probability,
+        "entry_price": price,
+        "pricing": "midpoint",
+    }
+    if observed_at is not None and isinstance(selected, SelectedVertical):
+        quality_reason, quality = selected_vertical_quote_quality(selected, quotes, observed_at, max_age_seconds=max_quote_age_seconds, max_spread_pct=max_quote_spread_pct)
+        details.update(quality)
+    if quality_reason:
+        risk_decision = RiskDecision(False, quality_reason)
+    context.update({"dte": solution.dte, "expiration": solution.expiration, "preferred_dte": preferred_dte})
+    envelope = OrderEnvelope(str(trading_day), underlying, "buy_to_open" if is_debit else "sell_to_open", selected.order_legs(), spread.sleeve, limit_price=price)
+    return PaperCandidate(envelope, spread, selected, model_probability, "qualified", risk_decision, event_decision, risk_state, details, context)
 
 
 class PaperRunCoordinator:
-    """Runs qualitative review after hard gates; only approved candidates reach execution."""
+    """Apply event/risk gates and submit every approved candidate to Alpaca paper."""
 
-    def __init__(
-        self,
-        client,
-        reviewer,
-        ledger: AuditLedger | None = None,
-        registry: OrderRegistry | None = None,
-        fast_ev: bool = False,
-    ):
+    def __init__(self, client, reviewer=None, ledger: AuditLedger | None = None):
         self.client = client
         self.reviewer = reviewer
         self.ledger = ledger or AuditLedger()
-        self.registry = registry or OrderRegistry()
-        self.fast_ev = fast_ev
 
     def execute(self, candidate: PaperCandidate) -> dict:
-        cid = candidate.envelope.client_order_id
-        signal_id = candidate.signal_id
-        trading_day = date.fromisoformat(candidate.envelope.trading_day)
-        contracts = [
-            {
-                "contract_id": contract.symbol,
-                "ticker": contract.underlying,
-                "expiration": contract.expiration,
-                "strike": contract.strike,
-                "option_type": contract.option_type,
-                "role": role,
-            }
-            for role, contract in (("short", candidate.selected.short), ("long", candidate.selected.long))
-        ]
-        contract_ids = [contract["contract_id"] for contract in contracts]
+        day = date.fromisoformat(candidate.envelope.trading_day)
         common = {
-            "signal_id": signal_id,
+            "signal_id": candidate.signal_id,
             "ticker": candidate.envelope.symbol.upper(),
-            "underlying": candidate.envelope.symbol.upper(),
-            "contract_ids": contract_ids,
-            "contracts": contracts,
+            "contract_ids": [leg["symbol"] for leg in candidate.envelope.legs],
             "sleeve": candidate.envelope.sleeve,
-            "strategy_variant": candidate.strategy_variant,
-            "selection_context": candidate.selection_context or {},
-            "data_tier": (candidate.selection_context or {}).get("data_tier"),
-            "market_data": candidate.market_data_details or {},
-            "risk_snapshot": {
-                "nav": candidate.risk_state.nav,
-                "core_open_risk": candidate.risk_state.core_open_risk,
-                "asymmetric_open_risk": candidate.risk_state.asymmetric_open_risk,
-                "daily_pnl": candidate.risk_state.daily_pnl,
-                "drawdown": candidate.risk_state.drawdown,
-                "open_asymmetric_trades": candidate.risk_state.open_asymmetric_trades,
-                "ticker_open_risk": candidate.risk_state.ticker_open_risk or {},
-                "sector_open_risk": candidate.risk_state.sector_open_risk or {},
-                "options_buying_power": candidate.risk_state.options_buying_power,
-                "options_trading_level": candidate.risk_state.options_trading_level,
-                "trading_blocked": candidate.risk_state.trading_blocked,
-            },
+            "selection_context": candidate.selection_context,
+            "market_data": candidate.market_data_details,
         }
-        if self.registry.contains(cid):
-            return {"client_order_id": cid, "status": "duplicate_skipped", **common}
-        if self.registry.contains_signal(signal_id):
-            result = {
-                "client_order_id": cid,
-                "status": "duplicate_signal_skipped",
-                "reason": "signal already submitted",
-                **common,
-            }
-            self.ledger.append("risk", result, trading_day, deduplicate=True)
-            return result
-        self.ledger.append(
-            "signals",
-            {
-                "kind": "candidate",
-                "client_order_id": cid,
-                **common,
-                "model_probability": candidate.model_probability,
-                "model_bucket": candidate.model_bucket,
-                "spread": candidate.spread.__dict__,
-                "event_decision": candidate.event_decision.__dict__,
-                "risk_decision": candidate.risk_decision.__dict__,
-            },
-            trading_day,
-        )
+        self.ledger.append("signals", {"kind": "candidate", **common, "model_probability": candidate.model_probability, "risk_decision": candidate.risk_decision.__dict__, "event_decision": candidate.event_decision.__dict__}, day)
         if not candidate.event_decision.allowed:
-            result = {"client_order_id": cid, "status": "vetoed", "reason": candidate.event_decision.reason, **common}
-            self.ledger.append("signals", result, trading_day)
-            return result
+            return {**common, "status": "vetoed", "reason": candidate.event_decision.reason}
         if not candidate.risk_decision.allowed:
-            result = {"client_order_id": cid, "status": "vetoed", "reason": candidate.risk_decision.reason, **common}
-            self.ledger.append("risk", result, trading_day)
-            return result
-        crash_candidate = candidate.model_bucket == "crash_protocol" and isinstance(candidate.spread, DebitSpread)
-        is_fast_ev = self.fast_ev or candidate.model_bucket == "fast_ev_candidate"
-        if not is_fast_ev and candidate.model_bucket not in {"premium_candidate", "watch_list"} and not crash_candidate:
-            result = {"client_order_id": cid, "status": "vetoed", "reason": candidate.model_bucket, **common}
-            self.ledger.append("signals", result, trading_day)
-            return result
-        review_input = {
-            "candidate": cid,
-            **common,
-            "spread": candidate.spread.__dict__,
-            "model_probability": candidate.model_probability,
-            "model_bucket": candidate.model_bucket,
-        }
-        if is_fast_ev:
-            judgment = {"decision": "go", "reason": "fast_ev_approved", "provider": "system"}
-        else:
+            return {**common, "status": "vetoed", "reason": candidate.risk_decision.reason}
+        if self.reviewer is not None:
+            # Nebius is advisory; an unavailable or negative opinion never becomes a data fallback or entry veto.
             try:
-                judgment = self.reviewer.review(review_input)
+                judgment = self.reviewer.review({**common, "spread": candidate.spread.__dict__})
             except Exception as exc:
-                judgment = {"decision": "escalate", "reason": f"reviewer failure: {type(exc).__name__}", "provider": "nebius"}
-        self.ledger.append(
-            "rationales",
-            {"client_order_id": cid, **common, "input": review_input, "judgment": judgment},
-            trading_day,
-        )
-        if hasattr(self.client, "execute_order_with_backoff") and not getattr(self.client, "dry_run", True):
-            response = self.client.execute_order_with_backoff(
-                candidate.envelope.alpaca_payload(),
-                candidate_info={
-                    "expected_value": candidate.market_data_details.get("expected_value"),
-                    "min_ev": 10.0,
-                },
-                max_attempts=5,
-                price_step=0.02,
-            )
-        else:
-            response = self.client.submit_order(candidate.envelope.alpaca_payload())
-        if not getattr(self.client, "dry_run", True):
-            if not isinstance(response, dict):
-                raise RuntimeError("paper order response was not an object")
-            provider_status = str(response.get("status", "")).lower()
-            if provider_status in PAPER_ORDER_REJECTED_STATUSES:
-                result = {
-                    "client_order_id": cid,
-                    "status": "provider_rejected",
-                    "reason": provider_status,
-                    "provider_response": response,
-                    **common,
-                }
-                self.ledger.append("risk", result, trading_day)
-                return result
-            if provider_status not in PAPER_ORDER_ACCEPTED_STATUSES:
-                raise RuntimeError(f"unrecognized paper order response status: {provider_status or 'missing'}")
-        entry_metadata = {
-            "spread_width": candidate.spread.width,
-            "opened_at": candidate.envelope.trading_day,
-            "strategy_variant": candidate.strategy_variant,
-            "signal_id": signal_id,
-            "contracts": contracts,
-        }
-        if isinstance(candidate.spread, DebitSpread):
-            entry_metadata.update({"entry_debit": candidate.spread.debit, "direction": candidate.spread.direction})
-        else:
-            entry_metadata["entry_credit"] = candidate.spread.credit
-        self.registry.record(
-            candidate.envelope,
-            entry_metadata,
-            execution_status="dry_run" if getattr(self.client, "dry_run", True) else "submitted",
-        )
-        result = {
-            "client_order_id": cid,
-            "status": response.get("status", "submitted"),
-            "response": response,
-            **common,
-        }
-        self.ledger.append("orders", result, trading_day)
-        if not getattr(self.client, "dry_run", True):
-            snapshot = reconcile(self.client, self.ledger, date.fromisoformat(candidate.envelope.trading_day))
-            result["reconciled"] = True
-            result["open_order_count"] = len(snapshot.open_orders)
-            result["position_count"] = len(snapshot.positions)
+                judgment = {"provider": "nebius", "decision": "unavailable", "reason": type(exc).__name__}
+            self.ledger.append("rationales", {**common, "judgment": judgment}, day)
+        response = self.client.submit_order(candidate.envelope.alpaca_payload())
+        if not isinstance(response, dict) or not response.get("id"):
+            raise RuntimeError("paper order response omitted broker order id")
+        result = {**common, "status": str(response.get("status") or "submitted"), "order_id": response["id"], "response": response}
+        self.ledger.append("orders", result, day)
         return result

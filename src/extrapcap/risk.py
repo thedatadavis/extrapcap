@@ -1,5 +1,6 @@
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, time, timedelta
+from zoneinfo import ZoneInfo
 from .config import RiskConfig
 from .options import DebitSpread, VerticalSpread
 from .orchestration.windows import execution_window
@@ -35,6 +36,17 @@ class IntradayRiskState:
     now: datetime | None = None
     modeled_credit: float | None = None
     observed_credit: float | None = None
+    dte: int | None = None
+
+
+def dte_risk_fraction(dte: int, cfg: RiskConfig) -> float:
+    if dte < 0:
+        raise ValueError("DTE cannot be negative")
+    if dte == 0:
+        return cfg.zero_dte_risk_fraction
+    if dte == 1:
+        return cfg.one_dte_risk_fraction
+    return 1.0
 
 
 def approve_intraday_order(state: IntradayRiskState, cfg: RiskConfig, *, is_exit: bool = False) -> RiskDecision:
@@ -46,7 +58,15 @@ def approve_intraday_order(state: IntradayRiskState, cfg: RiskConfig, *, is_exit
     if window == "closed":
         return RiskDecision(False, "market closed")
     if not is_exit and window in {"market_open_guard", "near_close_guard"}:
-        return RiskDecision(False, f"execution window: {window}")
+        if state.dte != 0 or window == "market_open_guard":
+            return RiskDecision(False, f"execution window: {window}")
+    if not is_exit and state.dte is not None:
+        if state.dte < 0 or state.dte > 21:
+            return RiskDecision(False, "DTE outside supported 0-21 range")
+        if state.dte == 0:
+            eastern = now.astimezone(ZoneInfo("America/New_York"))
+            if eastern.time() >= (datetime.combine(eastern.date(), time(16, 0)) - timedelta(minutes=cfg.zero_dte_entry_cutoff_minutes)).time():
+                return RiskDecision(False, "0DTE entry cutoff reached")
     if not is_exit and state.orders_today >= cfg.max_orders_per_symbol_per_day:
         return RiskDecision(False, "symbol daily order cap")
     if not is_exit and state.last_order_at is not None:
@@ -89,6 +109,27 @@ def approve_candidate(spread: VerticalSpread, state: PortfolioRiskState, cfg: Ri
     if state.ticker_open_risk and state.ticker_open_risk.get(spread.symbol, 0.0) + spread.max_loss > state.nav * cfg.max_ticker_concentration_pct:
         return RiskDecision(False, "ticker concentration cap")
     return RiskDecision(True, "approved")
+
+
+def approve_dte_risk(spread: VerticalSpread | DebitSpread, state: PortfolioRiskState, cfg: RiskConfig, dte: int, sector_open_risk: float = 0.0) -> RiskDecision:
+    """Apply the ordinary portfolio gates with a smaller risk budget for 0/1DTE."""
+    fraction = dte_risk_fraction(dte, cfg)
+    scaled = state.__class__(
+        nav=state.nav * fraction,
+        core_open_risk=state.core_open_risk,
+        asymmetric_open_risk=state.asymmetric_open_risk,
+        daily_pnl=state.daily_pnl,
+        drawdown=state.drawdown,
+        open_asymmetric_trades=state.open_asymmetric_trades,
+        ticker_open_risk=state.ticker_open_risk,
+        sector_open_risk=state.sector_open_risk,
+        options_buying_power=state.options_buying_power,
+        options_trading_level=state.options_trading_level,
+        trading_blocked=state.trading_blocked,
+    )
+    if isinstance(spread, DebitSpread):
+        return approve_asymmetric(spread, scaled, cfg)
+    return approve_candidate(spread, scaled, cfg, sector_open_risk)
 
 
 def approve_core(spread: VerticalSpread, nav: float, open_risk: float, cfg: RiskConfig) -> RiskDecision:

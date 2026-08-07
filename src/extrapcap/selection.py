@@ -36,13 +36,11 @@ def _positive_int(value) -> int | None:
 
 def core_streak_gate(
     context: dict,
-    z_threshold: float = -2.0,
-    fast_ev: bool = False,
+    z_threshold: float = -0.5,
 ) -> CoreSelectionDecision:
     """Gate completed streak evidence for bullish or 2-sided mean-reversion.
 
-    Negative market-relative streaks trigger bullish mean reversion.
-    In Fast EV mode, positive market-relative streaks trigger bearish mean reversion.
+    Both negative and positive relative streaks are tradeable reversal setups.
     """
     direction = context.get("streak_direction")
     length = _positive_int(context.get("streak_length"))
@@ -60,10 +58,10 @@ def core_streak_gate(
             z_threshold,
         )
 
-    if length is None or not 2 <= length <= 8:
+    if length is None or not 1 <= length <= 8:
         return CoreSelectionDecision(
             False,
-            "completed_streak_length_outside_2_to_8",
+            "completed_streak_length_outside_1_to_8",
             route,
             direction,
             length,
@@ -74,26 +72,6 @@ def core_streak_gate(
         return CoreSelectionDecision(
             False,
             "missing_robust_z",
-            route,
-            direction,
-            length,
-            robust_z,
-            z_threshold,
-        )
-    if direction == "negative" and robust_z > z_threshold:
-        return CoreSelectionDecision(
-            False,
-            "robust_z_above_entry_threshold",
-            route,
-            direction,
-            length,
-            robust_z,
-            z_threshold,
-        )
-    if direction == "positive" and robust_z < abs(z_threshold):
-        return CoreSelectionDecision(
-            False,
-            "robust_z_below_positive_entry_threshold",
             route,
             direction,
             length,

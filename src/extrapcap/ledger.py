@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import hashlib
+import os
 from datetime import date, datetime, timezone
 from pathlib import Path
 import subprocess
@@ -113,7 +114,9 @@ def journal_metadata(category: str, event: dict, trading_day: date) -> dict:
 class AuditLedger:
     """Append-only JSONL writer used by workflows and replay tooling."""
 
-    def __init__(self, root: str | Path = "logs"):
+    def __init__(self, root: str | Path | None = None):
+        if root is None:
+            root = Path(os.getenv("EXTRAPCAP_STATE_DIR", ".")) / "logs"
         self.root = Path(root)
 
     def append(

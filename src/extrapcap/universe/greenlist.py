@@ -96,8 +96,8 @@ def refresh_greenlist(output_dir: str | Path = "data/universe", policy: Greenlis
 
 
 def load_sector_map(path: str | Path | None = None, root: str | Path = "data/universe") -> dict[str, str]:
-    """Return symbol -> sector map. Queries D1 universe or live greenlist registry; never relies on static local CSV files."""
-    result = dict(INDEX_SECTORS)
+    """Return symbol -> sector map from the current persisted universe."""
+    result: dict[str, str] = {}
     if path is not None and Path(path).exists():
         rows = _read_csv(Path(path).read_text(encoding="utf-8"))
         for row in rows:
@@ -105,35 +105,15 @@ def load_sector_map(path: str | Path | None = None, root: str | Path = "data/uni
             sec = str(row.get("sector", "")).strip()
             if sym and sec and sec.upper() != "N/A":
                 result[sym] = sec
-        return result
-
-    # Try fetching from live D1 universe endpoint
-    try:
-        from modal_app.cf_client import CloudflareAPIClient
-        client = CloudflareAPIClient()
-        universe_rows = client.get_universe()
-        if universe_rows:
-            for row in universe_rows:
-                sym = str(row.get("symbol") or row.get("ticker", "")).strip().upper()
-                sec = str(row.get("sector", "")).strip()
-                if sym and sec and sec.upper() != "N/A":
-                    result[sym] = sec
+        if result:
             return result
-    except Exception:
-        pass
-
-    # Fallback to online registry fetch if D1 client is offline
-    try:
-        with urlopen(SOURCE_URL, timeout=10) as response:
-            rows = _read_csv(response.read().decode("utf-8"))
-            for row in rows:
-                sym = str(row.get("ticker", "")).strip().upper()
-                sec = str(row.get("sector", "")).strip()
-                if sym and sec and sec.upper() != "N/A":
-                    result[sym] = sec
-            return result
-    except Exception:
-        pass
-
+    from modal_app.cf_client import CloudflareAPIClient
+    universe_rows = CloudflareAPIClient().get_universe()
+    for row in universe_rows:
+        sym = str(row.get("symbol") or row.get("ticker", "")).strip().upper()
+        sec = str(row.get("sector", "")).strip()
+        if sym and sec and sec.upper() != "N/A":
+            result[sym] = sec
+    if not result:
+        raise RuntimeError("sector universe is unavailable")
     return result
-

@@ -105,10 +105,9 @@ class AlpacaMarketData:
 
         for offset in range(0, len(requested), symbol_batch_size):
             fetch_batch(requested[offset:offset + symbol_batch_size])
-        payload = {"bars": bars}
         if errors:
-            payload["errors"] = errors
-        return payload
+            raise RuntimeError(f"Alpaca bars missing symbols: {json.dumps(errors, sort_keys=True)}")
+        return {"bars": bars}
 
     def option_contracts(self, underlying_symbols: list[str], expiration_date_gte: str, expiration_date_lte: str | None = None) -> dict:
         return self._get("/v2/options/contracts", {"underlying_symbols": ",".join(underlying_symbols), "expiration_date_gte": expiration_date_gte, "expiration_date_lte": expiration_date_lte, "status": "active", "limit": 1000}, self.trading_base_url)

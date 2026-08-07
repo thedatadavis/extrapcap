@@ -1,12 +1,6 @@
-from enum import StrEnum
 import os
+
 from pydantic import BaseModel, Field
-
-
-class OperatingMode(StrEnum):
-    END_OF_DAY = "end_of_day"
-    HYBRID = "hybrid"
-    INTRADAY_LOOP = "intraday_loop"
 
 
 class RiskConfig(BaseModel):
@@ -29,11 +23,16 @@ class RiskConfig(BaseModel):
     early_profit_target_days: int = Field(2, gt=0)
     core_stop_loss_multiple: float = Field(2.0, ge=1)
     core_time_stop_days: int = Field(4, gt=0)
+    max_holding_sessions: int = Field(3, ge=1)
+    forced_exit_dte: int = Field(3, ge=0)
+    zero_dte_entry_cutoff_minutes: int = Field(30, ge=1)
+    zero_dte_risk_fraction: float = Field(0.25, gt=0, le=1)
+    one_dte_risk_fraction: float = Field(0.50, gt=0, le=1)
 
 
 class StrategyConfig(BaseModel):
     z_window: int = Field(20, ge=5)
-    z_threshold: float = Field(-2.0, le=-0.1)
+    z_threshold: float = Field(-0.5, le=-0.1)
     improved_delta_min: float = Field(0.15, gt=0, lt=1)
     improved_delta_max: float = Field(0.20, gt=0, lt=1)
     spread_width: float = Field(5.0, gt=0)
@@ -41,12 +40,12 @@ class StrategyConfig(BaseModel):
     max_option_quote_age_seconds: int = Field(1800, gt=0)
     max_option_spread_pct: float = Field(0.40, gt=0, le=1)
     premium_funding_pct: float = Field(0.15, gt=0, le=0.20)
-    trap_low: float = Field(0.50, ge=0, le=1)
-    trap_high: float = Field(0.80, ge=0, le=1)
+    dte_min: int = Field(0, ge=0)
+    dte_max: int = Field(21, ge=1)
+    preferred_dte: int = Field(10, ge=0)
 
 
 class AppConfig(BaseModel):
-    mode: OperatingMode = OperatingMode.END_OF_DAY
     benchmark: str = "SPY"
     paper_only: bool = True
     risk: RiskConfig = RiskConfig()
@@ -54,5 +53,6 @@ class AppConfig(BaseModel):
 
     @classmethod
     def from_env(cls) -> "AppConfig":
-        mode = os.getenv("EXTRAPCAP_MODE", OperatingMode.END_OF_DAY)
-        return cls(mode=mode, paper_only=os.getenv("ALPACA_PAPER", "true").lower() == "true")
+        if os.getenv("ALPACA_PAPER", "true").lower() != "true":
+            raise RuntimeError("extrapcap only supports Alpaca paper trading")
+        return cls(paper_only=True)

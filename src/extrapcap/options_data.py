@@ -163,13 +163,14 @@ def select_bearish_put_debit_vertical(
 
 
 @dataclass(frozen=True)
-class FastEVSolution:
+class ExpectedValueSolution:
     spread: VerticalSpread | DebitSpread
     selected: SelectedVertical | SelectedDebitVertical
     expected_value: float
     max_profit: float
     max_risk: float
-    bucket: str = "fast_ev_candidate"
+    expiration: str
+    dte: int
 
 
 def select_highest_ev_vertical(
@@ -181,18 +182,27 @@ def select_highest_ev_vertical(
     min_ev: float = 10.0,
     widths: tuple[float, ...] = (1.0, 2.0, 2.5, 3.0, 5.0, 10.0),
     streak_direction: str = "negative",
-) -> FastEVSolution:
+    trading_day: date | None = None,
+    dte_min: int = 0,
+    dte_max: int = 21,
+    preferred_dte: int = 10,
+) -> ExpectedValueSolution:
     """Scan directional vertical spreads in option chain and return the one with the highest EV >= min_ev."""
     if underlying_price <= 0:
         raise ValueError(f"invalid real underlying price ${underlying_price}")
 
     quote_map = {quote.symbol: quote for quote in quotes}
     # Filter contracts within 25% of real underlying price to focus on ATM/NTM spreads
+    if dte_min < 0 or dte_max < dte_min:
+        raise ValueError("invalid DTE range")
+    if trading_day is None:
+        raise ValueError("trading_day is required for DTE selection")
     valid_contracts = [
         c for c in contracts
         if c.symbol in quote_map
         and c.underlying == underlying
         and abs(c.strike - underlying_price) <= 0.25 * underlying_price
+        and dte_min <= (date.fromisoformat(c.expiration) - trading_day).days <= dte_max
     ]
 
     solutions = []
@@ -268,8 +278,16 @@ def select_highest_ev_vertical(
     if not solutions:
         raise ValueError(f"no {target_direction} vertical spread meets expected value threshold of ${min_ev:.2f}")
 
-    best_ev, max_profit, max_risk, best_spread, best_selected = max(solutions, key=lambda item: item[0])
-    return FastEVSolution(best_spread, best_selected, best_ev, max_profit, max_risk)
+    best_ev, max_profit, max_risk, best_spread, best_selected = max(
+        solutions,
+        key=lambda item: (item[0], -abs((date.fromisoformat(item[4].short.expiration if isinstance(item[4], SelectedVertical) else item[4].long.expiration) - trading_day).days - preferred_dte)),
+    )
+    expiration = best_selected.short.expiration if isinstance(best_selected, SelectedVertical) else best_selected.long.expiration
+    return ExpectedValueSolution(best_spread, best_selected, best_ev, max_profit, max_risk, expiration, (date.fromisoformat(expiration) - trading_day).days)
+
+
+# Kept as a narrow import alias for external callers while the old strategy name is removed.
+select_expected_value_vertical = select_highest_ev_vertical
 
 
 class AlpacaOptionsData:

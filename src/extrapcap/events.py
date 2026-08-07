@@ -66,7 +66,7 @@ def earnings_decision_from_csv(
         "metadata_path": str(sidecar),
     }
     if not target.exists() or not sidecar.exists():
-        return EventDecision("earnings", False, "earnings_calendar_missing", details)
+        raise FileNotFoundError(f"earnings calendar or metadata missing: {target}")
     try:
         metadata = json.loads(sidecar.read_text(encoding="utf-8"))
         retrieved_at = datetime.fromisoformat(str(metadata["retrieved_at"]).replace("Z", "+00:00"))
@@ -160,34 +160,20 @@ def event_decision_for_ticker(symbol: str, trading_day: date, cf_client=None) ->
     """Evaluate structural risk and earnings blackout for symbol from D1 risk_events table."""
     ticker = symbol.upper()
     if cf_client is None:
-        try:
-            from modal_app.cf_client import CloudflareAPIClient
-            cf_client = CloudflareAPIClient()
-        except Exception:
-            cf_client = None
-
-    if cf_client is not None:
-        try:
-            risk_records = cf_client.get_risk_events(symbol=ticker)
-            for record in risk_records:
-                evt_type = str(record.get("event_type") or "").lower()
-                evt_date_str = record.get("event_date")
-                if evt_type == "earnings" and evt_date_str:
-                    try:
-                        evt_date = date.fromisoformat(evt_date_str)
-                        decision = earnings_blackout(trading_day, evt_date)
-                        if not decision.allowed:
-                            return decision
-                    except Exception:
-                        pass
-                elif evt_type == "news":
-                    headline = str(record.get("headline") or "")
-                    if headline:
-                        local_dec = classify_headline(headline)
-                        if not local_dec.allowed:
-                            return local_dec
-        except Exception:
-            pass
-
+        from modal_app.cf_client import CloudflareAPIClient
+        cf_client = CloudflareAPIClient()
+    risk_records = cf_client.get_risk_events(symbol=ticker)
+    for record in risk_records:
+        evt_type = str(record.get("event_type") or "").lower()
+        evt_date_str = record.get("event_date")
+        if evt_type == "earnings" and evt_date_str:
+            decision = earnings_blackout(trading_day, date.fromisoformat(evt_date_str))
+            if not decision.allowed:
+                return decision
+        elif evt_type == "news":
+            headline = str(record.get("headline") or "")
+            if headline:
+                decision = classify_headline(headline)
+                if not decision.allowed:
+                    return decision
     return EventDecision("noise_or_opinion", True, "no structural risk or earnings blackout detected")
-
