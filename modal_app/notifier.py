@@ -111,7 +111,7 @@ def format_candidate_orders_text(as_of: str, orders: list) -> str:
     ]
 
     for order in orders:
-        ticker = order.get("journal", {}).get("ticker", "N/A")
+        ticker = order.get("ticker") or order.get("journal", {}).get("ticker", "N/A")
         client_id = order.get("client_order_id", "N/A")
         prob = order.get("model_probability", 0.0)
         lines.append(f"• TICKER: {ticker} (P(rev): {prob*100:.1f}%) | Order ID: {client_id}")

@@ -3,7 +3,7 @@ import type { APIRoute } from 'astro';
 export const GET: APIRoute = async ({ request, locals }) => {
   try {
     const db = (locals as any).runtime?.env?.DB;
-    if (!db) return new Response(JSON.stringify([]), { headers: { 'Content-Type': 'application/json' } });
+    if (!db) return new Response(JSON.stringify({ error: 'DB not available' }), { status: 500, headers: { 'Content-Type': 'application/json' } });
 
     const url = new URL(request.url);
     const date = url.searchParams.get('as_of');
@@ -18,13 +18,14 @@ export const GET: APIRoute = async ({ request, locals }) => {
     } else if (date) {
       sql += ' WHERE as_of = ?';
       params.push(date);
-    } else {
-      sql += ' WHERE as_of = (SELECT MAX(as_of) FROM basket)';
-    }
+    } else return new Response(JSON.stringify({ error: 'as_of or run_id is required' }), { status: 400 });
 
     const result = await db.prepare(sql).bind(...params).all();
     return new Response(JSON.stringify(result.results || []), {
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-store',
+      },
     });
   } catch (err: any) {
     return new Response(JSON.stringify({ error: err.message }), { status: 500 });
@@ -37,9 +38,10 @@ export const POST: APIRoute = async ({ request, locals }) => {
     if (!db) return new Response(JSON.stringify({ error: 'DB not available' }), { status: 500 });
 
     const data = await request.json();
-    const as_of = data.as_of || new Date().toISOString().split('T')[0];
-    const run_id = data.run_id || `run-${Date.now()}`;
-    const rows = Array.isArray(data.rows) ? data.rows : (Array.isArray(data) ? data : []);
+    if (!data.as_of || !data.run_id || !Array.isArray(data.rows) || data.rows.length === 0) return new Response(JSON.stringify({ error: 'as_of, run_id, and non-empty rows are required' }), { status: 400 });
+    const as_of = data.as_of;
+    const run_id = data.run_id;
+    const rows = data.rows;
 
     const stmt = db.prepare(`
       INSERT OR REPLACE INTO basket
@@ -56,7 +58,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
       r.signed_streak ?? null,
       r.streak_length ?? null,
       r.streak_direction || null,
-      typeof r.features === 'string' ? r.features : JSON.stringify(r.features || r)
+      JSON.stringify(r)
     ));
 
     if (batch.length > 0) {

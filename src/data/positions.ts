@@ -175,7 +175,7 @@ export async function getActivePositions(db?: any): Promise<ActivePosition[]> {
         ticker: r.ticker,
         companyName: r.company_name || r.ticker,
         strategy: r.strategy_route || 'Bull Put Spread',
-        sleeve: r.sleeve === 'crash' ? 'Crash Protocol' : r.sleeve === 'fast_ev' ? 'Fast EV' : 'Core Mean Reversion',
+        sleeve: r.sleeve === 'asymmetric' ? 'Asymmetric Reversion' : 'Core Mean Reversion',
         entryDate: r.opened_at,
         expirationDate: r.expiration,
         dte,

@@ -207,7 +207,6 @@ export function isExecutedTrade(item: JournalItem) {
     status === 'vetoed' ||
     status === 'deferred' ||
     status === 'recorded' ||
-    status === 'dry_run' ||
     status === 'prepared' ||
     status === 'pending' ||
     status === 'pending_new' ||
@@ -350,7 +349,7 @@ export function tradeFor(item: JournalItem): PublicTrade {
     ticker: item.ticker ?? '—',
     description,
     context: item.marketPrice !== undefined ? `Underlying near $${item.marketPrice.toFixed(2)}` : 'Price not recorded',
-    status: item.status === 'dry_run' ? 'Prepared' : displayName(item.status),
+    status: displayName(item.status),
   };
 }
 

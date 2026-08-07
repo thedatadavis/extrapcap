@@ -1,52 +1,20 @@
-import modal
+"""Deployment entry point that registers every Extrapcap Modal workflow."""
 
-app = modal.App("extrapcap")
+from modal_app.base import app, image, secrets, state_mount, state_volume
 
-image = (
-    modal.Image.debian_slim(python_version="3.12")
-    .pip_install(
-        "httpx>=0.27.0",
-        "pandas>=2.2.0",
-        "numpy>=1.26.0",
-        "pydantic>=2.7.0",
-        "requests>=2.31.0",
-        "pytz>=2024.1",
-    )
-    .add_local_dir("src/extrapcap", remote_path="/root/src/extrapcap", copy=True)
-    .add_local_dir("modal_app", remote_path="/root/modal_app", copy=True)
-    .add_local_file("pyproject.toml", remote_path="/root/pyproject.toml", copy=True)
-    .run_commands("pip install -e /root")
-    .env({"PYTHONPATH": "/root:/root/src"})
+# Importing the deployment entry point always registers every function.  The
+# function modules import modal_app.base instead, so running one module directly
+# does not recursively register the full app or create name collisions.
+from modal_app.functions import (  # noqa: F401
+    candidate_review,
+    daily_report,
+    data_refresh,
+    end_of_day,
+    improvement_loop,
+    live_cycle,
+    position_management,
+    reconciliation,
+    streak_screen,
 )
 
-secrets = [
-    modal.Secret.from_name("alpaca-paper"),
-    modal.Secret.from_name("nebius"),
-    modal.Secret.from_name("cloudflare-api"),
-    modal.Secret.from_name("resend"),
-]
-
-import sys
-
-
-def load_all_functions():
-    """Register all cron workflow functions on the app for deployment."""
-    from modal_app.functions import (
-        candidate_review,
-        daily_report,
-        data_refresh,
-        improvement_loop,
-        live_cycle,
-        opening_prep,
-        position_management,
-        reconciliation,
-        streak_screen,
-    )
-
-
-# Automatically load all functions when deploying or running app.py directly.
-# When running an individual function file (e.g. streak_screen.py), that file registers itself.
-if any("app.py" in arg for arg in sys.argv) or __name__ == "__main__":
-    load_all_functions()
-
-
+__all__ = ["app", "image", "secrets", "state_mount", "state_volume"]

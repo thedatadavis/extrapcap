@@ -1,7 +1,7 @@
 import time
 from datetime import datetime, timezone
 import modal
-from modal_app.app import app, image, secrets
+from modal_app.base import app, image, secrets, state_mount
 from modal_app.cf_client import CloudflareAPIClient
 from modal_app.notifier import format_daily_report_text, format_error_alert_text, send_resend_email
 
@@ -9,7 +9,7 @@ from modal_app.notifier import format_daily_report_text, format_error_alert_text
 @app.function(
     image=image,
     secrets=secrets,
-    schedule=modal.Cron("45 20 * * 1-5"),
+    volumes=state_mount,
     timeout=600,
 )
 def daily_report():
@@ -19,10 +19,9 @@ def daily_report():
     run_id = cf.register_run("daily_report")
 
     try:
-        from extrapcap.reporting.daily import generate_daily_report
-
         today_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-        report = generate_daily_report(as_of_date=today_str)
+        basket = cf.get_basket(as_of=today_str)
+        report = {"summary": f"{len(basket)} current opportunities evaluated", "evaluated_count": len(basket), "submitted_count": 0, "filled_count": 0}
 
         event = {
             "journal": {

@@ -1,7 +1,7 @@
 import time
 from datetime import datetime, timezone
 import modal
-from modal_app.app import app, image, secrets
+from modal_app.base import app, image, secrets, state_mount
 from modal_app.cf_client import CloudflareAPIClient
 from modal_app.notifier import format_error_alert_text, format_reconciliation_text, send_resend_email
 
@@ -9,7 +9,7 @@ from modal_app.notifier import format_error_alert_text, format_reconciliation_te
 @app.function(
     image=image,
     secrets=secrets,
-    schedule=modal.Cron("30 20 * * 1-5"),
+    volumes=state_mount,
     timeout=300,
 )
 def reconciliation():

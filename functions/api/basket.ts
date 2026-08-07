@@ -5,8 +5,9 @@ interface Env {
 export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   try {
     const data = await request.json();
-    const as_of = data.as_of || new Date().toISOString().split('T')[0];
-    const rows = Array.isArray(data.rows) ? data.rows : (Array.isArray(data) ? data : []);
+    if (!data.as_of || !Array.isArray(data.rows) || data.rows.length === 0) throw new Error('as_of and non-empty rows are required');
+    const as_of = data.as_of;
+    const rows = data.rows;
 
     const stmt = env.DB.prepare(`
       INSERT OR REPLACE INTO basket
@@ -36,6 +37,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
   try {
     const url = new URL(request.url);
     const date = url.searchParams.get('as_of');
+    if (!date) return Response.json({ error: 'as_of is required' }, { status: 400 });
 
     let sql = 'SELECT * FROM basket';
     const params: any[] = [];
@@ -43,8 +45,6 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
     if (date) {
       sql += ' WHERE as_of = ?';
       params.push(date);
-    } else {
-      sql += ' WHERE as_of = (SELECT MAX(as_of) FROM basket)';
     }
 
     const result = await env.DB.prepare(sql).bind(...params).all();

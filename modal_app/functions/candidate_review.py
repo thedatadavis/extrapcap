@@ -1,71 +1,45 @@
 import time
 from datetime import datetime, timezone
+
 import modal
-from modal_app.app import app, image, secrets
+
+from modal_app.base import app, image, secrets, state_mount
 from modal_app.cf_client import CloudflareAPIClient
 from modal_app.notifier import format_candidate_orders_text, format_error_alert_text, send_resend_email
 
 
-@app.function(
-    image=image,
-    secrets=secrets,
-    schedule=modal.Cron("45 13,15,19 * * 1-5"),
-    timeout=600,
-)
+def _event_record(result: dict) -> dict:
+    event = dict(result)
+    while isinstance(event.get("result"), dict):
+        nested = event.pop("result")
+        event = {**event, **nested}
+    status = str(event.get("status") or "").lower()
+    event.setdefault("category", "orders" if status in {"accepted", "new", "filled", "submitted", "partially_filled"} else "signals")
+    event.setdefault("kind", "paper_order" if event["category"] == "orders" else "candidate_review")
+    return event
+
+
+@app.function(image=image, secrets=secrets, volumes=state_mount, schedule=modal.Cron("45 13,15,19 * * 1-5"), timeout=600)
 def candidate_review():
-    """Candidate Review Cron: Market-hours option entry reviews (9:45 AM, 12:15 PM, 3:00 PM EDT)."""
     cf = CloudflareAPIClient()
     start_time = time.time()
     run_id = cf.register_run("candidate_review")
-
+    today = datetime.now(timezone.utc).date()
     try:
         from extrapcap.orchestration.basket_cycle import run_basket
-
-        today_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-
-        # Fetch dynamic active basket directly from Cloudflare D1 database
-        d1_basket = cf.get_basket()
-        if not d1_basket:
-            from modal_app.functions.streak_screen import streak_screen
-            streak_screen()
-            d1_basket = cf.get_basket()
-
-        if not d1_basket:
-            raise RuntimeError("No active basket found in Cloudflare D1 database for candidate_review.")
-
-        results = run_basket(
-            basket=d1_basket,
-            expiration_gte=today_str,
-            fast_ev=True,
-        )
-
-        events = results if isinstance(results, list) else []
+        basket = cf.get_basket(as_of=today.isoformat())
+        if not basket:
+            raise RuntimeError("no current basket in Cloudflare D1")
+        results = run_basket(basket, trading_day=today, dte_min=0, dte_max=21, preferred_dte=10)
+        events = [_event_record(result) for result in results if isinstance(result, dict)]
         cf.append_events(events, run_id=run_id)
-
-        orders_submitted = [
-            e for e in events
-            if isinstance(e, dict) and (e.get("kind") in ("paper_order", "order_submit") or e.get("status") in ("filled", "executed", "submitted"))
-        ]
-        cf.complete_run(
-            run_id,
-            summary={"evaluated": len(events), "submitted": len(orders_submitted)},
-            start_time=start_time,
-        )
-
-        if orders_submitted:
-            email_body = format_candidate_orders_text(orders_submitted, today_str)
-            send_resend_email(
-                subject=f"[Extrapcap] 🎯 Candidate Orders Executed ({today_str})",
-                text_content=email_body,
-            )
-
-        return {"status": "success", "evaluated": len(events), "submitted": len(orders_submitted)}
-
-    except Exception as e:
-        cf.fail_run(run_id, error=str(e), start_time=start_time)
-        alert_body = format_error_alert_text("Candidate Review", str(e))
-        send_resend_email(
-            subject="[Extrapcap] ⚠️ Candidate Review Failure Alert",
-            text_content=alert_body,
-        )
+        errors = [event for event in events if event.get("status") == "error"]
+        submitted = [event for event in events if event.get("category") == "orders"]
+        cf.complete_run(run_id, summary={"evaluated": len(events), "submitted": len(submitted), "errors": len(errors)}, start_time=start_time)
+        if submitted:
+            send_resend_email(subject=f"[Extrapcap] Candidate Orders ({today.isoformat()})", text=format_candidate_orders_text(today.isoformat(), submitted))
+        return {"status": "success" if not errors else "completed_with_errors", "evaluated": len(events), "submitted": len(submitted), "errors": len(errors)}
+    except Exception as exc:
+        cf.fail_run(run_id, error=str(exc), start_time=start_time)
+        send_resend_email(subject="[Extrapcap] Candidate Review Failure", text=format_error_alert_text("Candidate Review", str(exc)))
         raise

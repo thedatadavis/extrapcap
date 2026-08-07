@@ -1,14 +1,14 @@
 import time
 from datetime import datetime, timezone
 import modal
-from modal_app.app import app, image, secrets
+from modal_app.base import app, image, secrets, state_mount
 from modal_app.cf_client import CloudflareAPIClient
 
 
 @app.function(
     image=image,
     secrets=secrets,
-    schedule=modal.Cron("15 22 * * 1-5"),
+    volumes=state_mount,
     timeout=600,
 )
 def improvement_loop():

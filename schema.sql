@@ -94,7 +94,7 @@ CREATE TABLE IF NOT EXISTS positions (
     closed_at         TEXT,
     close_reason      TEXT,
     sleeve            TEXT DEFAULT 'core',
-    strategy_variant  TEXT DEFAULT 'fast_ev',
+    strategy_variant  TEXT DEFAULT 'core_mean_reversion',
     strategy_route    TEXT,
     quantity          INTEGER DEFAULT 1,
     is_active         INTEGER DEFAULT 1,
@@ -157,4 +157,3 @@ CREATE TABLE IF NOT EXISTS risk_events (
     recorded_at TEXT DEFAULT (datetime('now'))
 );
 CREATE INDEX IF NOT EXISTS idx_risk_events_symbol ON risk_events(symbol, event_date);
-

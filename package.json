@@ -24,6 +24,6 @@
     "astro": "^7.1.3"
   },
   "devDependencies": {
-    "wrangler": "^3.100.0"
+    "wrangler": "^4.59.2"
   }
 }

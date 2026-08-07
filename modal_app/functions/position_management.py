@@ -1,7 +1,7 @@
 import time
 from datetime import datetime, timezone
 import modal
-from modal_app.app import app, image, secrets
+from modal_app.base import app, image, secrets, state_mount
 from modal_app.cf_client import CloudflareAPIClient
 from modal_app.notifier import format_error_alert_text, format_position_exits_text, send_resend_email
 
@@ -9,6 +9,7 @@ from modal_app.notifier import format_error_alert_text, format_position_exits_te
 @app.function(
     image=image,
     secrets=secrets,
+    volumes=state_mount,
     schedule=modal.Cron("*/30 13-20 * * 1-5"),
     timeout=300,
 )
@@ -19,22 +20,16 @@ def position_management():
     run_id = cf.register_run("position_management")
 
     try:
-        from extrapcap.secrets import require_paper_credentials
         from extrapcap.execution.alpaca import AlpacaPaperClient
         from extrapcap.options_data import AlpacaOptionsData
         from extrapcap.execution.position_manager import manage_live_positions
 
-        key, secret = require_paper_credentials()
         paper_client = AlpacaPaperClient.from_env()
-        options_client = AlpacaOptionsData(key, secret)
+        options_client = AlpacaOptionsData.from_env()
 
         # Execute position manager loop
         today_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-        records = manage_live_positions(
-            as_of_date=today_str,
-            paper_client=paper_client,
-            options_client=options_client,
-        )
+        records = manage_live_positions(paper_client, options_client, as_of=datetime.fromisoformat(today_str).date())
 
         # Report events and closed positions to Cloudflare D1
         closed_count = 0
@@ -43,9 +38,9 @@ def position_management():
 
         for record in records:
             events_to_post.append(record)
-            if record.get("journal", {}).get("kind") in ("position_exit", "position_close", "exit_signal"):
+            if record.get("status") == "close":
                 pos_id = record.get("position_id")
-                reason = record.get("journal", {}).get("reason", "Exit rule triggered")
+                reason = record.get("reason", "Exit rule triggered")
                 if pos_id:
                     cf.close_position(pos_id, reason)
                 closed_count += 1

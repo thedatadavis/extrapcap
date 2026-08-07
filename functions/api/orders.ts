@@ -18,12 +18,12 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
       data.ticker,
       data.sleeve || 'core',
       data.side || 'sell_to_open',
-      data.strategy_variant || 'fast_ev',
+      data.strategy_variant || 'core_mean_reversion',
       data.limit_price || null,
       data.quantity || 1,
       typeof data.legs === 'string' ? data.legs : JSON.stringify(data.legs || []),
       typeof data.metadata === 'string' ? data.metadata : JSON.stringify(data.metadata || {}),
-      data.execution_status || 'submitted',
+      'submitted',
       data.submitted_at || new Date().toISOString()
     ).run();
 

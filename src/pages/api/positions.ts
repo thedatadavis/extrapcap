@@ -52,7 +52,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
       data.entry_debit ?? null,
       data.opened_at || new Date().toISOString().split('T')[0],
       data.sleeve || 'core',
-      data.strategy_variant || 'fast_ev',
+      data.strategy_variant || 'core_mean_reversion',
       data.strategy_route || null,
       data.quantity || 1,
       data.is_active ?? 1,
