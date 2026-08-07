@@ -1,6 +1,6 @@
 ---
 import Shell from '../../layouts/Shell.astro';
-import { getActivePositions, generatePayoffCurve } from '../../data/positions';
+import { getActivePositions } from '../../data/positions';
 
 if (Astro.response) {
   Astro.response.headers.set('Cache-Control', 'public, max-age=0, must-revalidate');
@@ -8,29 +8,31 @@ if (Astro.response) {
 }
 
 const db = (Astro.locals as any).runtime?.env?.DB;
-const ACTIVE_POSITIONS = await getActivePositions(db);
-const base = import.meta.env.BASE_URL || '';
+let ACTIVE_POSITIONS = [];
+let positionsError = '';
+try {
+  ACTIVE_POSITIONS = await getActivePositions(db);
+} catch (error) {
+  positionsError = error instanceof Error ? error.message : String(error);
+}
 const initialPosition = ACTIVE_POSITIONS[0];
-const initialPayoff = initialPosition ? generatePayoffCurve(initialPosition, 120) : [];
 
-let latestRunTime = new Date().toISOString();
+let latestRunTime: string | null = null;
 if (db) {
-  try {
-    const run = await db.prepare("SELECT * FROM runs WHERE workflow = 'position_management' ORDER BY started_at DESC LIMIT 1").first();
-    if (run?.finished_at || run?.started_at) {
-      latestRunTime = run.finished_at || run.started_at;
-    }
-  } catch {}
+  const run = await db.prepare("SELECT * FROM runs WHERE workflow = 'position_management' ORDER BY started_at DESC LIMIT 1").first();
+  if (run?.finished_at || run?.started_at) latestRunTime = run.finished_at || run.started_at;
 }
 
-const formattedAsOf = new Date(latestRunTime).toLocaleString('en-US', {
-  month: 'short',
-  day: 'numeric',
-  year: 'numeric',
-  hour: 'numeric',
-  minute: '2-digit',
-  timeZoneName: 'short',
-});
+const formattedAsOf = latestRunTime
+  ? new Date(latestRunTime).toLocaleString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+      timeZoneName: 'short',
+    })
+  : 'No run recorded';
 ---
 
 <Shell>
@@ -56,6 +58,18 @@ const formattedAsOf = new Date(latestRunTime).toLocaleString('en-US', {
     </div>
   </section>
 
+  {positionsError ? (
+    <div class="positions-empty error-state">
+      <h2>Position data unavailable</h2>
+      <p>{positionsError}</p>
+      <p>The analyzer will not display synthetic prices or payoff values.</p>
+    </div>
+  ) : ACTIVE_POSITIONS.length === 0 ? (
+    <div class="positions-empty">
+      <h2>No active positions</h2>
+      <p>There are no active option positions in D1.</p>
+    </div>
+  ) : (
   <div class="positions-layout">
     <!-- LEFT SIDEBAR: TICKER SELECTOR -->
     <aside class="ticker-sidebar" aria-label="Active tickers">
@@ -87,15 +101,15 @@ const formattedAsOf = new Date(latestRunTime).toLocaleString('en-US', {
             <div class="card-top">
               <span class="card-ticker">{pos.ticker}</span>
               <span class:list={['pnl-pill', { negative: pos.unrealizedPnL < 0 }]}>
-                {pos.unrealizedPnL >= 0 ? '+' : ''}${pos.unrealizedPnL} ({pos.unrealizedPnLPct.toFixed(1)}%)
+                {pos.unrealizedPnL >= 0 ? '+' : ''}${pos.unrealizedPnL.toFixed(2)} ({pos.unrealizedPnLPct == null ? '—' : `${pos.unrealizedPnLPct.toFixed(1)}%`})
               </span>
             </div>
             <div class="card-mid">
               <span class="strategy-tag">{pos.strategy}</span>
-              <span class="spot-price">${pos.currentSpotPrice.toFixed(2)}</span>
+              <span class="spot-price">{pos.currentSpotPrice == null ? '—' : `$${pos.currentSpotPrice.toFixed(2)}`}</span>
             </div>
             <div class="card-bot">
-              <span>{pos.shortStrike}P / {pos.longStrike}P</span>
+              <span>{pos.optionType.toUpperCase()} · {pos.strikes.map((strike) => `$${strike.toFixed(2)}`).join(' / ')}</span>
               <span class="dte-tag">{pos.dte} DTE</span>
             </div>
           </button>
@@ -122,10 +136,10 @@ const formattedAsOf = new Date(latestRunTime).toLocaleString('en-US', {
         <div class="pnl-callout">
           <span class="callout-label">Unrealized Return</span>
           <strong id="pos-pnl-val" class:list={['callout-val', { negative: initialPosition.unrealizedPnL < 0 }]}>
-            {initialPosition.unrealizedPnL >= 0 ? '+' : ''}${initialPosition.unrealizedPnL}
+            {initialPosition.unrealizedPnL >= 0 ? '+' : ''}${initialPosition.unrealizedPnL.toFixed(2)}
           </strong>
           <span id="pos-pnl-pct" class:list={['callout-pct', { negative: initialPosition.unrealizedPnL < 0 }]}>
-            {initialPosition.unrealizedPnLPct >= 0 ? '+' : ''}{initialPosition.unrealizedPnLPct.toFixed(2)}% of max credit
+            {initialPosition.unrealizedPnLPct == null ? '—' : `${initialPosition.unrealizedPnLPct >= 0 ? '+' : ''}${initialPosition.unrealizedPnLPct.toFixed(2)}% of risk basis`}
           </span>
         </div>
       </div>
@@ -133,25 +147,25 @@ const formattedAsOf = new Date(latestRunTime).toLocaleString('en-US', {
       <!-- METRICS GRID -->
       <div class="metric-grid">
         <div class="metric">
-          <span>Net Credit</span>
-          <strong id="metric-credit">${initialPosition.netCreditTotal}</strong>
-          <small id="metric-credit-sub">${initialPosition.entryCredit.toFixed(2)} / contract</small>
+          <span>Entry Value</span>
+          <strong id="metric-credit">${initialPosition.entryValue.toFixed(2)}</strong>
+          <small id="metric-credit-sub">${initialPosition.entryValuePerContract.toFixed(2)} / position unit</small>
         </div>
         <div class="metric">
           <span>Max Risk</span>
-          <strong id="metric-risk">${initialPosition.maxRisk}</strong>
-          <small id="metric-roc">ROC: {((initialPosition.maxProfit / initialPosition.maxRisk) * 100).toFixed(1)}%</small>
+          <strong id="metric-risk">${initialPosition.maxRisk.toFixed(2)}</strong>
+          <small id="metric-roc">ROC: {initialPosition.maxRisk > 0 ? ((initialPosition.maxProfit / initialPosition.maxRisk) * 100).toFixed(1) : '—'}%</small>
         </div>
         <div class="metric">
           <span>Break-Even</span>
-          <strong id="metric-breakeven">${initialPosition.breakEven.toFixed(2)}</strong>
-          <small id="metric-be-sub">Short: ${initialPosition.shortStrike.toFixed(2)}</small>
+          <strong id="metric-breakeven">{initialPosition.breakEvenPoints.length ? initialPosition.breakEvenPoints.map((point) => `$${point.toFixed(2)}`).join(' / ') : '—'}</strong>
+          <small id="metric-be-sub">{initialPosition.direction} · {initialPosition.optionType}</small>
         </div>
         <div class="metric">
           <span>Spot Price</span>
-          <strong id="metric-spot">${initialPosition.currentSpotPrice.toFixed(2)}</strong>
+          <strong id="metric-spot">{initialPosition.currentSpotPrice == null ? '—' : `$${initialPosition.currentSpotPrice.toFixed(2)}`}</strong>
           <small id="metric-buffer" class="buffer-text">
-            {(((initialPosition.currentSpotPrice - initialPosition.shortStrike) / initialPosition.currentSpotPrice) * 100).toFixed(1)}% buffer to short
+            Current underlying mark
           </small>
         </div>
       </div>
@@ -217,6 +231,7 @@ const formattedAsOf = new Date(latestRunTime).toLocaleString('en-US', {
       </div>
     </main>
   </div>
+  )}
 </Shell>
 
 <script define:vars={{ ACTIVE_POSITIONS }}>
@@ -232,14 +247,12 @@ const formattedAsOf = new Date(latestRunTime).toLocaleString('en-US', {
   const svgWrap = document.getElementById('svg-wrap');
 
   function calculatePayoff(pos, spotPrice) {
-    const { shortStrike, longStrike, entryCredit, quantity } = pos;
-    let pnlPerShare = entryCredit;
-    if (pos.strategy === 'Bull Put Spread') {
-      const shortPayout = -Math.max(0, shortStrike - spotPrice);
-      const longPayout = Math.max(0, longStrike - spotPrice);
-      pnlPerShare = entryCredit + shortPayout + longPayout;
-    }
-    return pnlPerShare * 100 * quantity;
+    return pos.legs.reduce((total, leg) => {
+      const sign = leg.side === 'buy' ? 1 : -1;
+      const units = pos.quantity * leg.qty * 100;
+      const intrinsic = leg.type === 'call' ? Math.max(0, spotPrice - leg.strike) : Math.max(0, leg.strike - spotPrice);
+      return total - sign * leg.entryPrice * units + sign * intrinsic * units;
+    }, 0);
   }
 
   function getActivePosition() {
@@ -262,23 +275,21 @@ const formattedAsOf = new Date(latestRunTime).toLocaleString('en-US', {
     pnlValEl.textContent = `${pnl >= 0 ? '+' : ''}$${pnl}`;
     pnlValEl.className = `callout-val ${pnl < 0 ? 'negative' : ''}`;
 
-    pnlPctEl.textContent = `${pos.unrealizedPnLPct >= 0 ? '+' : ''}${pos.unrealizedPnLPct.toFixed(2)}% of max credit`;
+    pnlPctEl.textContent = pos.unrealizedPnLPct == null ? '— of risk basis' : `${pos.unrealizedPnLPct >= 0 ? '+' : ''}${pos.unrealizedPnLPct.toFixed(2)}% of risk basis`;
     pnlPctEl.className = `callout-pct ${pnl < 0 ? 'negative' : ''}`;
 
     statusBadge.textContent = pnl >= 0 ? 'In Profit Zone' : 'At Risk';
     statusBadge.className = `status-pill ${pos.status}`;
 
     // Metrics updates
-    document.getElementById('metric-credit').textContent = `$${pos.netCreditTotal}`;
-    document.getElementById('metric-credit-sub').textContent = `$${pos.entryCredit.toFixed(2)} / contract`;
-    document.getElementById('metric-risk').textContent = `$${pos.maxRisk}`;
-    document.getElementById('metric-roc').textContent = `ROC: ${((pos.maxProfit / pos.maxRisk) * 100).toFixed(1)}%`;
-    document.getElementById('metric-breakeven').textContent = `$${pos.breakEven.toFixed(2)}`;
-    document.getElementById('metric-be-sub').textContent = `Short: $${pos.shortStrike.toFixed(2)}`;
-    document.getElementById('metric-spot').textContent = `$${pos.currentSpotPrice.toFixed(2)}`;
-
-    const distPct = (((pos.currentSpotPrice - pos.shortStrike) / pos.currentSpotPrice) * 100).toFixed(1);
-    document.getElementById('metric-buffer').textContent = `${distPct}% buffer to short`;
+    document.getElementById('metric-credit').textContent = `$${pos.entryValue.toFixed(2)}`;
+    document.getElementById('metric-credit-sub').textContent = `$${pos.entryValuePerContract.toFixed(2)} / position unit`;
+    document.getElementById('metric-risk').textContent = `$${pos.maxRisk.toFixed(2)}`;
+    document.getElementById('metric-roc').textContent = `ROC: ${pos.maxRisk > 0 ? ((pos.maxProfit / pos.maxRisk) * 100).toFixed(1) : '—'}%`;
+    document.getElementById('metric-breakeven').textContent = pos.breakEvenPoints.length ? pos.breakEvenPoints.map((point) => `$${point.toFixed(2)}`).join(' / ') : '—';
+    document.getElementById('metric-be-sub').textContent = `${pos.direction} · ${pos.optionType}`;
+    document.getElementById('metric-spot').textContent = pos.currentSpotPrice == null ? '—' : `$${pos.currentSpotPrice.toFixed(2)}`;
+    document.getElementById('metric-buffer').textContent = 'Current underlying mark';
 
     // Legs table update
     const tbody = document.getElementById('legs-tbody');
@@ -309,10 +320,12 @@ const formattedAsOf = new Date(latestRunTime).toLocaleString('en-US', {
     const height = 280;
     const padding = { top: 30, right: 40, bottom: 40, left: 50 };
 
-    const { longStrike, shortStrike, breakEven, currentSpotPrice, maxProfit, maxRisk } = pos;
-    const strikeRange = shortStrike - longStrike || 5;
-    const minX = Math.max(0.01, longStrike - strikeRange * 1.5);
-    const maxX = shortStrike + strikeRange * 1.5;
+    const { currentSpotPrice, maxProfit, maxRisk } = pos;
+    const minStrike = Math.min(...pos.strikes);
+    const maxStrike = Math.max(...pos.strikes);
+    const strikeRange = Math.max(maxStrike - minStrike, maxStrike * 0.1, 1);
+    const minX = Math.max(0.01, minStrike - strikeRange * 1.5);
+    const maxX = maxStrike + strikeRange * 1.5;
 
     const minY = -maxRisk * 1.15;
     const maxY = maxProfit * 1.25;
@@ -341,11 +354,8 @@ const formattedAsOf = new Date(latestRunTime).toLocaleString('en-US', {
     // Fill polygon for loss (below zeroY)
     const lossPolygon = `M ${mapX(minX)} ${zeroY} ${points.map((pt) => `L ${pt.x.toFixed(1)} ${Math.max(zeroY, pt.y).toFixed(1)}`).join(' ')} L ${mapX(maxX)} ${zeroY} Z`;
 
-    const spotX = mapX(currentSpotPrice);
-    const spotY = mapY(calculatePayoff(pos, currentSpotPrice));
-    const shortX = mapX(shortStrike);
-    const longX = mapX(longStrike);
-    const beX = mapX(breakEven);
+    const spotX = currentSpotPrice == null ? null : mapX(currentSpotPrice);
+    const spotY = currentSpotPrice == null ? null : mapY(calculatePayoff(pos, currentSpotPrice));
 
     svgEl.innerHTML = `
       <!-- Background Grids & Areas -->
@@ -361,26 +371,15 @@ const formattedAsOf = new Date(latestRunTime).toLocaleString('en-US', {
       <line x1="${padding.left}" y1="${zeroY}" x2="${width - padding.right}" y2="${zeroY}" stroke="rgba(32, 33, 31, 0.25)" stroke-width="1.5" stroke-dasharray="3 3" />
       <text x="${padding.left - 8}" y="${zeroY + 4}" font-family="DM Mono, monospace" font-size="9" fill="#777873" text-anchor="end">$0</text>
 
-      <!-- Strike Lines & Labels -->
-      <!-- Long Strike -->
-      <line x1="${longX}" y1="${padding.top}" x2="${longX}" y2="${height - padding.bottom}" stroke="#777873" stroke-width="1" stroke-dasharray="4 4" />
-      <text x="${longX}" y="${height - padding.bottom + 16}" font-family="DM Mono, monospace" font-size="9" fill="#777873" text-anchor="middle">Long $${longStrike.toFixed(1)}</text>
-
-      <!-- Short Strike -->
-      <line x1="${shortX}" y1="${padding.top}" x2="${shortX}" y2="${height - padding.bottom}" stroke="#777873" stroke-width="1" stroke-dasharray="4 4" />
-      <text x="${shortX}" y="${height - padding.bottom + 16}" font-family="DM Mono, monospace" font-size="9" fill="#777873" text-anchor="middle">Short $${shortStrike.toFixed(1)}</text>
-
-      <!-- Break Even Line -->
-      <line x1="${beX}" y1="${padding.top}" x2="${beX}" y2="${height - padding.bottom}" stroke="#9b5e50" stroke-width="1.2" stroke-dasharray="2 2" />
-      <text x="${beX}" y="${padding.top - 10}" font-family="DM Mono, monospace" font-size="9" fill="#9b5e50" text-anchor="middle">BE $${breakEven.toFixed(2)}</text>
+      <!-- Strike and break-even lines -->
+      ${pos.strikes.map((strike) => `<line x1="${mapX(strike)}" y1="${padding.top}" x2="${mapX(strike)}" y2="${height - padding.bottom}" stroke="#777873" stroke-width="1" stroke-dasharray="4 4" /><text x="${mapX(strike)}" y="${height - padding.bottom + 16}" font-family="DM Mono, monospace" font-size="9" fill="#777873" text-anchor="middle">$${strike.toFixed(1)}</text>`).join('')}
+      ${pos.breakEvenPoints.map((point) => `<line x1="${mapX(point)}" y1="${padding.top}" x2="${mapX(point)}" y2="${height - padding.bottom}" stroke="#9b5e50" stroke-width="1.2" stroke-dasharray="2 2" /><text x="${mapX(point)}" y="${padding.top - 10}" font-family="DM Mono, monospace" font-size="9" fill="#9b5e50" text-anchor="middle">BE $${point.toFixed(2)}</text>`).join('')}
 
       <!-- Main Payoff Curve -->
       <path d="${lineD}" fill="none" stroke="#20211f" stroke-width="2.5" stroke-linejoin="round" />
 
       <!-- Current Spot Price Marker -->
-      <line x1="${spotX}" y1="${padding.top}" x2="${spotX}" y2="${height - padding.bottom}" stroke="#496b56" stroke-width="2" />
-      <circle cx="${spotX}" cy="${spotY}" r="6" fill="#496b56" stroke="#f0efe9" stroke-width="2" />
-      <text x="${spotX}" y="${padding.top - 10}" font-family="DM Sans, sans-serif" font-weight="600" font-size="11" fill="#496b56" text-anchor="middle">Spot $${currentSpotPrice.toFixed(2)}</text>
+      ${currentSpotPrice == null ? '' : `<line x1="${spotX}" y1="${padding.top}" x2="${spotX}" y2="${height - padding.bottom}" stroke="#496b56" stroke-width="2" /><circle cx="${spotX}" cy="${spotY}" r="6" fill="#496b56" stroke="#f0efe9" stroke-width="2" /><text x="${spotX}" y="${padding.top - 10}" font-family="DM Sans, sans-serif" font-weight="600" font-size="11" fill="#496b56" text-anchor="middle">Spot $${currentSpotPrice.toFixed(2)}</text>`}
 
       <!-- Hover Cursor Guide (hidden by default) -->
       <g id="hover-guide" hidden>
@@ -404,9 +403,11 @@ const formattedAsOf = new Date(latestRunTime).toLocaleString('en-US', {
       const height = 280;
       const padding = { top: 30, right: 40, bottom: 40, left: 50 };
 
-      const strikeRange = pos.shortStrike - pos.longStrike || 5;
-      const minX = Math.max(0.01, pos.longStrike - strikeRange * 1.5);
-      const maxX = pos.shortStrike + strikeRange * 1.5;
+      const minStrike = Math.min(...pos.strikes);
+      const maxStrike = Math.max(...pos.strikes);
+      const strikeRange = Math.max(maxStrike - minStrike, maxStrike * 0.1, 1);
+      const minX = Math.max(0.01, minStrike - strikeRange * 1.5);
+      const maxX = maxStrike + strikeRange * 1.5;
 
       const targetSpot = minX + pct * (maxX - minX);
       const targetPnl = calculatePayoff(pos, targetSpot);
@@ -480,15 +481,15 @@ const formattedAsOf = new Date(latestRunTime).toLocaleString('en-US', {
         <div class="card-top">
           <span class="card-ticker">${pos.ticker}</span>
           <span class="pnl-pill ${pos.unrealizedPnL < 0 ? 'negative' : ''}">
-            ${pos.unrealizedPnL >= 0 ? '+' : ''}$${pos.unrealizedPnL} (${pos.unrealizedPnLPct.toFixed(1)}%)
+            ${pos.unrealizedPnL >= 0 ? '+' : ''}$${pos.unrealizedPnL.toFixed(2)} (${pos.unrealizedPnLPct == null ? '—' : `${pos.unrealizedPnLPct.toFixed(1)}%`})
           </span>
         </div>
         <div class="card-mid">
           <span class="strategy-tag">${pos.strategy}</span>
-          <span class="spot-price">$${pos.currentSpotPrice.toFixed(2)}</span>
+          <span class="spot-price">${pos.currentSpotPrice == null ? '—' : `$${pos.currentSpotPrice.toFixed(2)}`}</span>
         </div>
         <div class="card-bot">
-          <span>${pos.shortStrike}P / ${pos.longStrike}P</span>
+          <span>${pos.optionType.toUpperCase()} · ${pos.strikes.map((strike) => `$${strike.toFixed(2)}`).join(' / ')}</span>
           <span class="dte-tag">${pos.dte} DTE</span>
         </div>
       </button>
@@ -533,6 +534,24 @@ const formattedAsOf = new Date(latestRunTime).toLocaleString('en-US', {
     padding: 36px 0 28px;
     border-bottom: 1px solid var(--faint);
     margin-bottom: 28px;
+  }
+  .positions-empty {
+    margin: 32px 0 64px;
+    padding: 32px;
+    border: 1px solid var(--faint);
+    border-radius: 6px;
+    background: #f0efe9;
+  }
+  .positions-empty h2 {
+    margin: 0 0 8px;
+    font-size: 22px;
+  }
+  .positions-empty p {
+    margin: 4px 0;
+    color: var(--muted);
+  }
+  .positions-empty.error-state {
+    border-color: rgba(155, 94, 80, 0.35);
   }
   .header-summary-badge {
     display: flex;

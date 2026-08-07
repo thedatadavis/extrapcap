@@ -5,6 +5,11 @@ interface Env {
 export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   try {
     const data = await request.json();
+    const required = ['ticker', 'short_symbol', 'long_symbol', 'short_strike', 'long_strike', 'expiration', 'spread_width', 'opened_at', 'sleeve', 'strategy_variant', 'quantity'];
+    const missing = required.filter((field) => data[field] == null || data[field] === '');
+    if (missing.length || !Array.isArray(data.legs) || data.legs.length < 2 || (data.entry_credit == null && data.entry_debit == null)) {
+      return Response.json({ error: `complete position legs and required fields are needed${missing.length ? `: ${missing.join(', ')}` : ''}` }, { status: 400 });
+    }
     const stmt = env.DB.prepare(`
       INSERT INTO positions
       (ticker, company_name, short_symbol, long_symbol, short_strike, long_strike, expiration, spread_width, entry_credit, entry_debit, opened_at, sleeve, strategy_variant, strategy_route, quantity, is_active, legs, selection_metrics, metadata)
@@ -22,13 +27,13 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
       data.spread_width,
       data.entry_credit ?? null,
       data.entry_debit ?? null,
-      data.opened_at || new Date().toISOString().split('T')[0],
-      data.sleeve || 'core',
-      data.strategy_variant || 'core_mean_reversion',
+      data.opened_at,
+      data.sleeve,
+      data.strategy_variant,
       data.strategy_route || null,
-      data.quantity || 1,
+      data.quantity,
       data.is_active ?? 1,
-      typeof data.legs === 'string' ? data.legs : JSON.stringify(data.legs || []),
+      JSON.stringify(data.legs),
       typeof data.selection_metrics === 'string' ? data.selection_metrics : JSON.stringify(data.selection_metrics || {}),
       typeof data.metadata === 'string' ? data.metadata : JSON.stringify(data.metadata || {})
     ).run();
@@ -104,7 +109,8 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
 
     sql += ' ORDER BY opened_at DESC';
     const result = await env.DB.prepare(sql).bind(...params).all();
-    return Response.json(result.results || []);
+    if (!Array.isArray(result.results)) throw new Error('D1 returned an invalid positions result');
+    return Response.json(result.results);
   } catch (err: any) {
     return Response.json({ error: err.message }, { status: 500 });
   }

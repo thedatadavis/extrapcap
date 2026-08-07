@@ -247,9 +247,11 @@ function displayName(value: string) {
 function spreadDescription(item: JournalItem) {
   const expiration = item.contracts.find((contract) => contract.expiration)?.expiration;
   const strikes = item.contracts.map((contract) => contract.strike).filter((strike): strike is number => strike !== undefined);
+  const optionTypes = [...new Set(item.contracts.map((contract) => contract.optionType).filter(Boolean))];
   const width = strikes.length > 1 ? Math.abs(Math.max(...strikes) - Math.min(...strikes)) : undefined;
+  const instrument = optionTypes.length === 1 ? `${optionTypes[0]} spread` : 'options spread';
   const details = [
-    width ? `put spread covering a ${width}-point price range with a capped loss` : 'put spread with a capped loss',
+    width ? `${instrument} covering a ${width}-point price range with a capped loss` : `${instrument} with a capped loss`,
     expiration ? `expiring ${formatDate(expiration)}` : undefined,
   ].filter(Boolean);
   return details.join(' ');
@@ -341,8 +343,10 @@ export function readoutFor(item: JournalItem): PublicReadout {
 
 export function tradeFor(item: JournalItem): PublicTrade {
   const strikes = [...new Set(item.contracts.map((contract) => contract.strike).filter((strike): strike is number => strike !== undefined))].sort((left, right) => right - left);
+  const optionTypes = [...new Set(item.contracts.map((contract) => contract.optionType).filter(Boolean))];
+  const instrument = optionTypes.length === 1 ? `${optionTypes[0][0].toUpperCase()}${optionTypes[0].slice(1)} spread` : 'Options spread';
   const description = strikes.length > 1
-    ? `Put spread · ${strikes.map((strike) => `$${strike.toFixed(0)}`).join(' / ')}`
+    ? `${instrument} · ${strikes.map((strike) => `$${strike.toFixed(0)}`).join(' / ')}`
     : displayName(item.kind);
   return {
     action: /exit|close/.test(item.kind) ? 'Exit' : 'Entry',
