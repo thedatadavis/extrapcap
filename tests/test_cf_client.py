@@ -13,7 +13,7 @@ def test_cf_client_get_basket_parses_json(monkeypatch):
         def __init__(self, **kwargs):
             pass
         def get(self, url):
-            assert url == "/api/basket"
+            assert url.startswith("/api/basket?_ts=")
             return FakeResponse()
 
     monkeypatch.setattr(httpx, "Client", FakeClient)
@@ -22,18 +22,6 @@ def test_cf_client_get_basket_parses_json(monkeypatch):
     assert len(rows) == 1
     assert rows[0]["symbol"] == "ABC"
     assert rows[0]["robust_z"] == -2.4
-
-
-def test_cf_client_get_basket_returns_empty_list_on_error(monkeypatch):
-    class FakeClient:
-        def __init__(self, **kwargs):
-            pass
-        def get(self, url):
-            raise httpx.ConnectError("Connection refused")
-
-    monkeypatch.setattr(httpx, "Client", FakeClient)
-    cf = CloudflareAPIClient()
-    assert cf.get_basket() == []
 
 
 def test_cf_client_register_and_complete_run(monkeypatch):
@@ -96,3 +84,38 @@ def test_cf_client_universe_and_risk_events(monkeypatch):
     cf.store_risk_events([{"symbol": "AAPL", "event_type": "earnings", "event_date": "2026-08-10"}])
     assert posted[1][0] == "/api/risk_events"
 
+
+def test_cf_client_batches_bar_writes(monkeypatch):
+    posted = []
+
+    class FakeResponse:
+        status_code = 200
+
+    class FakeClient:
+        def __init__(self, **kwargs):
+            pass
+
+        def post(self, url, json=None):
+            posted.append((url, json))
+            return FakeResponse()
+
+    monkeypatch.setattr(httpx, "Client", FakeClient)
+    CloudflareAPIClient().upsert_bars([{"symbol": "ABC", "date": str(i)} for i in range(5)], batch_size=2)
+    assert [len(payload) for _, payload in posted] == [2, 2, 1]
+
+
+def test_cf_client_raises_when_event_persistence_fails(monkeypatch):
+    class FakeResponse:
+        status_code = 500
+        text = "D1 unavailable"
+
+    class FakeClient:
+        def __init__(self, **kwargs):
+            pass
+
+        def post(self, url, json=None):
+            return FakeResponse()
+
+    monkeypatch.setattr(httpx, "Client", FakeClient)
+    with pytest.raises(RuntimeError, match="event append failed"):
+        CloudflareAPIClient().append_events([{"kind": "test"}])

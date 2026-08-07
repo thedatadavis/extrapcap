@@ -1,7 +1,7 @@
 from extrapcap.selection import completed_signal_alignment_reason, core_streak_gate, streak_priority_key
 
 
-def test_core_streak_gate_requires_negative_two_to_five_day_streak_and_z_gate():
+def test_core_streak_gate_accepts_both_directions_and_one_day_streaks():
     approved = core_streak_gate(
         {"streak_direction": "negative", "streak_length": 4, "robust_z": -2.4},
         -2.0,
@@ -14,10 +14,7 @@ def test_core_streak_gate_requires_negative_two_to_five_day_streak_and_z_gate():
     )
     assert pos_approved.allowed
     assert pos_approved.strategy_route == "bearish_reversal_watch"
-    assert core_streak_gate(
-        {"streak_direction": "negative", "streak_length": 4, "robust_z": -0.4},
-        -2.0,
-    ).reason == "robust_z_above_entry_threshold"
+    assert core_streak_gate({"streak_direction": "negative", "streak_length": 1, "robust_z": -0.4}).allowed
 
 
 def test_longer_negative_streaks_receive_higher_selection_priority():

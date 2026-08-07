@@ -1,48 +1,7 @@
-# Modal Scheduler Setup and Deployment
+# Modal operations
 
-This document describes how to deploy and manage Extrapolation Capital's scheduled trading day workloads on **Modal Labs**.
+The deployed app is paper-account only. `data_refresh` fetches 756 calendar days of completed Alpaca bars, then `streak_screen` builds the current basket and fits the ticker-specific three-session Bayesian model. A missing provider response, incomplete history, sector, event snapshot, or option quote is an error.
 
-## Prerequisites
+`candidate_review` evaluates every current-day basket opportunity. It does not apply a daily quota: capital, account risk, event gates, DTE rules, and quote quality determine which orders are submitted. Eligible expirations are 0–21 DTE. 0DTE entries are only accepted before the close-positioning cutoff and must be closed the same session; 1DTE entries have a next-session hard exit; all other entries have a three-session/three-DTE hard exit.
 
-1. Install Modal CLI:
-   ```bash
-   pip install modal
-   ```
-2. Authenticate with Modal:
-   ```bash
-   modal setup
-   ```
-
-## Secret Configuration
-
-The modular Modal application consumes four Modal secrets:
-
-```bash
-modal secret create alpaca-paper ALPACA_API_KEY="..." ALPACA_SECRET_KEY="..."
-modal secret create nebius NEBIUS_API_KEY="..."
-modal secret create cloudflare-api CF_APP_URL="https://extrapcap.pages.dev" CF_API_TOKEN="..."
-modal secret create resend RESEND_API_KEY="..." RECIPIENT_EMAIL="..." SENDER_EMAIL="..."
-```
-
-## Workload Schedules (`modal_app/app.py`)
-
-| Function | Schedule (EDT) | Cron (UTC) | Description |
-|---|---|---|---|
-| `data_refresh` | 12:00 AM EDT | `0 4 * * 1-5` | Daily market stock bars & Greenlist refresh |
-| `opening_prep` | 9:00 AM EDT | `0 13 * * 1-5` | Earnings calendar blackout & opening candidate prep |
-| `candidate_review` | 9:45, 11:45, 15:45 EDT | `45 13,15,19 * * 1-5` | Market-hours option candidate review & paper submission |
-| `position_management` | Every 30 mins (9:00–16:00 EDT) | `*/30 13-20 * * 1-5` | Evaluates held option positions for profit/loss exit rules |
-| `daily_report` | 4:45 PM EDT | `45 20 * * 1-5` | Renders EOD operations report & emails executive summary |
-| `improvement_loop` | 6:15 PM EDT | `15 22 * * 1-5` | Learner feedback loop & policy optimization |
-
-## Deployment Commands
-
-Deploy all scheduled functions to Modal:
-```bash
-modal deploy modal_app/app.py
-```
-
-Run a specific function manually on demand:
-```bash
-modal run modal_app/app.py::candidate_review
-```
+Nebius receives an advisory copy of each candidate. Its response is recorded but never substitutes for market data or blocks an otherwise approved paper order.

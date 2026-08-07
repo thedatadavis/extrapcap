@@ -13,7 +13,7 @@ Extrapcap uses the signal as a tradable-basket screen, not as permission to bypa
 - Eligibility is computed after the latest completed bar and applies to the next session. The screen never uses the next-session return.
 - Every symbol receives a decision record with the as-of timestamp, signed length, direction, relative return, acceptance, and rejection reason.
 
-This adaptation differs from the paper in purpose and instrument: the paper studies value-weighted stock portfolios, while Extrapcap uses the screened stocks as underlyings for defined-risk options structures. The options layer still requires liquidity, quote quality, event, Sniper, sleeve-budget, and portfolio-risk approval.
+This adaptation differs from the paper in purpose and instrument: the paper studies value-weighted stock portfolios, while Extrapcap uses the screened stocks as underlyings for defined-risk options structures. The options layer still requires liquidity, quote quality, event, ticker-specific Bayesian evidence, sleeve-budget, and portfolio-risk approval.
 
 The runnable path is:
 

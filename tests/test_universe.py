@@ -1,10 +1,11 @@
 import json
 
 import pandas as pd
+import pytest
 
 from extrapcap.universe.greenlist import GreenlistFilter, filter_greenlist, load_sector_map, refresh_greenlist
 from extrapcap.universe.streak_cli import bar_coverage, missing_bar_decisions
-from extrapcap.universe.streak_screen import StreakPolicy, screen_streaks
+from extrapcap.universe.streak_screen import StreakPolicy, filter_tradable_basket, screen_streaks
 
 
 def test_greenlist_logs_acceptance_and_rejection():
@@ -51,12 +52,16 @@ def test_streak_screen_uses_signed_completed_relative_streaks():
     assert decisions[0]["accepted"] is True
 
 
+def test_tradable_basket_fails_closed_without_market_bars():
+    with pytest.raises(RuntimeError, match="requires completed market bars"):
+        filter_tradable_basket([{"ticker": "ABC", "sector": "Technology"}])
+
+
 def test_sector_map_is_loaded_from_versioned_greenlist(tmp_path):
     path = tmp_path / "greenlist-test.csv"
     path.write_text("ticker,sector\nABC,Technology\nBAD,N/A\n", encoding="utf-8")
     result = load_sector_map(path)
     assert result["ABC"] == "Technology"
-    assert result["SPY"] == "Broad Market ETF"
     assert "BAD" not in result
 
 
