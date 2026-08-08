@@ -8,7 +8,7 @@ from modal_app.cf_client import CloudflareAPIClient
 
 
 @app.function(image=image, secrets=secrets, volumes=state_mount, timeout=600)
-def live_cycle(symbol: str, expiration_gte: str | None = None, expiration_lte: str | None = None):
+def live_cycle(symbol: str = "SPY", expiration_gte: str | None = None, expiration_lte: str | None = None):
     """Run one authenticated paper-account entry evaluation for a ticker."""
     cf = CloudflareAPIClient()
     start_time = time.time()

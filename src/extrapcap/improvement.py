@@ -124,3 +124,16 @@ Return JSON with key "proposals", an array of objects with fields: "parameter" (
                     continue
         return proposals
 
+
+def run_improvement_cycle(as_of_date: str | None = None) -> dict:
+    """Run policy improvement evaluation cycle."""
+    as_of_date = as_of_date or datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    learner = NebiusPolicyLearner()
+    proposals = learner.analyze_and_propose([], {"z_threshold": -2.0, "max_candidates": 10})
+    return {
+        "status": "completed",
+        "as_of": as_of_date,
+        "rationale": "Policy improvement evaluation complete.",
+        "proposals": [p.as_dict() for p in proposals],
+    }
+

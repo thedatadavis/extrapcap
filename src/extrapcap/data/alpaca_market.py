@@ -20,8 +20,8 @@ class AlpacaMarketData:
     }
 
     def __init__(self, api_key: str | None = None, secret_key: str | None = None, base_url: str = "https://data.alpaca.markets", trading_base_url: str = "https://paper-api.alpaca.markets"):
-        self.api_key = api_key or os.getenv("ALPACA_API_KEY")
-        self.secret_key = secret_key or os.getenv("ALPACA_SECRET_KEY")
+        self.api_key = api_key or os.getenv("ALPACA_API_KEY") or os.getenv("APCA_API_KEY_ID")
+        self.secret_key = secret_key or os.getenv("ALPACA_SECRET_KEY") or os.getenv("APCA_API_SECRET_KEY")
         self.base_url = base_url.rstrip("/")
         self.trading_base_url = trading_base_url.rstrip("/")
 

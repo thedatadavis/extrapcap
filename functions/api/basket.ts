@@ -37,14 +37,19 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
   try {
     const url = new URL(request.url);
     const date = url.searchParams.get('as_of');
-    if (!date) return Response.json({ error: 'as_of is required' }, { status: 400 });
+    const runId = url.searchParams.get('run_id');
 
     let sql = 'SELECT * FROM basket';
     const params: any[] = [];
 
-    if (date) {
+    if (runId) {
+      sql += ' WHERE run_id = ?';
+      params.push(runId);
+    } else if (date) {
       sql += ' WHERE as_of = ?';
       params.push(date);
+    } else {
+      sql += ' WHERE as_of = (SELECT MAX(as_of) FROM basket)';
     }
 
     const result = await env.DB.prepare(sql).bind(...params).all();

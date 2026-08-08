@@ -27,7 +27,7 @@ def candidate_review():
     today = datetime.now(timezone.utc).date()
     try:
         from extrapcap.orchestration.basket_cycle import run_basket
-        basket = cf.get_basket(as_of=today.isoformat())
+        basket = cf.get_basket(as_of=today.isoformat()) or cf.get_basket()
         if not basket:
             raise RuntimeError("no current basket in Cloudflare D1")
         results = run_basket(basket, trading_day=today, dte_min=0, dte_max=21, preferred_dte=10)

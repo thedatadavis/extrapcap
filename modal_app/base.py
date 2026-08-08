@@ -11,7 +11,7 @@ image = (
     .add_local_dir("modal_app", remote_path="/root/modal_app", copy=True)
     .add_local_file("pyproject.toml", remote_path="/root/pyproject.toml", copy=True)
     .run_commands("pip install -e /root")
-    .env({"PYTHONPATH": "/root:/root/src", "ALPACA_PAPER": "true", "EXTRACAP_STATE_DIR": "/data"})
+    .env({"PYTHONPATH": "/root:/root/src", "ALPACA_PAPER": "true", "EXTRAPCAP_STATE_DIR": "/data"})
 )
 secrets = [modal.Secret.from_name(name) for name in ("alpaca-paper", "nebius", "cloudflare-api", "resend")]
 state_mount = {"/data": state_volume}

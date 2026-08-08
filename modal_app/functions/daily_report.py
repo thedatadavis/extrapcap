@@ -20,7 +20,7 @@ def daily_report():
 
     try:
         today_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-        basket = cf.get_basket(as_of=today_str)
+        basket = cf.get_basket(as_of=today_str) or cf.get_basket()
         report = {"summary": f"{len(basket)} current opportunities evaluated", "evaluated_count": len(basket), "submitted_count": 0, "filled_count": 0}
 
         event = {

@@ -18,7 +18,9 @@ export const GET: APIRoute = async ({ request, locals }) => {
     } else if (date) {
       sql += ' WHERE as_of = ?';
       params.push(date);
-    } else return new Response(JSON.stringify({ error: 'as_of or run_id is required' }), { status: 400 });
+    } else {
+      sql += ' WHERE as_of = (SELECT MAX(as_of) FROM basket)';
+    }
 
     const result = await db.prepare(sql).bind(...params).all();
     return new Response(JSON.stringify(result.results || []), {

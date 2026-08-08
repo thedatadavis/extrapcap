@@ -20,8 +20,8 @@ def _secret(name: str, service: str) -> str | None:
 def require_paper_credentials() -> tuple[str, str]:
     if os.getenv("ALPACA_PAPER", "true").lower() != "true":
         raise RuntimeError("paper-only trading is required")
-    key = _secret("ALPACA_API_KEY", "extrapcap.alpaca.api_key")
-    secret = _secret("ALPACA_SECRET_KEY", "extrapcap.alpaca.secret_key")
+    key = _secret("ALPACA_API_KEY", "extrapcap.alpaca.api_key") or os.getenv("APCA_API_KEY_ID")
+    secret = _secret("ALPACA_SECRET_KEY", "extrapcap.alpaca.secret_key") or os.getenv("APCA_API_SECRET_KEY")
     if not key or not secret:
         raise RuntimeError("set ALPACA_API_KEY and ALPACA_SECRET_KEY through a secret manager")
     return key, secret
