@@ -85,6 +85,34 @@ def test_cf_client_universe_and_risk_events(monkeypatch):
     assert posted[1][0] == "/api/risk_events"
 
 
+def test_cf_client_bypasses_cached_order_and_position_reads(monkeypatch):
+    requested = []
+
+    class FakeResponse:
+        status_code = 200
+
+        def json(self):
+            return []
+
+    class FakeClient:
+        def __init__(self, **kwargs):
+            pass
+
+        def get(self, url):
+            requested.append(url)
+            return FakeResponse()
+
+    monkeypatch.setattr(httpx, "Client", FakeClient)
+    cf = CloudflareAPIClient()
+    cf.get_orders()
+    cf.get_positions()
+    cf.get_active_positions()
+
+    assert requested[0].startswith("/api/orders?_ts=")
+    assert requested[1].startswith("/api/positions?_ts=")
+    assert requested[2].startswith("/api/positions?active=true&_ts=")
+
+
 def test_cf_client_batches_bar_writes(monkeypatch):
     posted = []
 

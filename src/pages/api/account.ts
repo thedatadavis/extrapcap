@@ -1,19 +1,21 @@
 import type { APIRoute } from 'astro';
 
+const JSON_NO_STORE = { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' };
+
 export const GET: APIRoute = async ({ locals }) => {
   try {
     const db = (locals as any).runtime?.env?.DB;
-    if (!db) return new Response(JSON.stringify([]), { headers: { 'Content-Type': 'application/json' } });
+    if (!db) return new Response(JSON.stringify([]), { headers: JSON_NO_STORE });
 
     const result = await db.prepare(
       'SELECT as_of as date, equity as balance, cash, buying_power as buyingPower, portfolio_value, daily_pnl FROM account_snapshots ORDER BY as_of ASC'
     ).all();
 
     return new Response(JSON.stringify(result.results || []), {
-      headers: { 'Content-Type': 'application/json' },
+      headers: JSON_NO_STORE,
     });
   } catch (err: any) {
-    return new Response(JSON.stringify({ error: err.message }), { status: 500 });
+    return new Response(JSON.stringify({ error: err.message }), { status: 500, headers: JSON_NO_STORE });
   }
 };
 

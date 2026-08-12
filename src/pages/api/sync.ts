@@ -1,5 +1,10 @@
 import type { APIRoute } from 'astro';
 
+const JSON_NO_STORE = {
+  'Cache-Control': 'no-cache, no-store, must-revalidate',
+  'Content-Type': 'application/json',
+};
+
 export const GET: APIRoute = async ({ locals }) => {
   try {
     const db = (locals as any).runtime?.env?.DB;
@@ -9,7 +14,7 @@ export const GET: APIRoute = async ({ locals }) => {
         error: 'Database binding not available',
         server_time: new Date().toISOString(),
       }), {
-        headers: { 'Content-Type': 'application/json' }
+        headers: JSON_NO_STORE,
       });
     }
 
@@ -57,15 +62,12 @@ export const GET: APIRoute = async ({ locals }) => {
       latest_account: latestAccount,
       latest_event: latestEvent,
     }), {
-      headers: {
-        'Cache-Control': 'no-cache, no-store, must-revalidate',
-        'Content-Type': 'application/json',
-      },
+      headers: JSON_NO_STORE,
     });
   } catch (err: any) {
     return new Response(JSON.stringify({ error: err.message, server_time: new Date().toISOString() }), {
       status: 500,
-      headers: { 'Content-Type': 'application/json' },
+      headers: JSON_NO_STORE,
     });
   }
 };

@@ -2,6 +2,8 @@ interface Env {
   DB: any;
 }
 
+const NO_STORE = { 'Cache-Control': 'no-store' };
+
 export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   try {
     const data = await request.json();
@@ -33,8 +35,8 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
       'SELECT as_of as date, equity as balance, cash, buying_power as buyingPower, portfolio_value, daily_pnl FROM account_snapshots ORDER BY as_of ASC'
     ).all();
 
-    return Response.json(result.results || []);
+    return Response.json(result.results || [], { headers: NO_STORE });
   } catch (err: any) {
-    return Response.json({ error: err.message }, { status: 500 });
+    return Response.json({ error: err.message }, { status: 500, headers: NO_STORE });
   }
 };

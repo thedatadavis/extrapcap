@@ -2,6 +2,8 @@ interface Env {
   DB: any;
 }
 
+const NO_STORE = { 'Cache-Control': 'no-store' };
+
 export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   try {
     const data = await request.json();
@@ -115,8 +117,8 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
     sql += ' ORDER BY opened_at DESC';
     const result = await env.DB.prepare(sql).bind(...params).all();
     if (!Array.isArray(result.results)) throw new Error('D1 returned an invalid positions result');
-    return Response.json(result.results);
+    return Response.json(result.results, { headers: NO_STORE });
   } catch (err: any) {
-    return Response.json({ error: err.message }, { status: 500 });
+    return Response.json({ error: err.message }, { status: 500, headers: NO_STORE });
   }
 };

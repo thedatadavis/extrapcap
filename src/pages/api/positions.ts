@@ -1,9 +1,11 @@
 import type { APIRoute } from 'astro';
 
+const JSON_NO_STORE = { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' };
+
 export const GET: APIRoute = async ({ request, locals }) => {
   try {
     const db = (locals as any).runtime?.env?.DB;
-    if (!db) return new Response(JSON.stringify({ error: 'DB not available' }), { status: 500, headers: { 'Content-Type': 'application/json' } });
+    if (!db) return new Response(JSON.stringify({ error: 'DB not available' }), { status: 500, headers: JSON_NO_STORE });
 
     const url = new URL(request.url);
     const active = url.searchParams.get('active');
@@ -21,10 +23,10 @@ export const GET: APIRoute = async ({ request, locals }) => {
     const result = await db.prepare(sql).bind(...params).all();
     if (!Array.isArray(result.results)) throw new Error('D1 returned an invalid positions result');
     return new Response(JSON.stringify(result.results), {
-      headers: { 'Content-Type': 'application/json' },
+      headers: JSON_NO_STORE,
     });
   } catch (err: any) {
-    return new Response(JSON.stringify({ error: err.message }), { status: 500 });
+    return new Response(JSON.stringify({ error: err.message }), { status: 500, headers: JSON_NO_STORE });
   }
 };
 

@@ -1,5 +1,7 @@
 import type { APIRoute } from 'astro';
 
+const NO_STORE = { 'Cache-Control': 'no-store' };
+
 function database(locals: any): any {
   const db = locals.runtime?.env?.DB;
   if (!db) throw new Error('DB not available');
@@ -78,8 +80,8 @@ export const GET: APIRoute = async ({ request, locals }) => {
     sql += ' ORDER BY created_at DESC LIMIT 200';
     const result = await database(locals).prepare(sql).bind(...params).all();
     if (!Array.isArray(result.results)) throw new Error('D1 returned an invalid orders result');
-    return Response.json(result.results);
+    return Response.json(result.results, { headers: NO_STORE });
   } catch (error: any) {
-    return Response.json({ error: error.message }, { status: 500 });
+    return Response.json({ error: error.message }, { status: 500, headers: NO_STORE });
   }
 };

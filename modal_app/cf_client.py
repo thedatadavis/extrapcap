@@ -26,6 +26,11 @@ class CloudflareAPIClient:
         detail = getattr(response, "text", "")
         raise RuntimeError(f"Cloudflare {operation} failed (HTTP {status}): {detail}")
 
+    @staticmethod
+    def _fresh_url(path: str) -> str:
+        separator = "&" if "?" in path else "?"
+        return f"{path}{separator}_ts={time.time_ns()}"
+
     def register_run(self, workflow: str) -> str:
         run_id = f"modal-{uuid.uuid4().hex[:12]}"
         response = self.client.post(
@@ -74,7 +79,8 @@ class CloudflareAPIClient:
 
     def get_active_positions(self) -> list[dict]:
         res = self._require_success(
-            self.client.get("/api/positions?active=true"), "active positions read"
+            self.client.get(self._fresh_url("/api/positions?active=true")),
+            "active positions read",
         )
         data = res.json()
         if not isinstance(data, list):
@@ -83,7 +89,9 @@ class CloudflareAPIClient:
 
     def get_positions(self, active: bool | None = None) -> list[dict]:
         suffix = "" if active is None else f"?active={'true' if active else 'false'}"
-        res = self._require_success(self.client.get(f"/api/positions{suffix}"), "positions read")
+        res = self._require_success(
+            self.client.get(self._fresh_url(f"/api/positions{suffix}")), "positions read"
+        )
         data = res.json()
         if not isinstance(data, list):
             raise RuntimeError("Cloudflare positions response was not a list")
@@ -165,7 +173,9 @@ class CloudflareAPIClient:
         self._require_success(self.client.post("/api/orders", json=payload), "order record")
 
     def get_orders(self) -> list[dict]:
-        response = self._require_success(self.client.get("/api/orders"), "orders read")
+        response = self._require_success(
+            self.client.get(self._fresh_url("/api/orders")), "orders read"
+        )
         data = response.json()
         if not isinstance(data, list):
             raise RuntimeError("Cloudflare orders response was not a list")

@@ -2,6 +2,8 @@ interface Env {
   DB: any;
 }
 
+const NO_STORE = { 'Cache-Control': 'no-store' };
+
 export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   try {
     const payload = await request.json();
@@ -38,15 +40,15 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
     const limit = parseInt(url.searchParams.get('limit') || '365', 10);
 
     if (!symbol) {
-      return Response.json({ error: 'symbol query param required' }, { status: 400 });
+      return Response.json({ error: 'symbol query param required' }, { status: 400, headers: NO_STORE });
     }
 
     const result = await env.DB.prepare(
       'SELECT * FROM bars WHERE symbol = ? ORDER BY date DESC LIMIT ?'
     ).bind(symbol, limit).all();
 
-    return Response.json(result.results || []);
+    return Response.json(result.results || [], { headers: NO_STORE });
   } catch (err: any) {
-    return Response.json({ error: err.message }, { status: 500 });
+    return Response.json({ error: err.message }, { status: 500, headers: NO_STORE });
   }
 };

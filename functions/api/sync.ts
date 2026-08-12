@@ -2,6 +2,11 @@ interface Env {
   DB: any;
 }
 
+const NO_STORE = {
+  'Cache-Control': 'no-cache, no-store, must-revalidate',
+  'Content-Type': 'application/json',
+};
+
 export const onRequestGet: PagesFunction<Env> = async ({ env }) => {
   try {
     if (!env.DB) {
@@ -9,7 +14,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ env }) => {
         success: false,
         error: 'Database binding not available',
         server_time: new Date().toISOString(),
-      });
+      }, { headers: NO_STORE });
     }
 
     // 1. Fetch recent runs (last 5)
@@ -71,16 +76,13 @@ export const onRequestGet: PagesFunction<Env> = async ({ env }) => {
         latest_event: latestEvent,
       },
       {
-        headers: {
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
-          'Content-Type': 'application/json',
-        },
+        headers: NO_STORE,
       }
     );
   } catch (err: any) {
     return Response.json(
       { error: err.message, server_time: new Date().toISOString() },
-      { status: 500 }
+      { status: 500, headers: NO_STORE }
     );
   }
 };
