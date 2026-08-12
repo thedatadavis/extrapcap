@@ -405,7 +405,7 @@ def normalize_chain(payload: dict) -> list[OptionQuote]:
 
 
 def selected_vertical_quote_quality(
-    selected: SelectedVertical,
+    selected: SelectedVertical | SelectedDebitVertical,
     quotes: list[OptionQuote],
     observed_at: datetime,
     *,

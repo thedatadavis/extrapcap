@@ -143,7 +143,7 @@ def build_candidate(
         "entry_price": price,
         "pricing": "midpoint",
     }
-    if observed_at is not None and isinstance(selected, SelectedVertical):
+    if observed_at is not None:
         quality_reason, quality = selected_vertical_quote_quality(
             selected,
             quotes,

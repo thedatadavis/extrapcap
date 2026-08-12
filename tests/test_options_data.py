@@ -5,7 +5,7 @@ from urllib.error import HTTPError
 from extrapcap.fills import FillAssumptions, credit_fill, early_assignment_exposure, vertical_expiration_pnl
 import pytest
 from extrapcap.options import VerticalSpread
-from extrapcap.options_data import AlpacaOptionsData, AlpacaOptionsRequestError, DataTier, OptionContract, OptionQuote, contracts_from_payload, normalize_chain, select_bearish_put_debit_vertical, select_put_vertical, selected_vertical_quote_quality
+from extrapcap.options_data import AlpacaOptionsData, AlpacaOptionsRequestError, DataTier, OptionContract, OptionQuote, SelectedDebitVertical, contracts_from_payload, normalize_chain, select_bearish_put_debit_vertical, select_put_vertical, selected_vertical_quote_quality
 
 
 def test_options_adapter_uses_resolved_symbol_and_restores_strategy_symbol(monkeypatch):
@@ -133,3 +133,17 @@ def test_selected_vertical_quote_quality_rejects_wide_or_stale_quotes():
         datetime(2026, 7, 22, 15, tzinfo=timezone.utc),
     )
     assert reason == "option_quote_stale"
+
+
+def test_debit_vertical_quote_quality_rejects_a_zero_bid_leg():
+    long = OptionContract("ABC-long", "ABC", "2026-08-21", 50, "call")
+    short = OptionContract("ABC-short", "ABC", "2026-08-21", 55, "call")
+    reason, _ = selected_vertical_quote_quality(
+        SelectedDebitVertical("ABC", long, short, 0.57, 0.4),
+        [
+            OptionQuote("ABC-long", "2026-08-12T16:07:19Z", 0.38, 0.57, 0.5),
+            OptionQuote("ABC-short", "2026-08-12T16:07:19Z", 0.0, 0.03, 0.01),
+        ],
+        datetime(2026, 8, 12, 16, 8, tzinfo=timezone.utc),
+    )
+    assert reason == "option_quote_invalid"
