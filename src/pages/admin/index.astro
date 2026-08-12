@@ -230,7 +230,8 @@ const coreWorkflows = [
           alertBox.removeAttribute('hidden');
           if (data.success) {
             alertBox.className = 'trigger-alert-box success';
-            alertBox.innerHTML = `<strong>✅ ${label} Triggered</strong> · Run ID: <code>${data.run_id}</code> logged to D1 runs table.`;
+            alertBox.innerHTML = `<strong>✅ ${label} Dispatched</strong> · Modal call: <code>${data.modal_function_call_id}</code>. Refreshing run state…`;
+            window.setTimeout(() => window.location.reload(), 1500);
           } else {
             alertBox.className = 'trigger-alert-box error';
             alertBox.innerHTML = `<strong>⚠️ Trigger Error:</strong> ${data.error || 'Failed to trigger workflow'}`;

@@ -21,9 +21,26 @@ export const POST: APIRoute = async ({ request, locals, cookies }) => {
 
     const body = await request.json();
     const workflow = body.workflow;
-    if (!workflow) {
-      return new Response(JSON.stringify({ error: 'Workflow parameter required' }), {
+    const allowedWorkflows = new Set([
+      'candidate_review',
+      'position_management',
+      'reconciliation',
+      'daily_report',
+      'data_refresh',
+      'streak_screen',
+    ]);
+    if (!workflow || !allowedWorkflows.has(workflow)) {
+      return new Response(JSON.stringify({ error: 'Supported workflow parameter required' }), {
         status: 400,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+    const env = (locals as any).runtime?.env;
+    const modalUrl = env?.MODAL_TRIGGER_URL;
+    const modalToken = env?.MODAL_TRIGGER_TOKEN;
+    if (!modalUrl || !modalToken) {
+      return new Response(JSON.stringify({ error: 'Modal admin trigger is not configured' }), {
+        status: 503,
         headers: { 'Content-Type': 'application/json' },
       });
     }
@@ -43,13 +60,46 @@ export const POST: APIRoute = async ({ request, locals, cookies }) => {
     `);
     await stmt.bind(runId, workflow, 'triggered', startedAt, summary).run();
 
+    const modalResponse = await fetch(modalUrl, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${modalToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ workflow }),
+    });
+    const modalText = await modalResponse.text();
+    let dispatch: any = {};
+    try {
+      dispatch = modalText ? JSON.parse(modalText) : {};
+    } catch {
+      dispatch = { detail: modalText };
+    }
+    if (!modalResponse.ok || !dispatch.accepted) {
+      const error = dispatch.detail || dispatch.error || `Modal dispatch failed with HTTP ${modalResponse.status}`;
+      await db.prepare(`
+        UPDATE runs SET status = 'failed', finished_at = ?, error = ? WHERE run_id = ?
+      `).bind(new Date().toISOString(), String(error), runId).run();
+      return new Response(JSON.stringify({ error }), {
+        status: 502,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
+    const dispatchedSummary = JSON.stringify({
+      ...JSON.parse(summary),
+      modal_function_call_id: dispatch.function_call_id,
+    });
+    await db.prepare('UPDATE runs SET summary = ? WHERE run_id = ?').bind(dispatchedSummary, runId).run();
+
     return new Response(JSON.stringify({
       success: true,
       run_id: runId,
       workflow,
       status: 'triggered',
+      modal_function_call_id: dispatch.function_call_id,
       started_at: startedAt,
-      message: `Workflow ${workflow} triggered successfully. Metadata logged to D1.`,
+      message: `Workflow ${workflow} was accepted by Modal.`,
     }), {
       headers: { 'Content-Type': 'application/json' },
     });

@@ -6,6 +6,7 @@ from modal_app.base import app, image, secrets, state_mount, state_volume
 # function modules import modal_app.base instead, so running one module directly
 # does not recursively register the full app or create name collisions.
 from modal_app.functions import (  # noqa: F401
+    admin_trigger,
     candidate_review,
     daily_report,
     data_refresh,
