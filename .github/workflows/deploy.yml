@@ -42,26 +42,22 @@ jobs:
       - name: Build Astro SSR App
         run: pnpm build
 
-      - name: Deploy Cloudflare Pages & D1 Migrations
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        run: |
-          if [ -n "$CLOUDFLARE_API_TOKEN" ]; then
-            pnpm wrangler pages deploy dist --project-name=extrapcap
-            pnpm wrangler d1 execute extrapcap --remote --file=schema.sql
-          else
-            echo "Skipping Cloudflare deployment: CLOUDFLARE_API_TOKEN not provided in repository secrets."
-          fi
-
       - name: Deploy Modal Serverless Crons
         env:
           MODAL_TOKEN_ID: ${{ secrets.MODAL_TOKEN_ID }}
           MODAL_TOKEN_SECRET: ${{ secrets.MODAL_TOKEN_SECRET }}
         run: |
-          if [ -n "$MODAL_TOKEN_ID" ]; then
-            pip install modal
-            modal deploy modal_app/app.py
-          else
-            echo "Skipping Modal deployment: MODAL_TOKEN_ID not provided in repository secrets."
-          fi
+          test -n "$MODAL_TOKEN_ID" || { echo "::error::MODAL_TOKEN_ID is not configured"; exit 1; }
+          test -n "$MODAL_TOKEN_SECRET" || { echo "::error::MODAL_TOKEN_SECRET is not configured"; exit 1; }
+          pip install modal
+          modal deploy modal_app/app.py
+
+      - name: Deploy Cloudflare Pages & D1 Migrations
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          test -n "$CLOUDFLARE_API_TOKEN" || { echo "::error::CLOUDFLARE_API_TOKEN is not configured"; exit 1; }
+          test -n "$CLOUDFLARE_ACCOUNT_ID" || { echo "::error::CLOUDFLARE_ACCOUNT_ID is not configured"; exit 1; }
+          pnpm wrangler d1 execute extrapcap --remote --file=schema.sql
+          pnpm wrangler pages deploy dist --project-name=extrapcap
