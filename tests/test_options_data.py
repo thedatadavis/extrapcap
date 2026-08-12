@@ -1,9 +1,42 @@
 from datetime import datetime, timezone
+from io import BytesIO
+from urllib.error import HTTPError
 
 from extrapcap.fills import FillAssumptions, credit_fill, early_assignment_exposure, vertical_expiration_pnl
 import pytest
 from extrapcap.options import VerticalSpread
-from extrapcap.options_data import AlpacaOptionsData, DataTier, OptionContract, OptionQuote, contracts_from_payload, normalize_chain, select_bearish_put_debit_vertical, select_put_vertical, selected_vertical_quote_quality
+from extrapcap.options_data import AlpacaOptionsData, AlpacaOptionsRequestError, DataTier, OptionContract, OptionQuote, contracts_from_payload, normalize_chain, select_bearish_put_debit_vertical, select_put_vertical, selected_vertical_quote_quality
+
+
+def test_options_adapter_uses_resolved_symbol_and_restores_strategy_symbol(monkeypatch):
+    calls = []
+    def fake_get(base, path, params):
+        calls.append((path, params))
+        if path == "/v2/options/contracts":
+            return {"option_contracts": [{"symbol": "BF.B260821C00280000", "underlying_symbol": "BF.B", "expiration_date": "2026-08-21", "strike_price": "280", "type": "call"}]}
+        return {"snapshots": {}}
+    provider = AlpacaOptionsData("key", "secret")
+    monkeypatch.setattr(provider, "_get", fake_get)
+    contracts = provider.contracts_all("BF.B", "2026-08-12", "2026-08-31", "call", strategy_underlying="BF-B")
+    provider.chain_all("BF.B", expiration_gte="2026-08-12", expiration_lte="2026-08-31")
+    assert calls[0][1]["underlying_symbols"] == "BF.B"
+    assert calls[1][0] == "/v1beta1/options/snapshots/BF.B"
+    assert contracts["option_contracts"][0]["underlying_symbol"] == "BF-B"
+
+
+def test_options_adapter_exposes_provider_error_without_credentials(monkeypatch):
+    body = BytesIO(b'{"code":42210000,"message":"invalid underlying symbols: BAD"}')
+    def fake_urlopen(request, timeout):
+        raise HTTPError(request.full_url, 422, "Unprocessable Entity", {}, body)
+    monkeypatch.setattr("extrapcap.options_data.urlopen", fake_urlopen)
+    provider = AlpacaOptionsData("private-key", "private-secret")
+    with pytest.raises(AlpacaOptionsRequestError) as raised:
+        provider.contracts("BAD", "2026-08-12")
+    message = str(raised.value)
+    assert "HTTP 422" in message
+    assert "invalid underlying symbols: BAD" in message
+    assert "private-key" not in message
+    assert "private-secret" not in message
 
 
 def test_chain_normalization_preserves_quote_and_greeks():

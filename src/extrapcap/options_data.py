@@ -5,6 +5,7 @@ from datetime import date, datetime, timezone
 from enum import StrEnum
 import json
 import os
+from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 from .data.pagination import merge_pages
@@ -15,6 +16,10 @@ class DataTier(StrEnum):
     OPRA = "opra"
     RECONSTRUCTED = "reconstructed"
     PROVIDER_DEFAULT = "provider_default"
+
+
+class AlpacaOptionsRequestError(RuntimeError):
+    """A safe, diagnostic option-data provider failure."""
 
 
 @dataclass(frozen=True)
@@ -307,20 +312,41 @@ class AlpacaOptionsData:
             raise RuntimeError("missing Alpaca credentials for option data")
         query = urlencode({k: v for k, v in params.items() if v is not None})
         request = Request(f"{base}{path}?{query}", headers={"APCA-API-KEY-ID": self.api_key, "APCA-API-SECRET-KEY": self.secret_key})
-        with urlopen(request, timeout=30) as response:
-            return json.loads(response.read())
+        try:
+            with urlopen(request, timeout=30) as response:
+                return json.loads(response.read())
+        except HTTPError as exc:
+            detail = ""
+            try:
+                body = exc.read().decode("utf-8", errors="replace").strip()
+                payload = json.loads(body)
+                detail = str(payload.get("message") or payload.get("error") or body)
+            except (AttributeError, json.JSONDecodeError, OSError, UnicodeError):
+                detail = str(exc.reason or exc)
+            raise AlpacaOptionsRequestError(f"Alpaca option data request failed ({path}, HTTP {exc.code}): {detail}") from exc
+        except (URLError, TimeoutError) as exc:
+            raise AlpacaOptionsRequestError(f"Alpaca option data request failed ({path}): {exc}") from exc
 
-    def contracts(self, underlying: str, expiration_gte: str, expiration_lte: str | None = None, option_type: str = "put") -> dict:
-        return self._get(self.trading_url, "/v2/options/contracts", {"underlying_symbols": underlying, "expiration_date_gte": expiration_gte, "expiration_date_lte": expiration_lte, "type": option_type, "status": "active", "show_deliverables": "false", "limit": 10000})
+    @staticmethod
+    def _normalize_contract_underlying(payload: dict, underlying: str) -> dict:
+        result = dict(payload)
+        rows = payload.get("option_contracts")
+        if isinstance(rows, list):
+            result["option_contracts"] = [{**row, "underlying_symbol": underlying.strip().upper()} if isinstance(row, dict) else row for row in rows]
+        return result
 
-    def contracts_all(self, underlying: str, expiration_gte: str, expiration_lte: str | None = None, option_type: str = "put") -> dict:
+    def contracts(self, underlying: str, expiration_gte: str, expiration_lte: str | None = None, option_type: str = "put", *, strategy_underlying: str | None = None) -> dict:
+        payload = self._get(self.trading_url, "/v2/options/contracts", {"underlying_symbols": underlying, "expiration_date_gte": expiration_gte, "expiration_date_lte": expiration_lte, "type": option_type, "status": "active", "show_deliverables": "false", "limit": 10000})
+        return self._normalize_contract_underlying(payload, strategy_underlying or underlying)
+
+    def contracts_all(self, underlying: str, expiration_gte: str, expiration_lte: str | None = None, option_type: str = "put", *, strategy_underlying: str | None = None) -> dict:
         pages, token = [], None
         while True:
             page = self._get(self.trading_url, "/v2/options/contracts", {"underlying_symbols": underlying, "expiration_date_gte": expiration_gte, "expiration_date_lte": expiration_lte, "type": option_type, "status": "active", "show_deliverables": "false", "limit": 10000, "page_token": token})
             pages.append(page)
             token = page.get("next_page_token")
             if not token:
-                return merge_pages(pages, "option_contracts")
+                return self._normalize_contract_underlying(merge_pages(pages, "option_contracts"), strategy_underlying or underlying)
 
     def chain(self, underlying: str, *, expiration_gte: str | None = None, expiration_lte: str | None = None, option_type: str | None = None, feed: str = "indicative", tier: DataTier | None = None) -> tuple[dict, DataTier]:
         selected_tier = tier or DataTier(feed)

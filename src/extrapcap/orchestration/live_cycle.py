@@ -45,10 +45,11 @@ def run_live_cycle(
         return {"ticker": symbol.upper(), "status": "vetoed", "reason": intraday.reason, "selection_context": context}
     data = AlpacaOptionsData.from_env()
     start = expiration_gte or day.isoformat()
-    contracts = data.contracts_all(symbol.upper(), start, expiration_lte, "call")
-    put_contracts = data.contracts_all(symbol.upper(), start, expiration_lte, "put")
+    provider_symbol = str(context.get("alpaca_symbol") or symbol).strip().upper()
+    contracts = data.contracts_all(provider_symbol, start, expiration_lte, "call", strategy_underlying=symbol.upper())
+    put_contracts = data.contracts_all(provider_symbol, start, expiration_lte, "put", strategy_underlying=symbol.upper())
     contracts["option_contracts"] = contracts.get("option_contracts", []) + put_contracts.get("option_contracts", [])
-    snapshot, tier = data.chain_all(symbol.upper(), expiration_gte=start, expiration_lte=expiration_lte, feed="indicative")
+    snapshot, tier = data.chain_all(provider_symbol, expiration_gte=start, expiration_lte=expiration_lte, feed="indicative")
     underlying = float(context.get("underlying_price") or 0)
     if underlying <= 0:
         raise ValueError(f"{symbol} missing current underlying price")

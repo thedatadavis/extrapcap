@@ -45,8 +45,12 @@ def test_candidate_review_basket_fallback(monkeypatch):
     monkeypatch.setattr(CloudflareAPIClient, "register_run", lambda self, wf: "test-run-1")
     monkeypatch.setattr(CloudflareAPIClient, "complete_run", lambda self, run_id, summary, start_time: None)
     monkeypatch.setattr(CloudflareAPIClient, "append_events", lambda self, events, run_id=None: None)
+    monkeypatch.setattr("extrapcap.data.alpaca_market.AlpacaMarketData.resolve_assets", lambda self, symbols, strict=False: {"ABC": {"id": "asset-abc", "symbol": "ABC"}})
 
-    def mock_run_basket(basket, trading_day, dte_min, dte_max, preferred_dte):
+    def mock_run_basket(basket, trading_day, dte_min, dte_max, preferred_dte, max_candidates):
+        assert max_candidates == 25
+        assert basket[0]["alpaca_symbol"] == "ABC"
+        assert basket[0]["alpaca_asset_id"] == "asset-abc"
         return [{"ticker": "ABC", "status": "new"}]
 
     import extrapcap.orchestration.basket_cycle
@@ -55,6 +59,7 @@ def test_candidate_review_basket_fallback(monkeypatch):
     res = cr_mod.candidate_review.local()
     assert res["status"] == "success"
     assert res["evaluated"] == 1
+    assert res["unresolved_assets"] == 0
     assert calls == ["2026-08-05", None]
 
 
@@ -156,8 +161,6 @@ def test_bayesian_reversion_model_discards_short_history():
     # NEWCO should raise KeyError because it lacks sufficient ticker-specific history and is discarded
     with pytest.raises((KeyError, ValueError)):
         model.predict_evidence(symbol="NEWCO", streak_length=3, streak_direction="negative", day_of_week=1)
-
-
 
 
 

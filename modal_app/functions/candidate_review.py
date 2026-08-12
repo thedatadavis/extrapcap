@@ -19,6 +19,17 @@ def _event_record(result: dict) -> dict:
     return event
 
 
+def _attach_asset_identities(basket: list[dict]) -> tuple[list[dict], int]:
+    from extrapcap.data.alpaca_market import AlpacaMarketData
+    symbols = [str(row.get("symbol") or row.get("ticker") or "").strip().upper() for row in basket]
+    identities = AlpacaMarketData().resolve_assets(symbols, strict=False)
+    enriched = []
+    for row, symbol in zip(basket, symbols, strict=True):
+        asset = identities.get(symbol)
+        enriched.append({**row, **({"alpaca_symbol": asset["symbol"], "alpaca_asset_id": asset["id"]} if asset else {})})
+    return enriched, len(set(symbols)) - len(identities)
+
+
 @app.function(image=image, secrets=secrets, volumes=state_mount, schedule=modal.Cron("45 13,15,19 * * 1-5"), timeout=600)
 def candidate_review():
     cf = CloudflareAPIClient()
@@ -33,15 +44,18 @@ def candidate_review():
         basket = cf.get_basket(as_of=today.isoformat()) or cf.get_basket()
         if not basket:
             raise RuntimeError("no current basket in Cloudflare D1")
-        results = run_basket(basket, trading_day=today, dte_min=0, dte_max=21, preferred_dte=10)
+        basket, unresolved_assets = _attach_asset_identities(basket)
+        results = run_basket(basket, trading_day=today, dte_min=0, dte_max=21, preferred_dte=10, max_candidates=25)
         events = [_event_record(result) for result in results if isinstance(result, dict)]
         cf.append_events(events, run_id=run_id)
         errors = [event for event in events if event.get("status") == "error"]
         submitted = [event for event in events if event.get("category") == "orders"]
-        cf.complete_run(run_id, summary={"evaluated": len(events), "submitted": len(submitted), "errors": len(errors)}, start_time=start_time)
+        deferred = sum(int(event.get("deferred") or 0) for event in events)
+        evaluated = len([event for event in events if event.get("kind") != "basket_selection_summary"])
+        cf.complete_run(run_id, summary={"evaluated": evaluated, "submitted": len(submitted), "errors": len(errors), "deferred": deferred, "unresolved_assets": unresolved_assets}, start_time=start_time)
         if submitted:
             send_resend_email(subject=f"[Extrapcap] Candidate Orders ({today.isoformat()})", text=format_candidate_orders_text(today.isoformat(), submitted))
-        return {"status": "success" if not errors else "completed_with_errors", "evaluated": len(events), "submitted": len(submitted), "errors": len(errors)}
+        return {"status": "success" if not errors else "completed_with_errors", "evaluated": evaluated, "submitted": len(submitted), "errors": len(errors), "deferred": deferred, "unresolved_assets": unresolved_assets}
     except Exception as exc:
         cf.fail_run(run_id, error=str(exc), start_time=start_time)
         send_resend_email(subject="[Extrapcap] Candidate Review Failure", text=format_error_alert_text("Candidate Review", str(exc)))

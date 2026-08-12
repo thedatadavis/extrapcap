@@ -6,6 +6,7 @@ from datetime import date
 import csv
 import json
 from pathlib import Path
+from urllib.error import URLError
 
 from ..ledger import AuditLedger
 from ..selection import core_streak_gate, streak_priority_key
@@ -63,12 +64,17 @@ def run_basket(
     dte_min: int = 0,
     dte_max: int = 21,
     preferred_dte: int = 10,
+    max_candidates: int = 25,
 ) -> list[dict]:
-    """Evaluate every good opportunity; capital/risk gates determine submission count."""
+    """Evaluate a ranked, bounded set while recording signal and provider vetoes."""
+    if max_candidates < 1:
+        raise ValueError("max_candidates must be positive")
     audit = audit or AuditLedger()
     day = trading_day or date.today()
     rows = basket_rows(basket)
     results = []
+    evaluated = 0
+    deferred = 0
     for rank, selection in enumerate(rows, start=1):
         decision = core_streak_gate(selection)
         probability = selection.get("reversion_probability")
@@ -78,6 +84,10 @@ def run_basket(
         if not decision.allowed:
             result = {"category": "signals", "kind": "basket_selection", "ticker": selection["ticker"], "status": "vetoed", "reason": decision.reason, "model_probability": probability, "selection_context": context}
         else:
+            if evaluated >= max_candidates:
+                deferred += 1
+                continue
+            evaluated += 1
             try:
                 result = runner(
                     symbol=selection["ticker"],
@@ -89,8 +99,12 @@ def run_basket(
                     dte_max=dte_max,
                     preferred_dte=preferred_dte,
                 )
-            except ValueError as exc:
+            except (ValueError, RuntimeError, URLError, TimeoutError) as exc:
                 result = {"category": "signals", "kind": "basket_selection", "ticker": selection["ticker"], "status": "error", "reason": f"{type(exc).__name__}: {exc}", "model_probability": probability, "selection_context": context}
         audit.append("signals", {"ticker": selection["ticker"], "status": result.get("status"), "reason": result.get("reason", "submitted"), "model_probability": probability, "selection_context": context}, day, deduplicate=True)
         results.append(result)
+    if deferred:
+        summary = {"category": "signals", "kind": "basket_selection_summary", "status": "deferred", "reason": "candidate_limit", "eligible": evaluated + deferred, "evaluated": evaluated, "deferred": deferred}
+        audit.append("signals", summary, day, deduplicate=True)
+        results.append(summary)
     return results

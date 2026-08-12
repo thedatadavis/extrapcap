@@ -11,27 +11,47 @@ class AlpacaMarketData:
     """Read-only Alpaca market-data adapter using the paper account credentials."""
 
     DEFAULT_STOCK_BAR_BATCH_SIZE = 100
-    STOCK_SYMBOL_ALIASES = {
-        # The Greenlist source uses Yahoo-style dash share classes; Alpaca's
-        # market-data API uses dot notation for these symbols.
-        "BF-B": "BF.B",
-        "BRK-B": "BRK.B",
-        "PBR-A": "PBR.A",
-    }
-
     def __init__(self, api_key: str | None = None, secret_key: str | None = None, base_url: str = "https://data.alpaca.markets", trading_base_url: str = "https://paper-api.alpaca.markets"):
         self.api_key = api_key or os.getenv("ALPACA_API_KEY") or os.getenv("APCA_API_KEY_ID")
         self.secret_key = secret_key or os.getenv("ALPACA_SECRET_KEY") or os.getenv("APCA_API_SECRET_KEY")
         self.base_url = base_url.rstrip("/")
         self.trading_base_url = trading_base_url.rstrip("/")
 
-    def _get(self, path: str, params: dict, base_url: str | None = None) -> dict:
+    def _get(self, path: str, params: dict, base_url: str | None = None) -> dict | list:
         if not self.api_key or not self.secret_key:
             raise RuntimeError("missing Alpaca credentials for market data")
         query = urlencode({k: v for k, v in params.items() if v is not None})
         request = Request(f"{(base_url or self.base_url).rstrip('/')}{path}?{query}", headers={"APCA-API-KEY-ID": self.api_key, "APCA-API-SECRET-KEY": self.secret_key})
         with urlopen(request, timeout=30) as response:
             return json.loads(response.read())
+
+    @staticmethod
+    def _identity_key(symbol: str) -> str:
+        return "".join(character for character in symbol.strip().upper() if character.isalnum())
+
+    def resolve_assets(self, symbols: list[str], *, strict: bool = True) -> dict[str, dict]:
+        """Resolve source tickers against Alpaca's asset master without aliases."""
+        requested = list(dict.fromkeys(symbol.strip().upper() for symbol in symbols if symbol.strip()))
+        assets = self._get("/v2/assets", {"status": "active", "asset_class": "us_equity"}, self.trading_base_url)
+        if not isinstance(assets, list):
+            raise RuntimeError("Alpaca asset master returned an invalid response")
+        index: dict[str, dict] = {}
+        ambiguous: set[str] = set()
+        for asset in assets:
+            if not isinstance(asset, dict) or not asset.get("symbol"):
+                continue
+            key = self._identity_key(str(asset["symbol"]))
+            if key in index:
+                ambiguous.add(key)
+            else:
+                index[key] = asset
+        for key in ambiguous:
+            index.pop(key, None)
+        resolved = {symbol: index[self._identity_key(symbol)] for symbol in requested if self._identity_key(symbol) in index}
+        missing = sorted(set(requested) - set(resolved))
+        if strict and missing:
+            raise RuntimeError(f"Alpaca asset master could not resolve symbols: {', '.join(missing)}")
+        return resolved
 
     def stock_bars(
         self,
@@ -54,12 +74,13 @@ class AlpacaMarketData:
         if symbol_batch_size < 1:
             raise ValueError("symbol_batch_size must be positive")
 
+        identities = self.resolve_assets(requested)
         bars: dict[str, list] = {}
         errors: dict[str, dict] = {}
 
         def fetch_batch(batch: list[str]) -> None:
             batch_bars: dict[str, list] = {}
-            provider_batch = [self.STOCK_SYMBOL_ALIASES.get(symbol, symbol) for symbol in batch]
+            provider_batch = [str(identities[symbol]["symbol"]) for symbol in batch]
             page_token = None
             try:
                 while True:
@@ -110,7 +131,9 @@ class AlpacaMarketData:
         return {"bars": bars}
 
     def option_contracts(self, underlying_symbols: list[str], expiration_date_gte: str, expiration_date_lte: str | None = None) -> dict:
-        return self._get("/v2/options/contracts", {"underlying_symbols": ",".join(underlying_symbols), "expiration_date_gte": expiration_date_gte, "expiration_date_lte": expiration_date_lte, "status": "active", "limit": 1000}, self.trading_base_url)
+        identities = self.resolve_assets(underlying_symbols)
+        provider_symbols = [str(identities[symbol.strip().upper()]["symbol"]) for symbol in underlying_symbols]
+        return self._get("/v2/options/contracts", {"underlying_symbols": ",".join(provider_symbols), "expiration_date_gte": expiration_date_gte, "expiration_date_lte": expiration_date_lte, "status": "active", "limit": 1000}, self.trading_base_url)
 
     def news(
         self,
