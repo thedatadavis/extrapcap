@@ -40,11 +40,9 @@ def data_refresh():
         if "SPY" not in symbols:
             symbols.insert(0, "SPY")
 
-        # 2. Fetch and normalize enough completed daily bars for the 20-day
-        # robust-Z screen. Keep the lookback configurable without sending a
-        # multi-year, several-hundred-thousand-row request through Pages.
+        # 2. Fetch completed daily bars for full greenlist in-memory
         end = datetime.now(timezone.utc)
-        lookback_days = 756
+        lookback_days = 90
         start = end - timedelta(days=lookback_days)
         payload = market_data.stock_bars(
             symbols,
@@ -57,12 +55,20 @@ def data_refresh():
         if bars_df.empty:
             raise RuntimeError("Alpaca returned no completed stock bars")
 
-        # 3. Format and send to Cloudflare D1
+        # 3. Run streak screening in-memory over full universe bars
+        from modal_app.functions.streak_screen import run_streak_screening
+
+        screen_result = run_streak_screening(cf, greenlist, bars_df, run_id=run_id)
+
+        # 4. Limit bar inserts to Cloudflare D1 to ONLY SPY + the handful of candidate stocks
+        candidate_symbols = set(screen_result.get("candidate_symbols", [])) | {"SPY"}
+        candidate_bars_df = bars_df[bars_df["symbol"].astype(str).str.upper().isin(candidate_symbols)]
+
         bars_list = []
-        for _, row in bars_df.iterrows():
+        for _, row in candidate_bars_df.iterrows():
             bars_list.append({
                 "date": str(row["date"]),
-                "symbol": str(row["symbol"]),
+                "symbol": str(row["symbol"]).upper(),
                 "open": float(row["open"]),
                 "high": float(row["high"]),
                 "low": float(row["low"]),
@@ -72,17 +78,11 @@ def data_refresh():
             })
 
         cf.upsert_bars(bars_list)
-        cf.store_universe(greenlist)
-
-        # Screening depends on these exact completed bars, so keep both steps
-        # in one scheduled workflow instead of relying on a second cron.
-        from modal_app.functions.streak_screen import streak_screen
-
-        screen_result = streak_screen.local()
         cf.complete_run(
             run_id,
             summary={
                 "symbols_fetched": len(symbols),
+                "candidates_saved": len(candidate_symbols - {"SPY"}),
                 "bars_upserted": len(bars_list),
                 "tradable_candidates": screen_result["candidates_count"],
             },
@@ -91,6 +91,7 @@ def data_refresh():
         return {
             "status": "success",
             "bars_count": len(bars_list),
+            "candidate_stocks": list(candidate_symbols),
             "screen": screen_result,
         }
 

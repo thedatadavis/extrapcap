@@ -11,8 +11,8 @@ import pandas as pd
 from ..signals import relative_features
 
 
-MIN_HISTORY_BARS = 504
-MIN_LABELED_OBSERVATIONS = 252
+MIN_HISTORY_BARS = 30
+MIN_LABELED_OBSERVATIONS = 10
 PRIOR_STRENGTH = 20.0
 HORIZON_SESSIONS = 3
 
@@ -49,6 +49,8 @@ class BayesianReversionModel:
         benchmark: pd.Series,
         *,
         lookback_days: int = 756,
+        min_history_bars: int = MIN_HISTORY_BARS,
+        min_labeled_observations: int = MIN_LABELED_OBSERVATIONS,
     ) -> "BayesianReversionModel":
         required = {"symbol", "date", "close"}
         missing = required - set(bars.columns)
@@ -67,17 +69,17 @@ class BayesianReversionModel:
         benchmark = pd.to_numeric(benchmark, errors="raise")
         features = relative_features(frame[frame["symbol"] != "SPY"], benchmark)
         if features.empty:
-            raise ValueError("Bayesian training has no non-SPY bars")
+            return cls(counts={}, ticker_priors={})
 
         cutoff = features["date"].max() - pd.Timedelta(days=lookback_days)
         features = features[features["date"] >= cutoff].sort_values(["symbol", "date"])
+
+        # Discard tickers that do not meet minimum history bars
         coverage = features.groupby("symbol")["date"].nunique()
-        short = coverage[coverage < MIN_HISTORY_BARS]
-        if not short.empty:
-            raise ValueError(
-                "Bayesian training lacks required history: "
-                + ", ".join(f"{symbol}={count}" for symbol, count in short.items())
-            )
+        valid_symbols = set(coverage[coverage >= min_history_bars].index)
+        features = features[features["symbol"].isin(valid_symbols)]
+        if features.empty:
+            return cls(counts={}, ticker_priors={})
 
         grouped = features.groupby("symbol", sort=False)
         future_returns = pd.concat(
@@ -94,16 +96,15 @@ class BayesianReversionModel:
             labeled[future_columns].cumsum(axis=1).lt(0).any(axis=1),
         )
         labeled = labeled[labeled["streak_direction"].isin(["negative", "positive"])]
+
+        # Discard tickers with fewer than min_labeled_observations
         outcome_counts = labeled.groupby("symbol").size()
-        short_outcomes = outcome_counts[outcome_counts < MIN_LABELED_OBSERVATIONS]
-        if not short_outcomes.empty:
-            raise ValueError(
-                "Bayesian training lacks required labeled observations: "
-                + ", ".join(f"{symbol}={count}" for symbol, count in short_outcomes.items())
-            )
+        valid_outcomes = set(outcome_counts[outcome_counts >= min_labeled_observations].index)
+        labeled = labeled[labeled["symbol"].isin(valid_outcomes)]
 
         counts: dict[tuple[str, str, int, int], tuple[int, int]] = {}
         ticker_priors: dict[tuple[str, str], tuple[int, int]] = {}
+
         for row in labeled.itertuples(index=False):
             symbol = str(row.symbol).upper()
             direction = str(row.streak_direction)
@@ -143,19 +144,24 @@ class BayesianReversionModel:
         symbol = str(symbol).strip().upper()
         direction = str(streak_direction).strip().lower()
         prior_key = (symbol, direction)
+
         if prior_key not in self.ticker_priors:
-            raise KeyError(f"Bayesian evidence is unavailable for {symbol} {direction} history")
+            raise KeyError(f"Bayesian evidence unavailable for {symbol} {direction}: ticker lacks required historical observations")
+
         ticker_reversions, ticker_observations = self.ticker_priors[prior_key]
-        if ticker_observations < MIN_LABELED_OBSERVATIONS // 2:
-            raise ValueError(f"Bayesian evidence is insufficient for {symbol} {direction} history")
+        if ticker_observations < MIN_LABELED_OBSERVATIONS:
+            raise ValueError(f"Bayesian evidence insufficient for {symbol} {direction}: {ticker_observations} < {MIN_LABELED_OBSERVATIONS}")
+
         cell_key = (symbol, direction, streak_bucket(streak_length), int(day_of_week))
         cell_reversions, cell_observations = self.counts.get(cell_key, (0, 0))
+
         prior = (ticker_reversions + 1.0) / (ticker_observations + 2.0)
         alpha = prior * PRIOR_STRENGTH
         beta = (1.0 - prior) * PRIOR_STRENGTH
         probability = (cell_reversions + alpha) / (cell_observations + alpha + beta)
         if not math.isfinite(probability):
-            raise ValueError(f"Bayesian probability is invalid for {symbol}")
+            raise ValueError(f"Bayesian probability calculation invalid for {symbol}")
+
         return BayesianEvidence(
             symbol=symbol,
             direction=direction,
@@ -167,3 +173,4 @@ class BayesianReversionModel:
             ticker_reversions=ticker_reversions,
             ticker_observations=ticker_observations,
         )
+

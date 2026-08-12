@@ -27,9 +27,13 @@ def position_management():
         paper_client = AlpacaPaperClient.from_env()
         options_client = AlpacaOptionsData.from_env()
 
-        # Execute position manager loop
-        today_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-        records = manage_live_positions(paper_client, options_client, as_of=datetime.fromisoformat(today_str).date())
+        today = datetime.now(timezone.utc).date()
+        if today.weekday() >= 5:
+            cf.complete_run(run_id, summary={"skipped": True, "reason": "weekend_market_closed"}, start_time=start_time)
+            return {"status": "skipped", "reason": "weekend_market_closed"}
+
+        today_str = today.strftime("%Y-%m-%d")
+        records = manage_live_positions(paper_client, options_client, as_of=today)
 
         # Report events and closed positions to Cloudflare D1
         closed_count = 0

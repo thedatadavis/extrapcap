@@ -13,9 +13,13 @@ def live_cycle(symbol: str = "SPY", expiration_gte: str | None = None, expiratio
     cf = CloudflareAPIClient()
     start_time = time.time()
     run_id = cf.register_run(f"live_cycle_{symbol}")
+    today = date.today()
+    if today.weekday() >= 5:
+        cf.complete_run(run_id, summary={"symbol": symbol, "skipped": True, "reason": "weekend_market_closed"}, start_time=start_time)
+        return {"status": "skipped", "reason": "weekend_market_closed", "symbol": symbol}
     try:
         from extrapcap.orchestration.live_cycle import run_live_cycle
-        result = run_live_cycle(symbol=symbol, trading_day=date.today(), expiration_gte=expiration_gte, expiration_lte=expiration_lte)
+        result = run_live_cycle(symbol=symbol, trading_day=today, expiration_gte=expiration_gte, expiration_lte=expiration_lte)
         cf.append_events([result], run_id=run_id)
         cf.complete_run(run_id, summary={"symbol": symbol, "status": result.get("status")}, start_time=start_time)
         return result
