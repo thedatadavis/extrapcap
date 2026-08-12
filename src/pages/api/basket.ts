@@ -16,10 +16,15 @@ export const GET: APIRoute = async ({ request, locals }) => {
       sql += ' WHERE run_id = ?';
       params.push(runId);
     } else if (date) {
-      sql += ' WHERE as_of = ?';
-      params.push(date);
+      sql += ` WHERE as_of = ? AND run_id = (
+        SELECT run_id FROM basket WHERE as_of = ? GROUP BY run_id ORDER BY MAX(rowid) DESC LIMIT 1
+      )`;
+      params.push(date, date);
     } else {
-      sql += ' WHERE as_of = (SELECT MAX(as_of) FROM basket)';
+      sql += ` WHERE as_of = (SELECT MAX(as_of) FROM basket) AND run_id = (
+        SELECT run_id FROM basket WHERE as_of = (SELECT MAX(as_of) FROM basket)
+        GROUP BY run_id ORDER BY MAX(rowid) DESC LIMIT 1
+      )`;
     }
 
     const result = await db.prepare(sql).bind(...params).all();
