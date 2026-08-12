@@ -7,6 +7,7 @@ def test_d1_basket_rows_hydrate_feature_payload():
     assert rows[0]["formation_date"] == "2026-08-05T04:00:00+00:00"
     assert rows[0]["streak_length"] == 3
     assert rows[0]["reversion_probability"] == 0.72
+    assert "features" not in rows[0]
 
 
 def test_event_record_flattens_broker_result():
@@ -164,6 +165,5 @@ def test_bayesian_reversion_model_discards_short_history():
     # NEWCO should raise KeyError because it lacks sufficient ticker-specific history and is discarded
     with pytest.raises((KeyError, ValueError)):
         model.predict_evidence(symbol="NEWCO", streak_length=3, streak_direction="negative", day_of_week=1)
-
 
 

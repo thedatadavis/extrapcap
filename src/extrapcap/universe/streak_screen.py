@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
 import json
+from dataclasses import asdict, dataclass
 from pathlib import Path
 
 import pandas as pd
@@ -42,10 +42,9 @@ def screen_streaks(
         frame = frame[frame["symbol"].str.upper().isin(allowed | {"SPY"})]
     latest = frame.sort_values(["symbol", "date"]).groupby("symbol", as_index=False).tail(1)
     latest = latest[latest["symbol"].ne("SPY")].copy()
-    latest["streak_eligible"] = (
-        latest["streak_length"].between(policy.min_length, policy.max_length)
-        & latest["streak_direction"].isin(policy.directions)
-    )
+    latest["streak_eligible"] = latest["streak_length"].between(
+        policy.min_length, policy.max_length
+    ) & latest["streak_direction"].isin(policy.directions)
     decisions = []
     for row in latest.itertuples():
         reasons = []
@@ -62,7 +61,9 @@ def screen_streaks(
                 "signed_streak": int(row.signed_streak),
                 "streak_length": int(row.streak_length),
                 "streak_direction": row.streak_direction,
-                "relative_return": float(row.relative_return) if pd.notna(row.relative_return) else None,
+                "relative_return": float(row.relative_return)
+                if pd.notna(row.relative_return)
+                else None,
                 "accepted": bool(row.streak_eligible),
                 "reasons": reasons,
             }
@@ -87,17 +88,21 @@ def write_streak_screen(
         "source_bars": source_bars,
         "formation_rule": "latest completed bar; eligible for next session",
         "policy": asdict(policy),
-        "accepted_rows": int(len(selected)),
+        "accepted_rows": len(selected),
         "decision_rows": len(decisions),
         "decisions": decisions,
     }
     if coverage is not None:
         metadata["coverage"] = coverage
-    target.with_suffix(target.suffix + ".json").write_text(json.dumps(metadata, indent=2) + "\n", encoding="utf-8")
+    target.with_suffix(target.suffix + ".json").write_text(
+        json.dumps(metadata, indent=2) + "\n", encoding="utf-8"
+    )
     return target
 
 
-def filter_tradable_basket(greenlist: list[dict], bars_df: pd.DataFrame | None = None) -> pd.DataFrame:
+def filter_tradable_basket(
+    greenlist: list[dict], bars_df: pd.DataFrame | None = None
+) -> pd.DataFrame:
     """Filter Greenlist entries using completed market bars only.
 
     This is an execution input, so missing market data must fail closed.  The
@@ -120,16 +125,17 @@ def filter_tradable_basket(greenlist: list[dict], bars_df: pd.DataFrame | None =
 
     spy_series = spy_df.set_index("date")["close"]
     candidate_symbols = {
-        str(item.get("ticker", "")).strip().upper()
-        for item in greenlist
-        if item.get("ticker")
+        str(item.get("ticker", "")).strip().upper() for item in greenlist if item.get("ticker")
     }
     screened_df, _ = screen_streaks(
         bars,
         spy_series,
         candidate_symbols=candidate_symbols,
     )
-    sector_map = {str(item.get("ticker", "")).strip().upper(): str(item.get("sector") or "").strip() for item in greenlist}
+    sector_map = {
+        str(item.get("ticker", "")).strip().upper(): str(item.get("sector") or "").strip()
+        for item in greenlist
+    }
     missing_sectors = sorted(ticker for ticker in candidate_symbols if not sector_map.get(ticker))
     if missing_sectors:
         raise RuntimeError("streak screen missing sector metadata: " + ", ".join(missing_sectors))
@@ -147,10 +153,13 @@ def filter_tradable_basket(greenlist: list[dict], bars_df: pd.DataFrame | None =
             "robust_z": float(row.robust_z) if pd.notna(row.robust_z) else None,
             "dollar_volume": float(row.dollar_volume) if pd.notna(row.dollar_volume) else None,
             "stock_return": float(row.stock_return) if pd.notna(row.stock_return) else None,
-            "benchmark_return": float(row.benchmark_return) if pd.notna(row.benchmark_return) else None,
-            "relative_return": float(row.relative_return) if pd.notna(row.relative_return) else None,
+            "benchmark_return": float(row.benchmark_return)
+            if pd.notna(row.benchmark_return)
+            else None,
+            "relative_return": float(row.relative_return)
+            if pd.notna(row.relative_return)
+            else None,
             "underlying_price": float(row.close) if pd.notna(row.close) else None,
         }
-        record["features"] = json.dumps(record)
         rows.append(record)
     return pd.DataFrame(rows)

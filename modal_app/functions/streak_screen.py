@@ -1,17 +1,22 @@
 import time
-import json
-from datetime import datetime, timezone
-import modal
+from datetime import UTC, datetime
+
 from modal_app.base import app, image, secrets
 from modal_app.cf_client import CloudflareAPIClient
 
 
-def run_streak_screening(cf: CloudflareAPIClient, accepted_greenlist: list[dict], bars_df, run_id: str = None) -> dict:
+def run_streak_screening(
+    cf: CloudflareAPIClient,
+    accepted_greenlist: list[dict],
+    bars_df,
+    run_id: str | None = None,
+) -> dict:
     import pandas as pd
-    from extrapcap.universe.streak_screen import filter_tradable_basket
-    from extrapcap.models.bayesian_reversion import BayesianReversionModel
 
-    today_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    from extrapcap.models.bayesian_reversion import BayesianReversionModel
+    from extrapcap.universe.streak_screen import filter_tradable_basket
+
+    today_str = datetime.now(UTC).strftime("%Y-%m-%d")
 
     basket_df = filter_tradable_basket(
         greenlist=accepted_greenlist,
@@ -34,7 +39,6 @@ def run_streak_screening(cf: CloudflareAPIClient, accepted_greenlist: list[dict]
             row["reversion_probability"] = item.probability
             row["bayesian_cell_observations"] = item.cell_observations
             row["bayesian_ticker_observations"] = item.ticker_observations
-            row["features"] = json.dumps(row, default=str)
             evidence.append(row)
         except (KeyError, ValueError):
             # Discard ticker due to insufficient ticker-specific history
@@ -69,9 +73,16 @@ def streak_screen():
     run_id = cf.register_run("streak_screen")
 
     try:
-        import pandas as pd
         from urllib.request import urlopen
-        from extrapcap.universe.greenlist import SOURCE_URL, GreenlistFilter, filter_greenlist, _read_csv
+
+        import pandas as pd
+
+        from extrapcap.universe.greenlist import (
+            SOURCE_URL,
+            GreenlistFilter,
+            _read_csv,
+            filter_greenlist,
+        )
 
         # Fetch greenlist registry from source URL
         with urlopen(SOURCE_URL, timeout=30) as response:
@@ -85,10 +96,16 @@ def streak_screen():
         bars_df = pd.DataFrame(bars)
 
         result = run_streak_screening(cf, accepted_greenlist, bars_df, run_id=run_id)
-        cf.complete_run(run_id, summary={"universe_count": result["universe_count"], "tradable_candidates": result["candidates_count"]}, start_time=start_time)
+        cf.complete_run(
+            run_id,
+            summary={
+                "universe_count": result["universe_count"],
+                "tradable_candidates": result["candidates_count"],
+            },
+            start_time=start_time,
+        )
         return result
 
     except Exception as e:
         cf.fail_run(run_id, error=str(e), start_time=start_time)
         raise
-

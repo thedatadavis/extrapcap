@@ -39,6 +39,7 @@ def basket_rows(path_or_rows: str | Path | list[dict]) -> list[dict]:
                 raise ValueError(
                     f"invalid features JSON for {row.get('ticker') or row.get('symbol')}"
                 ) from exc
+        row.pop("features", None)
         ticker = str(row.get("ticker") or row.get("symbol") or "").strip().upper()
         if not ticker:
             raise ValueError("basket row missing ticker")
