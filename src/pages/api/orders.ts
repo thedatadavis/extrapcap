@@ -1,37 +1,85 @@
 import type { APIRoute } from 'astro';
 
+function database(locals: any): any {
+  const db = locals.runtime?.env?.DB;
+  if (!db) throw new Error('DB not available');
+  return db;
+}
+
 export const POST: APIRoute = async ({ request, locals }) => {
   try {
-    const db = (locals as any).runtime?.env?.DB;
-    if (!db) return new Response(JSON.stringify({ error: 'DB not available' }), { status: 500 });
-
     const data = await request.json();
-    const stmt = db.prepare(`
-      INSERT INTO order_registry
-      (client_order_id, provider_order_id, trading_day, ticker, status, order_type, side, qty, limit_price, filled_qty, filled_avg_price, submitted_at, payload)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    const stmt = database(locals).prepare(`
+      INSERT OR REPLACE INTO orders
+      (client_order_id, run_id, signal_id, broker_order_id, ticker, sleeve, side, strategy_variant, limit_price, quantity, legs, metadata, execution_status, submitted_at, filled_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
-
     await stmt.bind(
       data.client_order_id,
-      data.provider_order_id || null,
-      data.trading_day || new Date().toISOString().split('T')[0],
+      data.run_id || null,
+      data.signal_id || null,
+      data.broker_order_id || null,
       data.ticker,
-      data.status || 'submitted',
-      data.order_type || 'limit',
-      data.side || 'sell',
-      data.qty || 1,
-      data.limit_price || null,
-      data.filled_qty || 0,
-      data.filled_avg_price || null,
+      data.sleeve || 'core',
+      data.side || 'sell_to_open',
+      data.strategy_variant || 'core_mean_reversion',
+      data.limit_price ?? null,
+      data.quantity || 1,
+      typeof data.legs === 'string' ? data.legs : JSON.stringify(data.legs || []),
+      typeof data.metadata === 'string' ? data.metadata : JSON.stringify(data.metadata || {}),
+      data.execution_status || 'submitted',
       data.submitted_at || new Date().toISOString(),
-      typeof data.payload === 'string' ? data.payload : JSON.stringify(data)
+      data.filled_at || null,
     ).run();
+    return Response.json({ success: true, client_order_id: data.client_order_id });
+  } catch (error: any) {
+    return Response.json({ error: error.message }, { status: 500 });
+  }
+};
 
-    return new Response(JSON.stringify({ success: true, client_order_id: data.client_order_id }), {
-      headers: { 'Content-Type': 'application/json' },
-    });
-  } catch (err: any) {
-    return new Response(JSON.stringify({ error: err.message }), { status: 500 });
+export const PATCH: APIRoute = async ({ request, locals }) => {
+  try {
+    const data = await request.json();
+    if (!data.client_order_id) return Response.json({ error: 'client_order_id required' }, { status: 400 });
+    let sql = 'UPDATE orders SET execution_status = ?';
+    const params: any[] = [data.execution_status];
+    if (data.broker_order_id) {
+      sql += ', broker_order_id = ?';
+      params.push(data.broker_order_id);
+    }
+    if (data.filled_at) {
+      sql += ', filled_at = ?';
+      params.push(data.filled_at);
+    }
+    sql += ' WHERE client_order_id = ?';
+    params.push(data.client_order_id);
+    await database(locals).prepare(sql).bind(...params).run();
+    return Response.json({ success: true });
+  } catch (error: any) {
+    return Response.json({ error: error.message }, { status: 500 });
+  }
+};
+
+export const GET: APIRoute = async ({ request, locals }) => {
+  try {
+    const url = new URL(request.url);
+    const status = url.searchParams.get('status');
+    const ticker = url.searchParams.get('ticker');
+    let sql = 'SELECT * FROM orders WHERE 1=1';
+    const params: any[] = [];
+    if (status) {
+      sql += ' AND execution_status = ?';
+      params.push(status);
+    }
+    if (ticker) {
+      sql += ' AND ticker = ?';
+      params.push(ticker);
+    }
+    sql += ' ORDER BY created_at DESC LIMIT 200';
+    const result = await database(locals).prepare(sql).bind(...params).all();
+    if (!Array.isArray(result.results)) throw new Error('D1 returned an invalid orders result');
+    return Response.json(result.results);
+  } catch (error: any) {
+    return Response.json({ error: error.message }, { status: 500 });
   }
 };

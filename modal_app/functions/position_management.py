@@ -3,7 +3,11 @@ from datetime import datetime, timezone
 import modal
 from modal_app.base import app, image, secrets, state_mount
 from modal_app.cf_client import CloudflareAPIClient
-from modal_app.notifier import format_error_alert_text, format_position_exits_text, send_resend_email
+from modal_app.notifier import (
+    format_error_alert_text,
+    format_position_exits_text,
+    send_resend_email,
+)
 
 
 @app.function(
@@ -23,17 +27,26 @@ def position_management():
         from extrapcap.execution.alpaca import AlpacaPaperClient
         from extrapcap.options_data import AlpacaOptionsData
         from extrapcap.execution.position_manager import manage_live_positions
+        from extrapcap.execution.broker_sync import synchronize_broker_state
 
         paper_client = AlpacaPaperClient.from_env()
         options_client = AlpacaOptionsData.from_env()
 
         today = datetime.now(timezone.utc).date()
         if today.weekday() >= 5:
-            cf.complete_run(run_id, summary={"skipped": True, "reason": "weekend_market_closed"}, start_time=start_time)
+            cf.complete_run(
+                run_id,
+                summary={"skipped": True, "reason": "weekend_market_closed"},
+                start_time=start_time,
+            )
             return {"status": "skipped", "reason": "weekend_market_closed"}
 
         today_str = today.strftime("%Y-%m-%d")
-        records = manage_live_positions(paper_client, options_client, as_of=today)
+        sync = synchronize_broker_state(paper_client, cf, run_id=run_id)
+        positions = cf.get_active_positions()
+        records = manage_live_positions(
+            paper_client, options_client, positions=positions, as_of=today
+        )
 
         # Report events and closed positions to Cloudflare D1
         closed_count = 0
@@ -42,7 +55,11 @@ def position_management():
 
         for record in records:
             events_to_post.append(record)
-            if record.get("status") == "close":
+            if record.get("legs") is not None or record.get("metadata") is not None:
+                cf.update_position(
+                    record["position_id"], legs=record.get("legs"), metadata=record.get("metadata")
+                )
+            if record.get("status") == "broker_closed":
                 pos_id = record.get("position_id")
                 reason = record.get("reason", "Exit rule triggered")
                 if pos_id:
@@ -50,8 +67,12 @@ def position_management():
                 closed_count += 1
                 exit_events.append(record)
 
-        cf.append_events(events_to_post)
-        cf.complete_run(run_id, summary={"evaluated": len(records), "exits_triggered": closed_count}, start_time=start_time)
+        cf.append_events(events_to_post, run_id=run_id)
+        cf.complete_run(
+            run_id,
+            summary={"evaluated": len(records), "exits_triggered": closed_count, **sync},
+            start_time=start_time,
+        )
 
         # Smart filtering: send email ONLY if positions were closed
         if closed_count > 0:

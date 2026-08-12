@@ -1,14 +1,13 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-from datetime import date, datetime
 import hashlib
 import json
+from dataclasses import dataclass
+from datetime import date, datetime
 
 from ..config import RiskConfig
 from ..events import EventDecision
 from ..execution.orders import OrderEnvelope
-from ..fills import FillAssumptions
 from ..ledger import AuditLedger
 from ..options import DebitSpread, VerticalSpread
 from ..options_data import (
@@ -44,7 +43,12 @@ class PaperCandidate:
             "legs": self.envelope.legs,
             "context": self.selection_context,
         }
-        return "sig-" + hashlib.sha256(json.dumps(identity, sort_keys=True, default=str).encode()).hexdigest()[:24]
+        return (
+            "sig-"
+            + hashlib.sha256(
+                json.dumps(identity, sort_keys=True, default=str).encode()
+            ).hexdigest()[:24]
+        )
 
 
 def _midpoint_spread(selected, quotes: dict[str, object], *, debit: bool) -> float:
@@ -105,12 +109,28 @@ def build_candidate(
     quote_map = {quote.symbol: quote for quote in quotes}
     is_debit = isinstance(solution.spread, DebitSpread)
     price = _midpoint_spread(selected, quote_map, debit=is_debit)
-    spread = DebitSpread(underlying, selected.long.strike, selected.short.strike, price, direction=solution.spread.direction) if is_debit else VerticalSpread(underlying, selected.short.strike, selected.long.strike, price)
+    spread = (
+        DebitSpread(
+            underlying,
+            selected.long.strike,
+            selected.short.strike,
+            price,
+            direction=solution.spread.direction,
+        )
+        if is_debit
+        else VerticalSpread(underlying, selected.short.strike, selected.long.strike, price)
+    )
     sector = str(context.get("sector") or "").strip()
     if not sector or sector.upper() in {"N/A", "UNKNOWN"}:
         risk_decision = RiskDecision(False, "sector metadata required")
     else:
-        risk_decision = approve_dte_risk(spread, risk_state, risk_config, solution.dte, (risk_state.sector_open_risk or {}).get(sector, 0.0))
+        risk_decision = approve_dte_risk(
+            spread,
+            risk_state,
+            risk_config,
+            solution.dte,
+            (risk_state.sector_open_risk or {}).get(sector, 0.0),
+        )
     quality_reason = None
     details = {
         "data_tier": snapshot_payload.get("_data_tier"),
@@ -124,13 +144,39 @@ def build_candidate(
         "pricing": "midpoint",
     }
     if observed_at is not None and isinstance(selected, SelectedVertical):
-        quality_reason, quality = selected_vertical_quote_quality(selected, quotes, observed_at, max_age_seconds=max_quote_age_seconds, max_spread_pct=max_quote_spread_pct)
+        quality_reason, quality = selected_vertical_quote_quality(
+            selected,
+            quotes,
+            observed_at,
+            max_age_seconds=max_quote_age_seconds,
+            max_spread_pct=max_quote_spread_pct,
+        )
         details.update(quality)
     if quality_reason:
         risk_decision = RiskDecision(False, quality_reason)
-    context.update({"dte": solution.dte, "expiration": solution.expiration, "preferred_dte": preferred_dte})
-    envelope = OrderEnvelope(str(trading_day), underlying, "buy_to_open" if is_debit else "sell_to_open", selected.order_legs(), spread.sleeve, limit_price=price)
-    return PaperCandidate(envelope, spread, selected, model_probability, "qualified", risk_decision, event_decision, risk_state, details, context)
+    context.update(
+        {"dte": solution.dte, "expiration": solution.expiration, "preferred_dte": preferred_dte}
+    )
+    envelope = OrderEnvelope(
+        str(trading_day),
+        underlying,
+        "buy_to_open" if is_debit else "sell_to_open",
+        selected.order_legs(),
+        spread.sleeve,
+        limit_price=price,
+    )
+    return PaperCandidate(
+        envelope,
+        spread,
+        selected,
+        model_probability,
+        "qualified",
+        risk_decision,
+        event_decision,
+        risk_state,
+        details,
+        context,
+    )
 
 
 class PaperRunCoordinator:
@@ -150,8 +196,26 @@ class PaperRunCoordinator:
             "sleeve": candidate.envelope.sleeve,
             "selection_context": candidate.selection_context,
             "market_data": candidate.market_data_details,
+            "client_order_id": candidate.envelope.client_order_id,
+            "side": candidate.envelope.side,
+            "quantity": candidate.envelope.quantity,
+            "limit_price": candidate.envelope.limit_price,
+            "legs": list(candidate.envelope.legs),
+            "strategy_variant": str(
+                candidate.selection_context.get("strategy_route") or candidate.envelope.sleeve
+            ),
         }
-        self.ledger.append("signals", {"kind": "candidate", **common, "model_probability": candidate.model_probability, "risk_decision": candidate.risk_decision.__dict__, "event_decision": candidate.event_decision.__dict__}, day)
+        self.ledger.append(
+            "signals",
+            {
+                "kind": "candidate",
+                **common,
+                "model_probability": candidate.model_probability,
+                "risk_decision": candidate.risk_decision.__dict__,
+                "event_decision": candidate.event_decision.__dict__,
+            },
+            day,
+        )
         if not candidate.event_decision.allowed:
             return {**common, "status": "vetoed", "reason": candidate.event_decision.reason}
         if not candidate.risk_decision.allowed:
@@ -160,12 +224,21 @@ class PaperRunCoordinator:
             # Nebius is advisory; an unavailable or negative opinion never becomes a data fallback or entry veto.
             try:
                 judgment = self.reviewer.review({**common, "spread": candidate.spread.__dict__})
-            except Exception as exc:
-                judgment = {"provider": "nebius", "decision": "unavailable", "reason": type(exc).__name__}
+            except Exception as exc:  # noqa: BLE001 - advisory provider failures never gate execution
+                judgment = {
+                    "provider": "nebius",
+                    "decision": "unavailable",
+                    "reason": type(exc).__name__,
+                }
             self.ledger.append("rationales", {**common, "judgment": judgment}, day)
         response = self.client.submit_order(candidate.envelope.alpaca_payload())
         if not isinstance(response, dict) or not response.get("id"):
             raise RuntimeError("paper order response omitted broker order id")
-        result = {**common, "status": str(response.get("status") or "submitted"), "order_id": response["id"], "response": response}
+        result = {
+            **common,
+            "status": str(response.get("status") or "submitted"),
+            "order_id": response["id"],
+            "response": response,
+        }
         self.ledger.append("orders", result, day)
         return result

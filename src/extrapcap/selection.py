@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
 import math
+from dataclasses import asdict, dataclass
 
 
 @dataclass(frozen=True)
@@ -72,6 +72,27 @@ def core_streak_gate(
         return CoreSelectionDecision(
             False,
             "missing_robust_z",
+            route,
+            direction,
+            length,
+            robust_z,
+            z_threshold,
+        )
+    threshold = abs(float(z_threshold))
+    if direction == "negative" and robust_z > -threshold:
+        return CoreSelectionDecision(
+            False,
+            "negative_robust_z_below_threshold",
+            route,
+            direction,
+            length,
+            robust_z,
+            z_threshold,
+        )
+    if direction == "positive" and robust_z < threshold:
+        return CoreSelectionDecision(
+            False,
+            "positive_robust_z_below_threshold",
             route,
             direction,
             length,

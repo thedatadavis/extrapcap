@@ -41,11 +41,12 @@ export const POST: APIRoute = async ({ request, locals }) => {
     }
     const stmt = db.prepare(`
       INSERT INTO positions
-      (ticker, company_name, short_symbol, long_symbol, short_strike, long_strike, expiration, spread_width, entry_credit, entry_debit, opened_at, sleeve, strategy_variant, strategy_route, quantity, is_active, legs, selection_metrics, metadata)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      (run_id, ticker, company_name, short_symbol, long_symbol, short_strike, long_strike, expiration, spread_width, entry_credit, entry_debit, opened_at, sleeve, strategy_variant, strategy_route, quantity, is_active, legs, selection_metrics, metadata)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     const res = await stmt.bind(
+      data.run_id || null,
       data.ticker,
       data.company_name || null,
       data.short_symbol,
@@ -104,6 +105,10 @@ export const PATCH: APIRoute = async ({ request, locals }) => {
     if (data.metadata) {
       updates.push('metadata = ?');
       params.push(typeof data.metadata === 'string' ? data.metadata : JSON.stringify(data.metadata));
+    }
+    if (data.legs) {
+      updates.push('legs = ?');
+      params.push(typeof data.legs === 'string' ? data.legs : JSON.stringify(data.legs));
     }
 
     if (updates.length === 0) {

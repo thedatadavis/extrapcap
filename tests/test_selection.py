@@ -14,7 +14,8 @@ def test_core_streak_gate_accepts_both_directions_and_one_day_streaks():
     )
     assert pos_approved.allowed
     assert pos_approved.strategy_route == "bearish_reversal_watch"
-    assert core_streak_gate({"streak_direction": "negative", "streak_length": 1, "robust_z": -0.4}).allowed
+    assert core_streak_gate({"streak_direction": "negative", "streak_length": 1, "robust_z": -0.4}).allowed is False
+    assert core_streak_gate({"streak_direction": "positive", "streak_length": 1, "robust_z": 0.4}).allowed is False
 
 
 def test_longer_negative_streaks_receive_higher_selection_priority():

@@ -31,3 +31,36 @@ def test_run_basket_contains_provider_error_and_continues(tmp_path):
     assert results[0]["status"] == "error"
     assert "invalid symbol" in results[0]["reason"]
     assert results[1]["reason"] == "no_spread"
+
+
+def test_run_basket_stops_after_submission_limit(tmp_path):
+    calls = []
+
+    def runner(**kwargs):
+        calls.append(kwargs["symbol"])
+        return {"ticker": kwargs["symbol"], "status": "pending_new"}
+
+    results = run_basket(
+        _basket(4),
+        audit=AuditLedger(tmp_path),
+        runner=runner,
+        trading_day=date(2026, 8, 12),
+        max_candidates=4,
+        max_submissions=1,
+    )
+    assert calls == ["T00"]
+    assert results[0]["status"] == "pending_new"
+    assert results[-1]["deferred"] == 3
+
+
+def test_run_basket_treats_no_spread_as_veto(tmp_path):
+    def runner(**_kwargs):
+        raise ValueError("no bullish vertical spread meets expected value threshold")
+
+    [result] = run_basket(
+        _basket(1),
+        audit=AuditLedger(tmp_path),
+        runner=runner,
+        trading_day=date(2026, 8, 12),
+    )
+    assert result["status"] == "vetoed"

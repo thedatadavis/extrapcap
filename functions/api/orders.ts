@@ -7,12 +7,13 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     const data = await request.json();
     const stmt = env.DB.prepare(`
       INSERT OR REPLACE INTO orders
-      (client_order_id, signal_id, broker_order_id, ticker, sleeve, side, strategy_variant, limit_price, quantity, legs, metadata, execution_status, submitted_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      (client_order_id, run_id, signal_id, broker_order_id, ticker, sleeve, side, strategy_variant, limit_price, quantity, legs, metadata, execution_status, submitted_at, filled_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     await stmt.bind(
       data.client_order_id,
+      data.run_id || null,
       data.signal_id || null,
       data.broker_order_id || null,
       data.ticker,
@@ -23,8 +24,9 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
       data.quantity || 1,
       typeof data.legs === 'string' ? data.legs : JSON.stringify(data.legs || []),
       typeof data.metadata === 'string' ? data.metadata : JSON.stringify(data.metadata || {}),
-      'submitted',
-      data.submitted_at || new Date().toISOString()
+      data.execution_status || 'submitted',
+      data.submitted_at || new Date().toISOString(),
+      data.filled_at || null
     ).run();
 
     return Response.json({ success: true, client_order_id: data.client_order_id });

@@ -3,7 +3,11 @@ from datetime import datetime, timezone
 import modal
 from modal_app.base import app, image, secrets, state_mount
 from modal_app.cf_client import CloudflareAPIClient
-from modal_app.notifier import format_error_alert_text, format_reconciliation_text, send_resend_email
+from modal_app.notifier import (
+    format_error_alert_text,
+    format_reconciliation_text,
+    send_resend_email,
+)
 
 
 @app.function(
@@ -20,9 +24,11 @@ def reconciliation():
 
     try:
         from extrapcap.execution.alpaca import AlpacaPaperClient
+        from extrapcap.execution.broker_sync import synchronize_broker_state
 
         client = AlpacaPaperClient.from_env()
         account = client.account()
+        sync = synchronize_broker_state(client, cf, run_id=run_id)
 
         today_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
         snapshot = {
@@ -35,8 +41,12 @@ def reconciliation():
             "payload": account,
         }
 
-        cf.record_account(snapshot)
-        cf.complete_run(run_id, summary={"equity": snapshot["equity"], "cash": snapshot["cash"]}, start_time=start_time)
+        cf.record_account(snapshot, run_id=run_id)
+        cf.complete_run(
+            run_id,
+            summary={"equity": snapshot["equity"], "cash": snapshot["cash"], **sync},
+            start_time=start_time,
+        )
 
         # Send daily reconciliation snapshot email
         send_resend_email(
@@ -44,7 +54,7 @@ def reconciliation():
             text=format_reconciliation_text(snapshot),
         )
 
-        return {"status": "success", "snapshot": snapshot}
+        return {"status": "success", "snapshot": snapshot, "sync": sync}
 
     except Exception as e:
         cf.fail_run(run_id, error=str(e), start_time=start_time)
