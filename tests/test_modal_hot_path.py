@@ -93,11 +93,14 @@ def test_data_refresh_filters_bar_inserts_to_candidate_symbols(monkeypatch):
     import modal_app.functions.data_refresh as dr_mod
 
     upserted_bars = []
+    appended_events = []
+    screened_greenlist = []
 
     def mock_upsert_bars(self, bars, batch_size=500):
         upserted_bars.extend(bars)
 
     def mock_run_streak_screening(cf, greenlist, bars_df, run_id=None):
+        screened_greenlist.extend(greenlist)
         return {
             "status": "success",
             "universe_count": len(greenlist),
@@ -109,19 +112,27 @@ def test_data_refresh_filters_bar_inserts_to_candidate_symbols(monkeypatch):
     monkeypatch.setattr(CloudflareAPIClient, "register_run", lambda self, wf: "test-run-refresh")
     monkeypatch.setattr(CloudflareAPIClient, "complete_run", lambda self, run_id, summary, start_time: None)
     monkeypatch.setattr(CloudflareAPIClient, "upsert_bars", mock_upsert_bars)
+    monkeypatch.setattr(
+        CloudflareAPIClient,
+        "append_events",
+        lambda self, events, run_id=None: appended_events.extend(events),
+    )
     monkeypatch.setattr("modal_app.functions.streak_screen.run_streak_screening", mock_run_streak_screening)
     monkeypatch.setattr("extrapcap.secrets.require_paper_credentials", lambda: ("key", "sec"))
 
     class FakeMarketData:
         def __init__(self, api_key, secret_key):
             pass
-        def stock_bars(self, symbols, start, end, timeframe):
+        def stock_bars(self, symbols, start, end, timeframe, allow_partial=False):
+            assert allow_partial is True
             return {
                 "bars": {
                     "SPY": [{"t": "2026-08-05T04:00:00Z", "o": 1, "h": 2, "l": 1, "c": 2, "v": 100, "vw": 1.5}],
                     "BG": [{"t": "2026-08-05T04:00:00Z", "o": 10, "h": 20, "l": 10, "c": 15, "v": 200, "vw": 15.0}],
                     "XYZ": [{"t": "2026-08-05T04:00:00Z", "o": 5, "h": 5, "l": 5, "c": 5, "v": 50, "vw": 5.0}],
-                }
+                },
+                "errors": {},
+                "unresolved_symbols": ["AXIA"],
             }
 
     monkeypatch.setattr("extrapcap.data.alpaca_market.AlpacaMarketData", FakeMarketData)
@@ -133,7 +144,12 @@ def test_data_refresh_filters_bar_inserts_to_candidate_symbols(monkeypatch):
         def __exit__(self, *args):
             pass
         def read(self):
-            return b"ticker,sector,market_cap_tier\nBG,Consumer,mid\nXYZ,Technology,large\n"
+            return (
+                b"ticker,sector,cap_tier,avg_volume,exchange\n"
+                b"BG,Consumer,Mega-Cap,1000000,NMS\n"
+                b"XYZ,Technology,Large-Cap,1000000,NMS\n"
+                b"AXIA,Technology,Large-Cap,1000000,NMS\n"
+            )
 
     monkeypatch.setattr("urllib.request.urlopen", lambda url, timeout=30: FakeUrllib())
 
@@ -142,6 +158,17 @@ def test_data_refresh_filters_bar_inserts_to_candidate_symbols(monkeypatch):
     symbols_upserted = {b["symbol"] for b in upserted_bars}
     # XYZ (non-candidate) must NOT be upserted to D1! Only BG and SPY are upserted.
     assert symbols_upserted == {"SPY", "BG"}
+    assert {row["ticker"] for row in screened_greenlist} == {"BG", "XYZ"}
+    assert appended_events == [
+        {
+            "category": "data",
+            "kind": "asset_unavailable",
+            "ticker": "AXIA",
+            "status": "deferred",
+            "reason": "not_available_in_completed_alpaca_bars",
+        }
+    ]
+    assert res["unavailable_symbols"] == ["AXIA"]
 
 
 def test_bayesian_reversion_model_discards_short_history():
@@ -165,5 +192,3 @@ def test_bayesian_reversion_model_discards_short_history():
     # NEWCO should raise KeyError because it lacks sufficient ticker-specific history and is discarded
     with pytest.raises((KeyError, ValueError)):
         model.predict_evidence(symbol="NEWCO", streak_length=3, streak_direction="negative", day_of_week=1)
-
-

@@ -61,6 +61,7 @@ class AlpacaMarketData:
         timeframe: str = "1Day",
         *,
         symbol_batch_size: int = DEFAULT_STOCK_BAR_BATCH_SIZE,
+        allow_partial: bool = False,
     ) -> dict:
         """Fetch all stock-bar pages for the requested symbols.
 
@@ -74,7 +75,11 @@ class AlpacaMarketData:
         if symbol_batch_size < 1:
             raise ValueError("symbol_batch_size must be positive")
 
-        identities = self.resolve_assets(requested)
+        identities = self.resolve_assets(requested, strict=not allow_partial)
+        unresolved_symbols = sorted(set(requested) - set(identities))
+        resolved_requested = [symbol for symbol in requested if symbol in identities]
+        if not resolved_requested:
+            raise RuntimeError("Alpaca asset master could not resolve any requested symbols")
         bars: dict[str, list] = {}
         errors: dict[str, dict] = {}
 
@@ -124,11 +129,15 @@ class AlpacaMarketData:
             for symbol, rows in batch_bars.items():
                 bars.setdefault(symbol, []).extend(rows)
 
-        for offset in range(0, len(requested), symbol_batch_size):
-            fetch_batch(requested[offset:offset + symbol_batch_size])
-        if errors:
+        for offset in range(0, len(resolved_requested), symbol_batch_size):
+            fetch_batch(resolved_requested[offset:offset + symbol_batch_size])
+        if errors and not allow_partial:
             raise RuntimeError(f"Alpaca bars missing symbols: {json.dumps(errors, sort_keys=True)}")
-        return {"bars": bars}
+        return {
+            "bars": bars,
+            "errors": errors,
+            "unresolved_symbols": unresolved_symbols,
+        }
 
     def option_contracts(self, underlying_symbols: list[str], expiration_date_gte: str, expiration_date_lte: str | None = None) -> dict:
         identities = self.resolve_assets(underlying_symbols)
