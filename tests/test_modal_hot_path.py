@@ -50,8 +50,7 @@ def test_candidate_review_basket_fallback(monkeypatch):
     monkeypatch.setattr("extrapcap.execution.alpaca.AlpacaPaperClient.from_env", lambda: type("Paper", (), {"positions": lambda self: [], "open_orders": lambda self: []})())
     monkeypatch.setattr("extrapcap.data.alpaca_market.AlpacaMarketData.resolve_assets", lambda self, symbols, strict=False: {"ABC": {"id": "asset-abc", "symbol": "ABC"}})
 
-    def mock_run_basket(basket, trading_day, dte_min, dte_max, preferred_dte, max_candidates, max_submissions):
-        assert max_candidates == 25
+    def mock_run_basket(basket, trading_day, dte_min, dte_max, preferred_dte, max_submissions):
         assert max_submissions == 1
         assert basket[0]["alpaca_symbol"] == "ABC"
         assert basket[0]["alpaca_asset_id"] == "asset-abc"

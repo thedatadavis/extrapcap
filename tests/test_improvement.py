@@ -24,9 +24,6 @@ def test_nebius_policy_learner_parses_llm_proposals():
 
     policy_learner = NebiusPolicyLearner(reviewer=DummyReviewer())
     proposals = policy_learner.analyze_and_propose([{"ticker": "AAPL", "status": "submitted", "category": "orders"}], {})
-    assert len(proposals) == 2
+    assert len(proposals) == 1
     assert proposals[0].parameter == "z_threshold"
     assert proposals[0].proposed == -1.75
-    assert proposals[1].parameter == "max_candidates"
-    assert proposals[1].proposed == 30
-

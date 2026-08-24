@@ -72,7 +72,6 @@ class NebiusPolicyLearner:
         ParameterBound("z_threshold", -3.0, -1.0, 0.25),
         ParameterBound("max_option_spread_pct", 0.15, 0.50, 0.05),
         ParameterBound("min_credit_pct_width", 0.02, 0.30, 0.03),
-        ParameterBound("max_candidates", 5, 50, 5),
     )
 
     def __init__(self, reviewer: NebiusReviewer | None = None, bounds: tuple[ParameterBound, ...] | None = None):
@@ -97,7 +96,7 @@ class NebiusPolicyLearner:
             ],
         }
         prompt = """Analyze the supplied paper trading execution and veto history.
-Evaluate whether policy bounds (z_threshold, max_option_spread_pct, min_credit_pct_width, max_candidates)
+Evaluate whether policy bounds (z_threshold, max_option_spread_pct, min_credit_pct_width)
 should be adjusted to optimize trade frequency, execution quality, and risk posture.
 Return JSON with key "proposals", an array of objects with fields: "parameter" (string), "current" (number), "direction" (integer -1 or 1), and "rationale" (string)."""
 
@@ -129,11 +128,10 @@ def run_improvement_cycle(as_of_date: str | None = None) -> dict:
     """Run policy improvement evaluation cycle."""
     as_of_date = as_of_date or datetime.now(timezone.utc).strftime("%Y-%m-%d")
     learner = NebiusPolicyLearner()
-    proposals = learner.analyze_and_propose([], {"z_threshold": -2.0, "max_candidates": 10})
+    proposals = learner.analyze_and_propose([], {"z_threshold": -2.0})
     return {
         "status": "completed",
         "as_of": as_of_date,
         "rationale": "Policy improvement evaluation complete.",
         "proposals": [p.as_dict() for p in proposals],
     }
-

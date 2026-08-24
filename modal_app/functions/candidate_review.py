@@ -48,7 +48,7 @@ def _attach_asset_identities(basket: list[dict]) -> tuple[list[dict], int]:
     secrets=secrets,
     volumes=state_mount,
     schedule=modal.Cron("45 13,15,19 * * 1-5"),
-    timeout=600,
+    timeout=2400,
 )
 def candidate_review():
     cf = CloudflareAPIClient()
@@ -81,7 +81,6 @@ def candidate_review():
             dte_min=0,
             dte_max=21,
             preferred_dte=10,
-            max_candidates=25,
             max_submissions=1,
         )
         events = [_event_record(result) for result in results if isinstance(result, dict)]

@@ -71,12 +71,9 @@ def run_basket(
     dte_min: int = 0,
     dte_max: int = 21,
     preferred_dte: int = 10,
-    max_candidates: int = 25,
     max_submissions: int = 1,
 ) -> list[dict]:
-    """Evaluate a ranked, bounded set while recording signal and provider vetoes."""
-    if max_candidates < 1:
-        raise ValueError("max_candidates must be positive")
+    """Evaluate every viable candidate until the submission limit is reached."""
     if max_submissions < 1:
         raise ValueError("max_submissions must be positive")
     audit = audit or AuditLedger()
@@ -110,7 +107,7 @@ def run_basket(
                 "selection_context": context,
             }
         else:
-            if evaluated >= max_candidates or submissions >= max_submissions:
+            if submissions >= max_submissions:
                 deferred += 1
                 continue
             evaluated += 1
@@ -172,7 +169,7 @@ def run_basket(
             "category": "signals",
             "kind": "basket_selection_summary",
             "status": "deferred",
-            "reason": "candidate_limit",
+            "reason": "submission_limit",
             "eligible": evaluated + deferred,
             "evaluated": evaluated,
             "deferred": deferred,

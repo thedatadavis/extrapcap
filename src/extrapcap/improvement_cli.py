@@ -18,7 +18,6 @@ def run_improvement_analysis(root: str | Path, trading_day: str, output_dir: str
         "z_threshold": config.strategy.z_threshold,
         "max_option_spread_pct": config.strategy.max_option_spread_pct,
         "min_credit_pct_width": config.strategy.min_credit_pct_width,
-        "max_candidates": 25,
     }
     learner = NebiusPolicyLearner(reviewer=NebiusReviewer())
     proposals = learner.analyze_and_propose(events, config_dict)
