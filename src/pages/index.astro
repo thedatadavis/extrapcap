@@ -10,7 +10,7 @@ if (Astro.response) {
 const db = (Astro.locals as any).runtime?.env?.DB;
 const accountHistory = await getAccountHistory(db);
 const journal = await getJournal(db);
-const executedTrades = await getExecutedTrades(db);
+const executedTrades = await getExecutedTrades(journal);
 
 let runs: any[] = [];
 let latestRun: any = null;

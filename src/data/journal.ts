@@ -123,12 +123,29 @@ export async function getAccountHistory(db?: any): Promise<AccountSnapshot[]> {
   }
 }
 
-export async function getJournal(db?: any): Promise<JournalEntry[]> {
+export async function getJournalDates(db?: any): Promise<string[]> {
   if (!db) return [];
   try {
     const result = await db.prepare(
-      'SELECT * FROM events ORDER BY trading_day DESC, recorded_at DESC'
+      'SELECT DISTINCT trading_day FROM events ORDER BY trading_day DESC'
     ).all();
+    return (result.results || []).map((r: any) => String(r.trading_day)).filter(Boolean);
+  } catch (err) {
+    console.error('Error in getJournalDates:', err);
+    return [];
+  }
+}
+
+export async function getJournal(db?: any, tradingDay?: string): Promise<JournalEntry[]> {
+  if (!db) return [];
+  try {
+    const result = tradingDay
+      ? await db.prepare(
+          'SELECT * FROM events WHERE trading_day = ? ORDER BY trading_day DESC, recorded_at DESC'
+        ).bind(tradingDay).all()
+      : await db.prepare(
+          'SELECT * FROM events ORDER BY trading_day DESC, recorded_at DESC'
+        ).all();
 
     const rows = result.results || [];
     const byDate = new Map<string, JournalItem[]>();
@@ -233,8 +250,8 @@ export function isExecutedTrade(item: JournalItem) {
   );
 }
 
-export async function getExecutedTrades(db?: any) {
-  const journal = await getJournal(db);
+export async function getExecutedTrades(dbOrJournal?: any) {
+  const journal = Array.isArray(dbOrJournal) ? dbOrJournal : await getJournal(dbOrJournal);
   return journal
     .flatMap((entry) => entry.entries.map((item) => ({ date: entry.date, item, trade: tradeFor(item) })))
     .filter(({ item }) => isExecutedTrade(item));

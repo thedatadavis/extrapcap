@@ -1,13 +1,13 @@
 ---
-import { formatDate, formatMonth, getJournal } from '../data/journal';
+import { formatDate, formatMonth, getJournalDates } from '../data/journal';
 import '../styles/global.css';
 
 const db = (Astro.locals as any).runtime?.env?.DB;
-const journal = await getJournal(db);
+const journalDates = await getJournalDates(db);
 
-const months = journal.reduce<Record<string, typeof journal>>((groups, entry) => {
-  const month = entry.date.slice(0, 7);
-  (groups[month] ??= []).push(entry);
+const months = journalDates.reduce<Record<string, string[]>>((groups, date) => {
+  const month = date.slice(0, 7);
+  (groups[month] ??= []).push(date);
   return groups;
 }, {});
 
@@ -23,7 +23,7 @@ if (db) {
   } catch {}
 }
 
-const displayUpdateDate = latestActivityDate || journal[0]?.date;
+const displayUpdateDate = latestActivityDate || journalDates[0];
 const currentPath = Astro.url.pathname;
 ---
 
@@ -43,11 +43,11 @@ const currentPath = Astro.url.pathname;
           <a class:list={{ active: currentPath === '/' || currentPath === '' }} href="/">Overview</a>
           <a class:list={{ active: currentPath.includes('/positions/active') }} href="/positions/active">Active Positions</a>
           <p class="nav-heading">Journal</p>
-          {Object.entries(months).map(([month, entries], index) => (
+          {Object.entries(months).map(([month, dates], index) => (
             <details open={index === 0} class="month-folder">
-              <summary><span>{formatMonth(month)}</span><span class="count">{entries.length}</span></summary>
+              <summary><span>{formatMonth(month)}</span><span class="count">{dates.length}</span></summary>
               <div class="date-list">
-                {entries.map((entry) => <a class:list={{ active: currentPath.includes(`/journal/${entry.date}`) }} href={`/journal/${entry.date}`}>{entry.date.slice(8)}</a>)}
+                {dates.map((date) => <a class:list={{ active: currentPath.includes(`/journal/${date}`) }} href={`/journal/${date}`}>{date.slice(8)}</a>)}
               </div>
             </details>
           ))}

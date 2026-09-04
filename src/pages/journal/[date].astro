@@ -1,14 +1,14 @@
 ---
 import Shell from '../../layouts/Shell.astro';
-import { formatDate, getJournal, readoutFor } from '../../data/journal';
+import { formatDate, getJournal, getJournalDates, readoutFor } from '../../data/journal';
 
 const { date } = Astro.params;
 const db = (Astro.locals as any).runtime?.env?.DB;
-const journal = await getJournal(db);
-const entry = journal.find((e) => e.date === date);
+const journal = await getJournal(db, date);
+const entry = journal[0];
 
 if (!entry) {
-  const latestDate = journal[0]?.date;
+  const latestDate = (await getJournalDates(db))[0];
   return Astro.redirect(latestDate ? `/journal/${latestDate}` : '/');
 }
 
