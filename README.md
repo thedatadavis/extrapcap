@@ -12,7 +12,8 @@ This repository provides the research core, trade construction, risk engine, Mod
 ## System Architecture
 
 - **Compute Platform**: [Modal](https://modal.com) — Serverless Python crons for market data refresh, streak screening, pre-market prep, candidate review, position management, reconciliation, and daily EOD reporting.
-- **Database**: Cloudflare D1 — Managed SQLite database storing all trading events, active positions, order registries, stock bars, and account history.
+- **Transactional state**: Cloudflare D1 — Managed SQLite database storing trading events, active positions, order registries, the current basket, and account history.
+- **Historical market data**: Modal Volume — Immutable daily Parquet partitions for the high-volume stock-bar history used by refresh and streak-screen workflows.
 - **Dashboard**: [Cloudflare Pages](https://extrapcap.pages.dev) — Astro SSR web application with real-time D1 bindings and an interactive option spread visualizer.
 - **Admin Console**: Available at `/admin` (password-protected) for monitoring workflow execution runs and position status.
 

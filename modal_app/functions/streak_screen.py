@@ -1,7 +1,8 @@
 import time
 from datetime import UTC, datetime
 
-from modal_app.base import app, image, secrets
+from modal_app.bar_store import read_bar_partitions
+from modal_app.base import app, image, secrets, state_volume
 from modal_app.cf_client import CloudflareAPIClient
 
 
@@ -75,8 +76,6 @@ def streak_screen():
     try:
         from urllib.request import urlopen
 
-        import pandas as pd
-
         from extrapcap.universe.greenlist import (
             SOURCE_URL,
             GreenlistFilter,
@@ -90,10 +89,7 @@ def streak_screen():
         raw_rows = _read_csv(raw_text)
         accepted_greenlist, _ = filter_greenlist(raw_rows, GreenlistFilter())
 
-        bars = cf.get_bars(limit=100000)
-        if not bars:
-            raise RuntimeError("Cloudflare D1 contains no market bars; run data_refresh first")
-        bars_df = pd.DataFrame(bars)
+        bars_df = read_bar_partitions(state_volume)
 
         result = run_streak_screening(cf, accepted_greenlist, bars_df, run_id=run_id)
         cf.complete_run(

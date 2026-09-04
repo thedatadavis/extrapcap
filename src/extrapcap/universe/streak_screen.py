@@ -105,9 +105,9 @@ def filter_tradable_basket(
 ) -> pd.DataFrame:
     """Filter Greenlist entries using completed market bars only.
 
-    This is an execution input, so missing market data must fail closed.  The
+    This is an execution input, so missing market data must fail closed. The
     previous ticker-hash fallback made every Greenlist name look tradable even
-    when the D1 bars table was empty.
+    when the persisted bars were unavailable.
     """
     if bars_df is None or bars_df.empty:
         raise RuntimeError("streak screen requires completed market bars")

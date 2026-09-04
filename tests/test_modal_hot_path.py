@@ -1,3 +1,5 @@
+from datetime import UTC
+
 from extrapcap.orchestration.basket_cycle import basket_rows
 from modal_app.functions.candidate_review import _event_record
 
@@ -23,9 +25,10 @@ def test_modal_app_imports_cleanly():
 
 
 def test_candidate_review_basket_fallback(monkeypatch):
-    from datetime import datetime, date, timezone
-    from modal_app.cf_client import CloudflareAPIClient
+    from datetime import datetime
+
     import modal_app.functions.candidate_review as cr_mod
+    from modal_app.cf_client import CloudflareAPIClient
 
     calls = []
 
@@ -39,7 +42,7 @@ def test_candidate_review_basket_fallback(monkeypatch):
         @classmethod
         def now(cls, tz=None):
             # 2026-08-05 is a Wednesday (weekday 2)
-            return datetime(2026, 8, 5, 14, 0, 0, tzinfo=timezone.utc)
+            return datetime(2026, 8, 5, 14, 0, 0, tzinfo=UTC)
 
     monkeypatch.setattr(cr_mod, "datetime", MockDatetime)
     monkeypatch.setattr(CloudflareAPIClient, "get_basket", mock_get_basket)
@@ -67,15 +70,16 @@ def test_candidate_review_basket_fallback(monkeypatch):
 
 
 def test_candidate_review_skips_on_weekend(monkeypatch):
-    from datetime import datetime, timezone
-    from modal_app.cf_client import CloudflareAPIClient
+    from datetime import datetime
+
     import modal_app.functions.candidate_review as cr_mod
+    from modal_app.cf_client import CloudflareAPIClient
 
     class MockSatDatetime:
         @classmethod
         def now(cls, tz=None):
             # 2026-08-08 is a Saturday (weekday 5)
-            return datetime(2026, 8, 8, 14, 0, 0, tzinfo=timezone.utc)
+            return datetime(2026, 8, 8, 14, 0, 0, tzinfo=UTC)
 
     monkeypatch.setattr(cr_mod, "datetime", MockSatDatetime)
     monkeypatch.setattr(CloudflareAPIClient, "register_run", lambda self, wf: "test-run-1")
@@ -86,17 +90,22 @@ def test_candidate_review_skips_on_weekend(monkeypatch):
     assert res["reason"] == "weekend_market_closed"
 
 
-def test_data_refresh_filters_bar_inserts_to_candidate_symbols(monkeypatch):
-    import pandas as pd
-    from modal_app.cf_client import CloudflareAPIClient
+def test_data_refresh_persists_all_bars_to_modal_storage(monkeypatch):
     import modal_app.functions.data_refresh as dr_mod
+    from modal_app.cf_client import CloudflareAPIClient
 
-    upserted_bars = []
+    stored_bars = []
     appended_events = []
     screened_greenlist = []
 
-    def mock_upsert_bars(self, bars, batch_size=500):
-        upserted_bars.extend(bars)
+    def mock_write_bar_partitions(frame, volume, **kwargs):
+        stored_bars.append(frame.copy())
+        return {
+            "input_rows": len(frame),
+            "partitions_written": 2,
+            "partitions_skipped": 0,
+            "partitions_purged": 0,
+        }
 
     def mock_run_streak_screening(cf, greenlist, bars_df, run_id=None):
         screened_greenlist.extend(greenlist)
@@ -110,7 +119,7 @@ def test_data_refresh_filters_bar_inserts_to_candidate_symbols(monkeypatch):
 
     monkeypatch.setattr(CloudflareAPIClient, "register_run", lambda self, wf: "test-run-refresh")
     monkeypatch.setattr(CloudflareAPIClient, "complete_run", lambda self, run_id, summary, start_time: None)
-    monkeypatch.setattr(CloudflareAPIClient, "upsert_bars", mock_upsert_bars)
+    monkeypatch.setattr(dr_mod, "write_bar_partitions", mock_write_bar_partitions)
     monkeypatch.setattr(
         CloudflareAPIClient,
         "append_events",
@@ -154,9 +163,10 @@ def test_data_refresh_filters_bar_inserts_to_candidate_symbols(monkeypatch):
 
     res = dr_mod.data_refresh.local()
     assert res["status"] == "success"
-    symbols_upserted = {b["symbol"] for b in upserted_bars}
-    # XYZ (non-candidate) must NOT be upserted to D1! Only BG and SPY are upserted.
-    assert symbols_upserted == {"SPY", "BG"}
+    assert len(stored_bars) == 1
+    assert set(stored_bars[0]["symbol"]) == {"SPY", "BG", "XYZ"}
+    assert res["bars_count"] == 3
+    assert res["bar_partitions_written"] == 2
     assert {row["ticker"] for row in screened_greenlist} == {"BG", "XYZ"}
     assert appended_events == [
         {
@@ -171,8 +181,9 @@ def test_data_refresh_filters_bar_inserts_to_candidate_symbols(monkeypatch):
 
 
 def test_bayesian_reversion_model_discards_short_history():
-    import pytest
     import pandas as pd
+    import pytest
+
     from extrapcap.models.bayesian_reversion import BayesianReversionModel
 
     # Create dummy bars for SPY, AAPL (long history >= 40 bars), and NEWCO (short history < 30 bars)
