@@ -13,6 +13,10 @@ from modal_app.cf_client import CloudflareAPIClient
 )
 def improvement_loop():
     """Policy Improvement Learner Cron (10:15 PM UTC / 6:15 PM EDT)."""
+    today = datetime.now(timezone.utc).date()
+    if today.weekday() >= 5:
+        return {"status": "skipped", "reason": "weekend_market_closed"}
+
     cf = CloudflareAPIClient()
     start_time = time.time()
     run_id = cf.register_run("improvement_loop")

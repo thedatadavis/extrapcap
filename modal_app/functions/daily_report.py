@@ -14,6 +14,10 @@ from modal_app.notifier import format_daily_report_text, format_error_alert_text
 )
 def daily_report():
     """Daily EOD Operations Report Cron (8:45 PM UTC / 4:45 PM EDT)."""
+    today = datetime.now(timezone.utc).date()
+    if today.weekday() >= 5:
+        return {"status": "skipped", "reason": "weekend_market_closed"}
+
     cf = CloudflareAPIClient()
     start_time = time.time()
     run_id = cf.register_run("daily_report")

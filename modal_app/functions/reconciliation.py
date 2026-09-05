@@ -18,6 +18,10 @@ from modal_app.notifier import (
 )
 def reconciliation():
     """Account Reconciliation Cron: Post-close account balance snapshot (8:30 PM UTC / 4:30 PM EDT)."""
+    today = datetime.now(timezone.utc).date()
+    if today.weekday() >= 5:
+        return {"status": "skipped", "reason": "weekend_market_closed"}
+
     cf = CloudflareAPIClient()
     start_time = time.time()
     run_id = cf.register_run("reconciliation")

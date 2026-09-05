@@ -16,6 +16,10 @@ from modal_app.cf_client import CloudflareAPIClient
 )
 def data_refresh():
     """Daily market data refresh (4:00 AM UTC Mon-Fri)."""
+    today = datetime.now(UTC).date()
+    if today.weekday() >= 5:
+        return {"status": "skipped", "reason": "weekend_market_closed"}
+
     cf = CloudflareAPIClient()
     start_time = time.time()
     run_id = cf.register_run("data_refresh")

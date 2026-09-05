@@ -1,5 +1,6 @@
 """Single scheduled post-close workflow for the Modal five-cron limit."""
 
+from datetime import datetime, timezone
 import modal
 
 from modal_app.base import app, image, secrets, state_mount
@@ -14,6 +15,10 @@ from modal_app.base import app, image, secrets, state_mount
 )
 def end_of_day():
     """Reconcile first, then report and run the bounded improvement review."""
+    today = datetime.now(timezone.utc).date()
+    if today.weekday() >= 5:
+        return {"status": "skipped", "reason": "weekend_market_closed"}
+
     from modal_app.functions.daily_report import daily_report
     from modal_app.functions.improvement_loop import improvement_loop
     from modal_app.functions.reconciliation import reconciliation
