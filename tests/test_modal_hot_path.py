@@ -91,8 +91,18 @@ def test_candidate_review_skips_on_weekend(monkeypatch):
 
 
 def test_data_refresh_persists_all_bars_to_modal_storage(monkeypatch):
+    from datetime import datetime
+
     import modal_app.functions.data_refresh as dr_mod
     from modal_app.cf_client import CloudflareAPIClient
+
+    class MockDatetime:
+        @classmethod
+        def now(cls, tz=None):
+            # 2026-08-05 is a Wednesday (weekday 2)
+            return datetime(2026, 8, 5, 14, 0, 0, tzinfo=UTC)
+
+    monkeypatch.setattr(dr_mod, "datetime", MockDatetime)
 
     stored_bars = []
     appended_events = []

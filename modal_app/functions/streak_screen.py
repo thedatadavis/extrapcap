@@ -69,10 +69,6 @@ def run_streak_screening(
 )
 def streak_screen():
     """Streak Screening Cron: Filter greenlist symbols by relative streak return and robust Z-score (5:45 AM UTC)."""
-    today = datetime.now(UTC).date()
-    if today.weekday() >= 5:
-        return {"status": "skipped", "reason": "weekend_market_closed"}
-
     cf = CloudflareAPIClient()
     start_time = time.time()
     run_id = cf.register_run("streak_screen")
