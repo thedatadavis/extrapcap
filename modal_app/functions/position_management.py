@@ -19,6 +19,10 @@ from modal_app.notifier import (
 )
 def position_management():
     """Position Management Cron: Every 30 minutes during market hours."""
+    today = datetime.now(timezone.utc).date()
+    if today.weekday() >= 5:
+        return {"status": "skipped", "reason": "weekend_market_closed"}
+
     cf = CloudflareAPIClient()
     start_time = time.time()
     run_id = cf.register_run("position_management")
@@ -31,15 +35,6 @@ def position_management():
 
         paper_client = AlpacaPaperClient.from_env()
         options_client = AlpacaOptionsData.from_env()
-
-        today = datetime.now(timezone.utc).date()
-        if today.weekday() >= 5:
-            cf.complete_run(
-                run_id,
-                summary={"skipped": True, "reason": "weekend_market_closed"},
-                start_time=start_time,
-            )
-            return {"status": "skipped", "reason": "weekend_market_closed"}
 
         today_str = today.strftime("%Y-%m-%d")
         sync = synchronize_broker_state(paper_client, cf, run_id=run_id)

@@ -51,17 +51,13 @@ def _attach_asset_identities(basket: list[dict]) -> tuple[list[dict], int]:
     timeout=2400,
 )
 def candidate_review():
+    today = datetime.now(timezone.utc).date()
+    if today.weekday() >= 5:
+        return {"status": "skipped", "reason": "weekend_market_closed"}
+
     cf = CloudflareAPIClient()
     start_time = time.time()
     run_id = cf.register_run("candidate_review")
-    today = datetime.now(timezone.utc).date()
-    if today.weekday() >= 5:
-        cf.complete_run(
-            run_id,
-            summary={"skipped": True, "reason": "weekend_market_closed"},
-            start_time=start_time,
-        )
-        return {"status": "skipped", "reason": "weekend_market_closed"}
     try:
         from extrapcap.execution.alpaca import AlpacaPaperClient
         from extrapcap.orchestration.basket_cycle import run_basket
