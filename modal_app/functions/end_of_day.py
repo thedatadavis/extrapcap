@@ -19,6 +19,14 @@ def end_of_day():
     if today.weekday() >= 5:
         return {"status": "skipped", "reason": "weekend_market_closed"}
 
+    from extrapcap.execution.alpaca import AlpacaPaperClient
+
+    paper_client = AlpacaPaperClient.from_env()
+    if hasattr(paper_client, "calendar"):
+        sessions = paper_client.calendar(start=today, end=today)
+        if not sessions:
+            return {"status": "skipped", "reason": "market_holiday_no_session"}
+
     from modal_app.functions.daily_report import daily_report
     from modal_app.functions.improvement_loop import improvement_loop
     from modal_app.functions.reconciliation import reconciliation

@@ -55,14 +55,24 @@ def candidate_review():
     if today.weekday() >= 5:
         return {"status": "skipped", "reason": "weekend_market_closed"}
 
+    from extrapcap.execution.alpaca import AlpacaPaperClient
+
+    paper_client = AlpacaPaperClient.from_env()
+    if hasattr(paper_client, "clock"):
+        clock = paper_client.clock()
+        if not clock.get("is_open"):
+            return {
+                "status": "skipped",
+                "reason": "broker_market_clock_closed",
+                "next_open": clock.get("next_open"),
+            }
+
     cf = CloudflareAPIClient()
     start_time = time.time()
     run_id = cf.register_run("candidate_review")
     try:
-        from extrapcap.execution.alpaca import AlpacaPaperClient
         from extrapcap.orchestration.basket_cycle import run_basket
 
-        paper_client = AlpacaPaperClient.from_env()
         if paper_client.positions() or paper_client.open_orders():
             summary = {"skipped": True, "reason": "paper_exposure_already_exists"}
             cf.complete_run(run_id, summary=summary, start_time=start_time)

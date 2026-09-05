@@ -23,12 +23,23 @@ def position_management():
     if today.weekday() >= 5:
         return {"status": "skipped", "reason": "weekend_market_closed"}
 
+    from extrapcap.execution.alpaca import AlpacaPaperClient
+
+    paper_client = AlpacaPaperClient.from_env()
+    if hasattr(paper_client, "clock"):
+        clock = paper_client.clock()
+        if not clock.get("is_open"):
+            return {
+                "status": "skipped",
+                "reason": "broker_market_clock_closed",
+                "next_open": clock.get("next_open"),
+            }
+
     cf = CloudflareAPIClient()
     start_time = time.time()
     run_id = cf.register_run("position_management")
 
     try:
-        from extrapcap.execution.alpaca import AlpacaPaperClient
         from extrapcap.options_data import AlpacaOptionsData
         from extrapcap.execution.position_manager import manage_live_positions
         from extrapcap.execution.broker_sync import synchronize_broker_state

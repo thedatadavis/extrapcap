@@ -212,3 +212,69 @@ def test_bayesian_reversion_model_discards_short_history():
     # NEWCO should raise KeyError because it lacks sufficient ticker-specific history and is discarded
     with pytest.raises((KeyError, ValueError)):
         model.predict_evidence(symbol="NEWCO", streak_length=3, streak_direction="negative", day_of_week=1)
+
+
+def test_position_management_skips_when_market_clock_closed(monkeypatch):
+    from datetime import UTC, datetime
+    import modal_app.functions.position_management as pm_mod
+
+    class MockWeekdayDatetime:
+        @classmethod
+        def now(cls, tz=None):
+            # 2026-09-07 is a Monday (weekday 0, Labor Day)
+            return datetime(2026, 9, 7, 14, 0, 0, tzinfo=UTC)
+
+    monkeypatch.setattr(pm_mod, "datetime", MockWeekdayDatetime)
+    monkeypatch.setattr(
+        "extrapcap.execution.alpaca.AlpacaPaperClient.from_env",
+        lambda: type("Paper", (), {"clock": lambda self: {"is_open": False, "next_open": "2026-09-08T09:30:00-04:00"}})()
+    )
+
+    res = pm_mod.position_management.local()
+    assert res["status"] == "skipped"
+    assert res["reason"] == "broker_market_clock_closed"
+    assert res["next_open"] == "2026-09-08T09:30:00-04:00"
+
+
+def test_candidate_review_skips_when_market_clock_closed(monkeypatch):
+    from datetime import UTC, datetime
+    import modal_app.functions.candidate_review as cr_mod
+
+    class MockWeekdayDatetime:
+        @classmethod
+        def now(cls, tz=None):
+            # 2026-09-07 is a Monday (weekday 0, Labor Day)
+            return datetime(2026, 9, 7, 14, 0, 0, tzinfo=UTC)
+
+    monkeypatch.setattr(cr_mod, "datetime", MockWeekdayDatetime)
+    monkeypatch.setattr(
+        "extrapcap.execution.alpaca.AlpacaPaperClient.from_env",
+        lambda: type("Paper", (), {"clock": lambda self: {"is_open": False, "next_open": "2026-09-08T09:30:00-04:00"}})()
+    )
+
+    res = cr_mod.candidate_review.local()
+    assert res["status"] == "skipped"
+    assert res["reason"] == "broker_market_clock_closed"
+    assert res["next_open"] == "2026-09-08T09:30:00-04:00"
+
+
+def test_end_of_day_skips_when_holiday_calendar_empty(monkeypatch):
+    from datetime import UTC, datetime
+    import modal_app.functions.end_of_day as eod_mod
+
+    class MockWeekdayDatetime:
+        @classmethod
+        def now(cls, tz=None):
+            # 2026-09-07 is a Monday (weekday 0, Labor Day)
+            return datetime(2026, 9, 7, 20, 30, 0, tzinfo=UTC)
+
+    monkeypatch.setattr(eod_mod, "datetime", MockWeekdayDatetime)
+    monkeypatch.setattr(
+        "extrapcap.execution.alpaca.AlpacaPaperClient.from_env",
+        lambda: type("Paper", (), {"calendar": lambda self, start, end: []})()
+    )
+
+    res = eod_mod.end_of_day.local()
+    assert res["status"] == "skipped"
+    assert res["reason"] == "market_holiday_no_session"
+

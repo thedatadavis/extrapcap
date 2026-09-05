@@ -75,6 +75,18 @@ class AlpacaPaperClient:
             raise RuntimeError("invalid Alpaca market clock response")
         return result
 
+    def calendar(self, start: str | date | None = None, end: str | date | None = None) -> list:
+        params = {}
+        if start:
+            params["start"] = start.isoformat() if hasattr(start, "isoformat") else str(start)
+        if end:
+            params["end"] = end.isoformat() if hasattr(end, "isoformat") else str(end)
+        query = f"?{urlencode(params)}" if params else ""
+        result = self._request(f"/calendar{query}")
+        if not isinstance(result, list):
+            raise RuntimeError("invalid Alpaca calendar response")
+        return result
+
     def open_orders(self) -> list:
         result = self._request("/orders?status=open&nested=true")
         if not isinstance(result, list):
