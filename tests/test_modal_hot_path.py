@@ -99,8 +99,8 @@ def test_data_refresh_persists_all_bars_to_modal_storage(monkeypatch):
     class MockDatetime:
         @classmethod
         def now(cls, tz=None):
-            # 2026-08-05 is a Wednesday (weekday 2)
-            return datetime(2026, 8, 5, 14, 0, 0, tzinfo=UTC)
+            # 2026-08-06 04:00:00 UTC (Thursday 00:00 EDT) treats 2026-08-05 daily bar as completed
+            return datetime(2026, 8, 6, 4, 0, 0, tzinfo=UTC)
 
     monkeypatch.setattr(dr_mod, "datetime", MockDatetime)
 
