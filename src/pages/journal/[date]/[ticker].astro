@@ -234,7 +234,7 @@ const pnlSign = realizedPnl !== null && realizedPnl > 0 ? '+' : '';
         </div>
 
         <p style="font-size: 13px; color: #4b4c48; line-height: 1.55; margin: 0; border-top: 1px solid rgba(32,33,31,0.08); padding-top: 12px;">
-          <strong>Risk Management Note:</strong> This trade collected <strong>${upfrontPremium.toFixed(2)}</strong> upfront. When the spread widened, the position management system executed the stop-loss discipline, closing the spread at {exitPrice ? `$${exitPrice.toFixed(2)}` : 'market'}. This successfully eliminated tail risk and preserved <strong>${capitalPreserved ? `$${capitalPreserved.toLocaleString('en-US', { minimumFractionDigits: 2 })}` : '$0.00'}</strong> that was otherwise exposed under the full spread width.
+          <strong>Risk Management Note:</strong> This trade collected <strong>{upfrontPremium ? `$${upfrontPremium.toLocaleString('en-US', { minimumFractionDigits: 2 })}` : '$0.00'}</strong> upfront. When the spread widened, the position management system executed the stop-loss discipline, closing the spread at {exitPrice ? `$${exitPrice.toFixed(2)}` : 'market'}. This successfully eliminated tail risk and preserved <strong>{capitalPreserved ? `$${capitalPreserved.toLocaleString('en-US', { minimumFractionDigits: 2 })}` : '$0.00'}</strong> that was otherwise exposed under the full spread width.
         </p>
       </div>
     </section>
