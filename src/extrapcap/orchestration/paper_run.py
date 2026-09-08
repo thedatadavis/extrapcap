@@ -81,7 +81,8 @@ def build_candidate(
     selection_context: dict | None = None,
     observed_at: datetime | None = None,
     max_quote_age_seconds: int = 1800,
-    max_quote_spread_pct: float = 0.25,
+    max_quote_spread_pct: float = 0.40,
+    max_absolute_spread: float = 0.15,
     min_ev: float = 0.0,
     dte_min: int = 0,
     dte_max: int = 21,
@@ -199,6 +200,7 @@ def build_candidate(
             observed_at,
             max_age_seconds=max_quote_age_seconds,
             max_spread_pct=max_quote_spread_pct,
+            max_absolute_spread=max_absolute_spread,
         )
         details.update(quality)
     if quality_reason:

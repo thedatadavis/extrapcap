@@ -30,6 +30,8 @@ def run_live_cycle(
     dte_min: int = 0,
     dte_max: int = 21,
     preferred_dte: int = 10,
+    max_quote_spread_pct: float = 0.40,
+    max_absolute_spread: float = 0.15,
 ) -> dict:
     day = trading_day or datetime.now(UTC).date()
     context = dict(selection_context or {})
@@ -88,6 +90,8 @@ def run_live_cycle(
         dte_min=dte_min,
         dte_max=dte_max,
         preferred_dte=preferred_dte,
+        max_quote_spread_pct=max_quote_spread_pct,
+        max_absolute_spread=max_absolute_spread,
     )
     result = PaperRunCoordinator(client).execute(candidate)
     result["data_tier"] = tier.value

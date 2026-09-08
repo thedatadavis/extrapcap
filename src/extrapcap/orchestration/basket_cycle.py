@@ -75,6 +75,8 @@ def run_basket(
     max_submissions: int = 1,
     max_candidates: int | None = None,
     throttle_seconds: float = 0.0,
+    max_quote_spread_pct: float = 0.40,
+    max_absolute_spread: float = 0.15,
 ) -> list[dict]:
     """Evaluate every viable candidate until the submission limit is reached."""
     if max_submissions < 1:
@@ -126,6 +128,8 @@ def run_basket(
                     dte_min=dte_min,
                     dte_max=dte_max,
                     preferred_dte=preferred_dte,
+                    max_quote_spread_pct=max_quote_spread_pct,
+                    max_absolute_spread=max_absolute_spread,
                 )
             except ValueError as exc:
                 result = {

@@ -429,7 +429,8 @@ def selected_vertical_quote_quality(
     observed_at: datetime,
     *,
     max_age_seconds: int = 1800,
-    max_spread_pct: float = 0.25,
+    max_spread_pct: float = 0.40,
+    max_absolute_spread: float = 0.15,
 ) -> tuple[str | None, dict]:
     quote_map = {quote.symbol: quote for quote in quotes}
     details = {"observed_at": observed_at.astimezone(timezone.utc).isoformat(), "legs": []}
@@ -446,12 +447,20 @@ def selected_vertical_quote_quality(
             "timestamp": quote.timestamp,
         }
         details["legs"].append(leg)
-        if quote.bid is None or quote.ask is None or quote.bid <= 0 or quote.ask <= quote.bid:
+        if quote.bid is None or quote.ask is None:
             return "option_quote_invalid", details
+        if role == "short":
+            if quote.bid <= 0 or quote.ask <= quote.bid:
+                return "option_quote_invalid", details
+        else:
+            if quote.bid < 0 or quote.ask <= 0 or quote.ask <= quote.bid:
+                return "option_quote_invalid", details
         midpoint = (quote.bid + quote.ask) / 2
-        spread_pct = (quote.ask - quote.bid) / midpoint
+        spread = quote.ask - quote.bid
+        spread_pct = (spread / midpoint) if midpoint > 0 else 0.0
+        leg["spread"] = spread
         leg["spread_pct"] = spread_pct
-        if spread_pct > max_spread_pct:
+        if spread_pct > max_spread_pct and spread > max_absolute_spread:
             return "option_quote_spread_too_wide", details
         if not quote.timestamp:
             return "option_quote_timestamp_missing", details
@@ -468,3 +477,4 @@ def selected_vertical_quote_quality(
         if age_seconds < -5 or age_seconds > max_age_seconds:
             return "option_quote_stale", details
     return None, details
+

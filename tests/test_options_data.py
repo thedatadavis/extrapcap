@@ -5,7 +5,7 @@ from urllib.error import HTTPError
 from extrapcap.fills import FillAssumptions, credit_fill, early_assignment_exposure, vertical_expiration_pnl
 import pytest
 from extrapcap.options import VerticalSpread
-from extrapcap.options_data import AlpacaOptionsData, AlpacaOptionsRequestError, DataTier, OptionContract, OptionQuote, SelectedDebitVertical, contracts_from_payload, normalize_chain, select_bearish_put_debit_vertical, select_put_vertical, selected_vertical_quote_quality
+from extrapcap.options_data import AlpacaOptionsData, AlpacaOptionsRequestError, DataTier, OptionContract, OptionQuote, SelectedDebitVertical, SelectedVertical, contracts_from_payload, normalize_chain, select_bearish_put_debit_vertical, select_put_vertical, selected_vertical_quote_quality
 
 
 def test_options_adapter_uses_resolved_symbol_and_restores_strategy_symbol(monkeypatch):
@@ -147,3 +147,36 @@ def test_debit_vertical_quote_quality_rejects_a_zero_bid_leg():
         datetime(2026, 8, 12, 16, 8, tzinfo=timezone.utc),
     )
     assert reason == "option_quote_invalid"
+
+
+def test_vertical_quote_quality_allows_zero_bid_on_long_wing_if_ask_valid():
+    short = OptionContract("ABC-short", "ABC", "2026-08-21", 95, "put")
+    long = OptionContract("ABC-long", "ABC", "2026-08-21", 90, "put")
+    selected = SelectedVertical("ABC", short, long, 0.45, -0.20)
+    reason, details = selected_vertical_quote_quality(
+        selected,
+        [
+            OptionQuote("ABC-short", "2026-08-12T16:07:19Z", 0.50, 0.60, 0.55),
+            OptionQuote("ABC-long", "2026-08-12T16:07:19Z", 0.0, 0.05, 0.02),
+        ],
+        datetime(2026, 8, 12, 16, 8, tzinfo=timezone.utc),
+    )
+    assert reason is None
+
+
+def test_vertical_quote_quality_exempts_narrow_absolute_spreads():
+    short = OptionContract("ABC-short", "ABC", "2026-08-21", 95, "put")
+    long = OptionContract("ABC-long", "ABC", "2026-08-21", 90, "put")
+    selected = SelectedVertical("ABC", short, long, 0.35, -0.20)
+    # Short has 0.40 x 0.50 (spread 0.10, pct 22.2%)
+    # Long has 0.05 x 0.15 (spread 0.10, pct 100% > 40%, but spread 0.10 <= 0.15)
+    reason, details = selected_vertical_quote_quality(
+        selected,
+        [
+            OptionQuote("ABC-short", "2026-08-12T16:07:19Z", 0.40, 0.50, 0.45),
+            OptionQuote("ABC-long", "2026-08-12T16:07:19Z", 0.05, 0.15, 0.10),
+        ],
+        datetime(2026, 8, 12, 16, 8, tzinfo=timezone.utc),
+    )
+    assert reason is None
+
