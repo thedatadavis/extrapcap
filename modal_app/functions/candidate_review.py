@@ -73,10 +73,6 @@ def candidate_review():
     try:
         from extrapcap.orchestration.basket_cycle import run_basket
 
-        if paper_client.positions() or paper_client.open_orders():
-            summary = {"skipped": True, "reason": "paper_exposure_already_exists"}
-            cf.complete_run(run_id, summary=summary, start_time=start_time)
-            return {"status": "skipped", **summary}
         basket = cf.get_basket(as_of=today.isoformat()) or cf.get_basket()
         if not basket:
             raise RuntimeError("no current basket in Cloudflare D1")
@@ -87,7 +83,9 @@ def candidate_review():
             dte_min=0,
             dte_max=21,
             preferred_dte=10,
-            max_submissions=1,
+            max_submissions=8,
+            max_candidates=25,
+            throttle_seconds=0.15,
         )
         events = [_event_record(result) for result in results if isinstance(result, dict)]
         for event in events:

@@ -5,6 +5,7 @@ from datetime import date, datetime, timezone
 from enum import StrEnum
 import json
 import os
+import time
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
@@ -112,7 +113,7 @@ def contracts_from_payload(payload: dict) -> list[OptionContract]:
     return [OptionContract(row.get("symbol") or row.get("contract_symbol"), row.get("underlying_symbol") or row.get("underlying"), row["expiration_date"], float(row["strike_price"]), row["type"], row.get("style", "american"), row.get("ppind")) for row in rows]
 
 
-def select_put_vertical(underlying: str, contracts: list[OptionContract], quotes: list[OptionQuote], underlying_price: float, delta_min: float = 0.15, delta_max: float = 0.20, width: float = 5.0) -> SelectedVertical:
+def select_put_vertical(underlying: str, contracts: list[OptionContract], quotes: list[OptionQuote], underlying_price: float, delta_min: float = 0.10, delta_max: float = 0.35, width: float = 5.0) -> SelectedVertical:
     quote_map = {quote.symbol: quote for quote in quotes}
     puts = [contract for contract in contracts if contract.underlying == underlying and contract.option_type == "put" and contract.symbol in quote_map]
     candidates = []
@@ -139,8 +140,8 @@ def select_bearish_put_debit_vertical(
     contracts: list[OptionContract],
     quotes: list[OptionQuote],
     underlying_price: float,
-    delta_min: float = 0.30,
-    delta_max: float = 0.50,
+    delta_min: float = 0.25,
+    delta_max: float = 0.60,
     width: float = 10.0,
 ) -> SelectedDebitVertical:
     """Select a quoted bearish put debit spread from the live option chain."""
@@ -184,17 +185,22 @@ def select_highest_ev_vertical(
     quotes: list[OptionQuote],
     underlying_price: float,
     win_probability: float,
-    min_ev: float = 10.0,
-    widths: tuple[float, ...] = (1.0, 2.0, 2.5, 3.0, 5.0, 10.0),
+    min_ev: float = 0.0,
+    widths: tuple[float, ...] | None = None,
     streak_direction: str = "negative",
     trading_day: date | None = None,
     dte_min: int = 0,
     dte_max: int = 21,
     preferred_dte: int = 10,
+    min_width_pct: float = 0.005,
+    max_width_pct: float = 0.05,
 ) -> ExpectedValueSolution:
     """Scan directional vertical spreads in option chain and return the one with the highest EV >= min_ev."""
     if underlying_price <= 0:
         raise ValueError(f"invalid real underlying price ${underlying_price}")
+
+    min_allowed_width = max(0.50, round(underlying_price * min_width_pct, 2))
+    max_allowed_width = max(min_allowed_width + 0.50, round(underlying_price * max_width_pct, 2))
 
     quote_map = {quote.symbol: quote for quote in quotes}
     # Filter contracts within 25% of real underlying price to focus on ATM/NTM spreads
@@ -224,9 +230,15 @@ def select_highest_ev_vertical(
             q1 = quote_map[c1.symbol]
             for c2 in group_sorted[i + 1 :]:
                 q2 = quote_map[c2.symbol]
-                strike_diff = c2.strike - c1.strike
-                if not any(abs(strike_diff - w) < 1e-5 for w in widths):
+                strike_diff = round(c2.strike - c1.strike, 4)
+                if strike_diff <= 0:
                     continue
+                if widths is not None:
+                    if not any(abs(strike_diff - w) < 1e-5 for w in widths):
+                        continue
+                else:
+                    if not (min_allowed_width - 1e-5 <= strike_diff <= max_allowed_width + 1e-5):
+                        continue
                 width = strike_diff
 
                 # Determine direction of debit / credit spreads
@@ -312,20 +324,27 @@ class AlpacaOptionsData:
             raise RuntimeError("missing Alpaca credentials for option data")
         query = urlencode({k: v for k, v in params.items() if v is not None})
         request = Request(f"{base}{path}?{query}", headers={"APCA-API-KEY-ID": self.api_key, "APCA-API-SECRET-KEY": self.secret_key})
-        try:
-            with urlopen(request, timeout=30) as response:
-                return json.loads(response.read())
-        except HTTPError as exc:
-            detail = ""
+        for attempt in range(3):
             try:
-                body = exc.read().decode("utf-8", errors="replace").strip()
-                payload = json.loads(body)
-                detail = str(payload.get("message") or payload.get("error") or body)
-            except (AttributeError, json.JSONDecodeError, OSError, UnicodeError):
-                detail = str(exc.reason or exc)
-            raise AlpacaOptionsRequestError(f"Alpaca option data request failed ({path}, HTTP {exc.code}): {detail}") from exc
-        except (URLError, TimeoutError) as exc:
-            raise AlpacaOptionsRequestError(f"Alpaca option data request failed ({path}): {exc}") from exc
+                with urlopen(request, timeout=30) as response:
+                    return json.loads(response.read())
+            except HTTPError as exc:
+                if exc.code == 429 and attempt < 2:
+                    time.sleep(1.0 * (attempt + 1))
+                    continue
+                detail = ""
+                try:
+                    body = exc.read().decode("utf-8", errors="replace").strip()
+                    payload = json.loads(body)
+                    detail = str(payload.get("message") or payload.get("error") or body)
+                except (AttributeError, json.JSONDecodeError, OSError, UnicodeError):
+                    detail = str(exc.reason or exc)
+                raise AlpacaOptionsRequestError(f"Alpaca option data request failed ({path}, HTTP {exc.code}): {detail}") from exc
+            except (URLError, TimeoutError) as exc:
+                if attempt < 2:
+                    time.sleep(1.0 * (attempt + 1))
+                    continue
+                raise AlpacaOptionsRequestError(f"Alpaca option data request failed ({path}): {exc}") from exc
 
     @staticmethod
     def _normalize_contract_underlying(payload: dict, underlying: str) -> dict:

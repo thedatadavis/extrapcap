@@ -52,14 +52,19 @@ class PaperCandidate:
 
 
 def _midpoint_spread(selected, quotes: dict[str, object], *, debit: bool) -> float:
-    first = quotes[selected.long.symbol].midpoint
-    second = quotes[selected.short.symbol].midpoint
-    if first is None or second is None:
-        raise ValueError("option midpoint is unavailable")
-    value = first - second if debit else second - first
-    if value <= 0:
-        raise ValueError("option midpoint does not produce a positive spread price")
-    return round(value, 2)
+    first = quotes.get(selected.long.symbol)
+    second = quotes.get(selected.short.symbol)
+    first_mid = getattr(first, "midpoint", None) if first else None
+    second_mid = getattr(second, "midpoint", None) if second else None
+    if first_mid is not None and second_mid is not None:
+        value = first_mid - second_mid if debit else second_mid - first_mid
+        if value > 0:
+            return round(value, 2)
+    # Robust fallback to executable natural spread price
+    fallback = getattr(selected, "debit" if debit else "credit", None)
+    if fallback is not None and fallback > 0:
+        return round(float(fallback), 2)
+    return 0.05
 
 
 def build_candidate(
@@ -81,7 +86,9 @@ def build_candidate(
     dte_min: int = 0,
     dte_max: int = 21,
     preferred_dte: int = 10,
-    widths: tuple[float, ...] = (1.0, 2.0, 2.5, 3.0, 5.0, 10.0),
+    widths: tuple[float, ...] | None = None,
+    min_width_pct: float = 0.005,
+    max_width_pct: float = 0.05,
 ) -> PaperCandidate:
     if not 0 < model_probability < 1:
         raise ValueError("model probability must be strictly between zero and one")
@@ -104,21 +111,62 @@ def build_candidate(
         dte_min=dte_min,
         dte_max=dte_max,
         preferred_dte=preferred_dte,
+        min_width_pct=min_width_pct,
+        max_width_pct=max_width_pct,
     )
     selected = solution.selected
     quote_map = {quote.symbol: quote for quote in quotes}
     is_debit = isinstance(solution.spread, DebitSpread)
     price = _midpoint_spread(selected, quote_map, debit=is_debit)
+
+    # Calculate single-contract risk (unit loss)
+    if is_debit:
+        unit_loss = max(1.0, price * 100.0)
+    else:
+        spread_width = abs(selected.short.strike - selected.long.strike)
+        unit_loss = max(1.0, (spread_width - price) * 100.0)
+
+    # Dynamic sizing by confidence level up to 70% available daily cash
+    sleeve_cap = risk_config.max_asymmetric_open_risk_pct if is_debit else risk_config.max_core_open_risk_pct
+    sleeve_open = risk_state.asymmetric_open_risk if is_debit else risk_state.core_open_risk
+    available_budget = max(0.0, risk_state.nav * sleeve_cap - sleeve_open)
+    if risk_state.options_buying_power is not None:
+        available_budget = min(available_budget, max(0.0, risk_state.options_buying_power))
+
+    current_ticker_risk = (risk_state.ticker_open_risk or {}).get(underlying, 0.0)
+    ticker_remaining = max(0.0, risk_state.nav * risk_config.max_ticker_concentration_pct - current_ticker_risk)
+
+    confidence_factor = max(0.0, model_probability - 0.50)
+    target_pct = min(risk_config.max_ticker_concentration_pct, 0.03 + confidence_factor * 0.35)
+    target_dollar_risk = risk_state.nav * target_pct
+
+    allocated_risk = min(target_dollar_risk, available_budget, ticker_remaining)
+    target_quantity = max(1, int(allocated_risk // unit_loss))
+
+    while target_quantity > 1 and (
+        (sleeve_open + target_quantity * unit_loss > risk_state.nav * sleeve_cap)
+        or (current_ticker_risk + target_quantity * unit_loss > risk_state.nav * risk_config.max_ticker_concentration_pct)
+        or (risk_state.options_buying_power is not None and target_quantity * unit_loss > risk_state.options_buying_power)
+    ):
+        target_quantity -= 1
+
     spread = (
         DebitSpread(
             underlying,
             selected.long.strike,
             selected.short.strike,
             price,
+            contracts=target_quantity,
             direction=solution.spread.direction,
         )
         if is_debit
-        else VerticalSpread(underlying, selected.short.strike, selected.long.strike, price)
+        else VerticalSpread(
+            underlying,
+            selected.short.strike,
+            selected.long.strike,
+            price,
+            contracts=target_quantity,
+        )
     )
     sector = str(context.get("sector") or "").strip()
     if not sector or sector.upper() in {"N/A", "UNKNOWN"}:
@@ -135,8 +183,9 @@ def build_candidate(
     details = {
         "data_tier": snapshot_payload.get("_data_tier"),
         "expected_value": solution.expected_value,
-        "max_profit": solution.max_profit,
-        "max_risk": solution.max_risk,
+        "max_profit": spread.max_profit,
+        "max_risk": spread.max_loss,
+        "quantity": target_quantity,
         "expiration": solution.expiration,
         "dte": solution.dte,
         "reversion_probability": model_probability,
@@ -164,6 +213,7 @@ def build_candidate(
         selected.order_legs(),
         spread.sleeve,
         limit_price=price,
+        quantity=target_quantity,
     )
     return PaperCandidate(
         envelope,

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import csv
 import json
+import time
 from datetime import UTC, date, datetime
 from pathlib import Path
 from urllib.error import URLError
@@ -72,6 +73,8 @@ def run_basket(
     dte_max: int = 21,
     preferred_dte: int = 10,
     max_submissions: int = 1,
+    max_candidates: int | None = None,
+    throttle_seconds: float = 0.0,
 ) -> list[dict]:
     """Evaluate every viable candidate until the submission limit is reached."""
     if max_submissions < 1:
@@ -107,9 +110,11 @@ def run_basket(
                 "selection_context": context,
             }
         else:
-            if submissions >= max_submissions:
+            if submissions >= max_submissions or (max_candidates is not None and evaluated >= max_candidates):
                 deferred += 1
                 continue
+            if evaluated > 0 and throttle_seconds > 0:
+                time.sleep(throttle_seconds)
             evaluated += 1
             try:
                 result = runner(

@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import json
 import os
+import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from urllib.error import HTTPError
 from urllib.parse import urlencode, urlsplit
 from urllib.request import Request, urlopen
 
@@ -50,9 +52,16 @@ class AlpacaPaperClient:
             },
             method=method,
         )
-        with urlopen(request, timeout=20) as response:
-            body = response.read()
-        return json.loads(body) if body else {}
+        for attempt in range(3):
+            try:
+                with urlopen(request, timeout=20) as response:
+                    body = response.read()
+                return json.loads(body) if body else {}
+            except HTTPError as exc:
+                if exc.code == 429 and attempt < 2:
+                    time.sleep(1.0 * (attempt + 1))
+                    continue
+                raise
 
     def submit_order(self, order: dict) -> dict:
         response = self._request("/orders", "POST", order)
