@@ -1,6 +1,15 @@
 ---
 import Shell from '../../layouts/Shell.astro';
-import { formatDate, getJournal, getJournalDates, readoutFor } from '../../data/journal';
+import {
+  formatDate,
+  getJournal,
+  getJournalDates,
+  getSessionPositions,
+  getSessionOrders,
+  type PositionEconomics,
+  readoutFor,
+} from '../../data/journal';
+import { getActivePositions } from '../../data/positions';
 
 const { date } = Astro.params;
 const db = (Astro.locals as any).runtime?.env?.DB;
@@ -12,88 +21,145 @@ if (!entry) {
   return Astro.redirect(latestDate ? `/journal/${latestDate}` : '/');
 }
 
-// Use structured summary layout for 2026-07-30 and future reports
-const isStructuredLayout = entry.date >= '2026-07-30';
+// Session-level durable positions & orders from D1
+const sessionPositions: PositionEconomics[] = await getSessionPositions(db, date);
+const sessionOrders: any[] = await getSessionOrders(db, date);
 
-// Deduplicate items per ticker — keep the best record per ticker
+let activePositions: any[] = [];
+try {
+  activePositions = await getActivePositions(db);
+} catch {
+  activePositions = [];
+}
+
+const workingOrders = sessionOrders.filter((o) =>
+  ['new', 'submitted', 'pending_new', 'accepted'].includes(String(o.execution_status || '').toLowerCase())
+);
+
+// Funnel calculations with deduplication per ticker
 const tickerMap = new Map();
-const evaluatedTickers = new Set();
-const gateTickers = new Set();
-const submittedTickers = new Set();
-const filledTickers = new Set();
+const evaluatedTickers = new Set<string>();
+const gateTickers = new Set<string>();
+const modelApprovedTickers = new Set<string>();
+const submittedTickers = new Set<string>();
+const filledTickers = new Set<string>();
 
+// Pre-populate executed / submitted tickers from D1 truth tables
+sessionOrders.forEach((o) => {
+  const ticker = String(o.ticker || '').toUpperCase();
+  if (!ticker) return;
+  evaluatedTickers.add(ticker);
+  gateTickers.add(ticker);
+  modelApprovedTickers.add(ticker);
+  submittedTickers.add(ticker);
+  if (String(o.execution_status || '').toLowerCase() === 'filled') {
+    filledTickers.add(ticker);
+  }
+});
+
+sessionPositions.forEach((p) => {
+  const ticker = p.ticker.toUpperCase();
+  if (!ticker) return;
+  evaluatedTickers.add(ticker);
+  gateTickers.add(ticker);
+  modelApprovedTickers.add(ticker);
+  submittedTickers.add(ticker);
+  filledTickers.add(ticker);
+});
+
+// Process event entries
 entry.entries.forEach((item) => {
-  const ticker = item.ticker ?? item.selectionContext?.ticker;
+  const ticker = (item.ticker ?? item.selectionContext?.ticker ?? '').toUpperCase();
   if (!ticker) return;
   if (item.reason?.includes('Greenlist')) return;
   evaluatedTickers.add(ticker);
 
   const ctx = item.selectionContext ?? {};
   const sigGate = ctx.signal_gate ?? {};
-
-  const existing = tickerMap.get(ticker);
-  const isGateAllowed = sigGate.decision === 'allow' || item.status === 'selected' || item.status === 'candidate_reviewed' || item.status === 'deferred' || existing?.isGateAllowed;
-
-  if (isGateAllowed) gateTickers.add(ticker);
-
   const prob = typeof item.modelProbability === 'number'
     ? item.modelProbability
     : typeof ctx.reversion_probability === 'number'
       ? ctx.reversion_probability
       : undefined;
 
+  const isExecuted = filledTickers.has(ticker) || item.status === 'filled' || item.status === 'broker_closed';
+  const isSubmitted = submittedTickers.has(ticker) || item.status === 'submitted' || item.kind === 'paper_order';
+  const isSignalGatePassed =
+    sigGate.allowed === true ||
+    sigGate.reason === 'approved' ||
+    sigGate.decision === 'allow' ||
+    item.status === 'selected' ||
+    item.status === 'candidate_reviewed' ||
+    isSubmitted ||
+    isExecuted;
+
+  if (isSignalGatePassed) {
+    gateTickers.add(ticker);
+    if (typeof prob === 'number' && prob >= 0.50) {
+      modelApprovedTickers.add(ticker);
+    }
+  }
+
+  if (isSubmitted) submittedTickers.add(ticker);
+  if (isExecuted) filledTickers.add(ticker);
+
+  const existing = tickerMap.get(ticker);
   const bestProb = prob !== undefined ? prob : existing?.prob;
 
-  if (item.status === 'submitted' || item.kind === 'paper_order' || item.clientOrderId) {
-    submittedTickers.add(ticker);
+  let stage = 'Filtered';
+  if (isExecuted) {
+    stage = 'Filled';
+  } else if (isSubmitted) {
+    stage = 'Submitted';
+  } else if (isSignalGatePassed && typeof bestProb === 'number' && bestProb >= 0.50) {
+    stage = 'Screen Cleared';
   }
 
-  if (
-    item.status === 'filled' ||
-    item.status === 'partially_filled' ||
-    item.kind === 'paper_fill' ||
-    (item.marketData?.filled_qty !== undefined && item.marketData.filled_qty > 0)
-  ) {
-    filledTickers.add(ticker);
+  let finalReason = item.reason ?? existing?.reason ?? 'Filtered by streak rules';
+  if (isExecuted) {
+    const pos = sessionPositions.find((p) => p.ticker === ticker);
+    finalReason = pos
+      ? `${pos.quantity}x ${pos.strategy} @ $${pos.entryCredit.toFixed(2)} credit${pos.closeReason ? ` · Closed: ${pos.closeReason.replaceAll('_', ' ')}` : ''}`
+      : 'Order executed at broker';
+  } else if (finalReason === 'candidate_limit') {
+    finalReason = 'Evaluated';
   }
-
-  const finalStatus = item.status ?? item.decision ?? existing?.status ?? 'vetoed';
-  const rawReason = item.reason ?? existing?.reason ?? 'Vetoed by signal rules';
-  const finalReason = rawReason === 'candidate_limit' ? 'evaluated' : rawReason;
 
   tickerMap.set(ticker, {
     ticker,
-    sector: ctx.sector ?? (item as any).sector ?? existing?.sector ?? 'Unknown',
-    direction: ctx.streak_direction ?? (item as any).streak_direction ?? (item as any).direction ?? existing?.direction ?? 'flat',
-    length: ctx.streak_length ?? (item as any).streak_length ?? (item as any).length ?? existing?.length ?? 0,
-    robustZ: ctx.robust_z ?? (item as any).robust_z ?? (item as any).robustZ ?? existing?.robustZ,
+    sector: ctx.sector ?? existing?.sector ?? 'General',
+    direction: ctx.streak_direction ?? existing?.direction ?? 'negative',
+    length: ctx.streak_length ?? existing?.length ?? 0,
+    robustZ: ctx.robust_z ?? existing?.robustZ,
     prob: bestProb,
-    status: finalStatus,
+    stage,
+    status: isExecuted ? 'filled' : isSubmitted ? 'submitted' : item.status ?? 'vetoed',
     reason: finalReason,
-    isGateAllowed: isGateAllowed || existing?.isGateAllowed || false,
-    isProbAllowed: (typeof bestProb === 'number' && bestProb > 0.50) || existing?.isProbAllowed || false,
+    isGateAllowed: isSignalGatePassed || existing?.isGateAllowed || false,
+    isProbAllowed: (typeof bestProb === 'number' && bestProb >= 0.50) || existing?.isProbAllowed || false,
   });
 });
 
 const evaluatedCount = evaluatedTickers.size;
 const passedGateCount = gateTickers.size;
-const passedProbCount = Array.from(tickerMap.values()).filter(
-  (row) => row.isGateAllowed && typeof row.prob === 'number' && row.prob > 0.50
-).length;
+const passedProbCount = modelApprovedTickers.size;
 const submittedCount = submittedTickers.size;
 const filledCount = filledTickers.size;
 
-const clearedGateTickers = Array.from(tickerMap.values()).filter((row) => row.isGateAllowed).sort((a, b) => {
+// Prioritized screening table: Filled > Submitted > Cleared Screen > Filtered
+const sortedCandidates = Array.from(tickerMap.values()).sort((a, b) => {
+  const rank = (item: any) => (item.stage === 'Filled' ? 4 : item.stage === 'Submitted' ? 3 : item.stage === 'Screen Cleared' ? 2 : 1);
+  const diff = rank(b) - rank(a);
+  if (diff !== 0) return diff;
   const probA = typeof a.prob === 'number' ? a.prob : -1;
   const probB = typeof b.prob === 'number' ? b.prob : -1;
   if (probB !== probA) return probB - probA;
   return a.ticker.localeCompare(b.ticker);
 });
-const tickersTable = clearedGateTickers.length > 0 ? clearedGateTickers : Array.from(tickerMap.values()).slice(0, 14);
 
-const reconciliationItem = entry.entries.find((item) => item.kind === 'reconciliation' || item.positions !== undefined);
-const activePositions = reconciliationItem?.positions ?? [];
-const openOrders = reconciliationItem?.openOrders ?? [];
+const candidatesTable = sortedCandidates.filter((c) => c.stage !== 'Filtered').length > 0
+  ? sortedCandidates.filter((c) => c.stage !== 'Filtered')
+  : sortedCandidates.slice(0, 15);
 
 let wsjSummary: string | null = null;
 const dailyReportEvent = entry.entries.find((e) => e.kind === 'daily_report' || e.category === 'reports');
@@ -104,125 +170,269 @@ if (dailyReportEvent?.marketData?.wsj_summary) {
 
 <Shell>
   <header class="topbar"><a class="back-link" href="/">← Overview</a><span>Daily journal</span></header>
-  <article class="journal-page">
-    <h1>{formatDate(entry.date)}</h1>
+  <article class="journal-page" style="max-width: 860px;">
+    <div style="display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 8px; margin-bottom: 24px;">
+      <h1 style="margin: 0;">{formatDate(entry.date)}</h1>
+      <span class="data-note">Session operations journal</span>
+    </div>
 
-    {isStructuredLayout ? (
-      <div>
-        {/* 1. Top Level Funnel Summary */}
-        <section class="dashboard-section" style="padding-bottom: 36px;">
-          <div class="section-heading">
-            <div>
-              <h2>Evaluation Funnel Summary</h2>
-              <p>Mean-reversion candidates, signal filtering, model approvals, and execution</p>
-            </div>
+    {/* 1. Evaluation Funnel Summary */}
+    <section class="dashboard-section" style="padding-bottom: 36px;">
+      <div class="section-heading">
+        <div>
+          <h2>Evaluation Funnel Summary</h2>
+          <p>Mean-reversion candidates, signal filtering, model approvals, and broker execution</p>
+        </div>
+      </div>
+      <div class="metric-grid" style="grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));">
+        <div class="metric">
+          <span>Evaluated</span>
+          <strong>{evaluatedCount}</strong>
+          <small>Candidates in basket</small>
+        </div>
+        <div class="metric">
+          <span>Signal Passed</span>
+          <strong>{passedGateCount}</strong>
+          <small>Cleared streak rules</small>
+        </div>
+        <div class="metric">
+          <span>Model Approved</span>
+          <strong style="color: var(--green);">{passedProbCount}</strong>
+          <small>P(reversion) &ge; 50%</small>
+        </div>
+        <div class="metric">
+          <span>Orders Submitted</span>
+          <strong>{submittedCount}</strong>
+          <small>Paper queue</small>
+        </div>
+        <div class="metric">
+          <span>Filled Trades</span>
+          <strong style="color: var(--green);">{filledCount}</strong>
+          <small>Broker fills</small>
+        </div>
+      </div>
+    </section>
+
+    {/* 2. Executed Trade Economic Reports */}
+    {sessionPositions.length > 0 && (
+      <section class="dashboard-section" style="padding-bottom: 36px;">
+        <div class="section-heading">
+          <div>
+            <h2>Executed Trade Reports ({sessionPositions.length})</h2>
+            <p>Complete economic accounting, capital allocation, and realized outcome per position</p>
           </div>
-          <div class="metric-grid" style="grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));">
-            <div class="metric"><span>Evaluated</span><strong>{evaluatedCount}</strong><small>Candidates</small></div>
-            <div class="metric"><span>Signal Passed</span><strong>{passedGateCount}</strong><small>Cleared streak</small></div>
-            <div class="metric"><span>Model Approved</span><strong>{passedProbCount}</strong><small>P(reversion) &gt; 50%</small></div>
-            <div class="metric"><span>Orders Submitted</span><strong>{submittedCount}</strong><small>Paper queue</small></div>
-            <div class="metric"><span>Filled Trades</span><strong>{filledCount}</strong><small>Broker fills</small></div>
-          </div>
-        </section>
+        </div>
 
-        {/* 2. Executive Commentary */}
-        {wsjSummary && (
-          <section class="dashboard-section" style="padding-bottom: 36px;">
-            <div class="context-panel" style="background:#eeeee8; padding:20px; border-left:3px solid var(--green);">
-              <h2 style="font-size:15px; margin-bottom:8px; color:var(--green);">WSJ Daily Commentary & Portfolio Note</h2>
-              <p style="font-size:14px; line-height:1.6; margin:0;">{wsjSummary}</p>
-            </div>
-          </section>
-        )}
-
-        {/* 3. Screened Candidates Breakdown */}
-        {tickersTable.length > 0 && (
-          <section class="trades-section">
-            <div class="section-heading">
-              <div>
-                <h2>Candidate Screening & Model Decisions</h2>
-                <p>Filter state and model win-probability metrics</p>
-              </div>
-            </div>
-            <div class="trade-table-wrap">
-              <table class="trade-table">
-                <thead>
-                  <tr>
-                    <th>Ticker</th>
-                    <th>Sector</th>
-                    <th>Streak</th>
-                    <th>Robust Z</th>
-                    <th>Model P(reversion)</th>
-                    <th>Funnel Stage</th>
-                    <th>Decision / Reason</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {tickersTable.map((row) => (
-                    <tr>
-                      <td class="ticker-cell"><strong>{row.ticker}</strong></td>
-                      <td style="font-size:12px; color:var(--muted);">{row.sector}</td>
-                      <td>{row.length > 0 ? `${row.length}d (${row.direction})` : '—'}</td>
-                      <td>{row.robustZ !== undefined ? Number(row.robustZ).toFixed(2) : '—'}</td>
-                      <td>{typeof row.prob === 'number' ? `${(row.prob * 100).toFixed(1)}%` : '—'}</td>
-                      <td>
-                        <span class:list={['action-pill', row.status.includes('filled') ? 'entry' : row.isGateAllowed ? 'neutral' : 'exit']}>
-                          {row.status.includes('filled') ? 'Filled' : row.isGateAllowed ? 'Screen Passed' : 'Filtered'}
-                        </span>
-                      </td>
-                      <td style="font-size:12px; max-width:260px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">{row.reason}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </section>
-        )}
-
-        {/* 4. Active Portfolio Snapshot */}
-        <section class="trades-section" style="padding-top: 18px;">
-          <div class="section-heading">
-            <div>
-              <h2>Active Open Positions & Working Orders</h2>
-              <p>Reconciled portfolio state for this session</p>
-            </div>
-          </div>
-          {activePositions.length > 0 || openOrders.length > 0 ? (
-            <div style="display:flex; flex-direction:column; gap:12px;">
-              {activePositions.map((pos: any) => (
-                <div style="background:#eeeee8; padding:16px 20px; border-radius:4px; display:flex; justify-content:space-between; align-items:center;">
+        <div style="display: grid; gap: 20px;">
+          {sessionPositions.map((pos) => {
+            const pnlColor = pos.realizedPnl !== null ? (pos.realizedPnl >= 0 ? 'var(--green)' : 'var(--red)') : 'var(--ink)';
+            const pnlSign = pos.realizedPnl !== null && pos.realizedPnl > 0 ? '+' : '';
+            return (
+              <div style="background: #eeeee8; padding: 22px 24px; border-radius: 4px; border-left: 3px solid var(--green);">
+                {/* Header line */}
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 16px; border-bottom: 1px solid rgba(32,33,31,0.08); padding-bottom: 12px;">
                   <div>
-                    <strong style="font-size:15px; margin-right:10px;">{pos.symbol ?? pos.ticker}</strong>
-                    <span style="font-size:12px; color:var(--muted);">{pos.qty ?? pos.quantity} contracts · Expiration {pos.expiration}</span>
+                    <strong style="font-size: 18px; margin-right: 8px;">{pos.ticker}</strong>
+                    <span style="font-size: 13px; color: var(--muted);">{pos.quantity}x {pos.strategy} · Exp: {pos.expiration}</span>
+                  </div>
+                  <div style="display: flex; align-items: center; gap: 10px;">
+                    <span class:list={['action-pill', pos.isActive ? 'neutral' : (pos.closeReason?.includes('profit') ? 'entry' : 'exit')]}>
+                      {pos.isActive ? 'Active Open' : `Closed · ${pos.closeReason?.replaceAll('_', ' ') || 'Resolved'}`}
+                    </span>
+                    <a class="text-link" href={`/journal/${entry.date}/${pos.ticker}`} style="font-size: 11px;">
+                      Full Economics &rarr;
+                    </a>
+                  </div>
+                </div>
+
+                {/* 3-Column Metrics Grid */}
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 16px; margin-bottom: 16px;">
+                  {/* Setup */}
+                  <div style="background: rgba(255,255,255,0.45); padding: 12px 14px; border-radius: 3px;">
+                    <span style="display: block; font-family: var(--mono); font-size: 9px; color: var(--muted); text-transform: uppercase; margin-bottom: 4px;">Setup & Conviction</span>
+                    <div style="font-size: 13px; line-height: 1.5;">
+                      <div>Streak: <strong>{pos.streakLength ? `${pos.streakLength}d (${pos.streakDirection})` : '—'}</strong></div>
+                      <div>Robust Z: <strong>{pos.robustZ !== undefined ? pos.robustZ.toFixed(2) : '—'}</strong></div>
+                      <div>Model P(rev): <strong style="color: var(--green);">{pos.reversionProbability ? `${(pos.reversionProbability * 100).toFixed(1)}%` : '—'}</strong></div>
+                    </div>
+                  </div>
+
+                  {/* Spread Structure */}
+                  <div style="background: rgba(255,255,255,0.45); padding: 12px 14px; border-radius: 3px;">
+                    <span style="display: block; font-family: var(--mono); font-size: 9px; color: var(--muted); text-transform: uppercase; margin-bottom: 4px;">Spread Architecture</span>
+                    <div style="font-size: 13px; line-height: 1.5;">
+                      <div>Short Strike: <strong>${pos.shortStrike.toFixed(2)}</strong></div>
+                      <div>Long Wing: <strong>${pos.longStrike.toFixed(2)}</strong></div>
+                      <div>Width: <strong>${pos.spreadWidth.toFixed(2)}</strong> ({pos.quantity} contracts)</div>
+                    </div>
+                  </div>
+
+                  {/* Financial Outcome */}
+                  <div style="background: rgba(255,255,255,0.45); padding: 12px 14px; border-radius: 3px;">
+                    <span style="display: block; font-family: var(--mono); font-size: 9px; color: var(--muted); text-transform: uppercase; margin-bottom: 4px;">Capital & P&L</span>
+                    <div style="font-size: 13px; line-height: 1.5;">
+                      <div>Premium: <strong style="color: var(--green);">+${pos.upfrontPremium.toLocaleString('en-US', { minimumFractionDigits: 2 })}</strong></div>
+                      <div>Max Risk: <strong>${pos.maxRisk.toLocaleString('en-US', { minimumFractionDigits: 2 })}</strong></div>
+                      <div>Realized: <strong style={`color: ${pnlColor};`}>{pos.realizedPnl !== null ? `${pnlSign}$${pos.realizedPnl.toLocaleString('en-US', { minimumFractionDigits: 2 })}` : 'Active'}</strong></div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Capital Preservation Note */}
+                {pos.capitalPreserved !== null && pos.capitalPreserved > 0 && (
+                  <div style="font-size: 11px; color: var(--muted); font-family: var(--mono); display: flex; justify-content: space-between; align-items: center; border-top: 1px solid rgba(32,33,31,0.06); padding-top: 8px;">
+                    <span>Exit Fill: ${pos.exitPrice?.toFixed(2)} / sh (${pos.costToClose?.toLocaleString('en-US', { minimumFractionDigits: 2 })} total)</span>
+                    <span style="color: var(--green);">Downside Shielded: +${pos.capitalPreserved.toLocaleString('en-US', { minimumFractionDigits: 2 })} vs max risk</span>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </section>
+    )}
+
+    {/* 3. Active Portfolio & Working Orders */}
+    <section class="dashboard-section" style="padding-bottom: 36px;">
+      <div class="section-heading">
+        <div>
+          <h2>Active Positions & Working Orders</h2>
+          <p>Live overnight holdings and active paper queue state</p>
+        </div>
+      </div>
+
+      <div style="display: grid; gap: 14px;">
+        {/* Active open positions */}
+        <div>
+          <span style="font-family: var(--mono); font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; display: block; margin-bottom: 6px;">
+            Open Overnight Positions ({activePositions.length})
+          </span>
+          {activePositions.length > 0 ? (
+            <div style="display: flex; flex-direction: column; gap: 10px;">
+              {activePositions.map((p: any) => (
+                <div style="background: #eeeee8; padding: 14px 18px; border-radius: 4px; display: flex; justify-content: space-between; align-items: center;">
+                  <div>
+                    <strong style="font-size: 15px; margin-right: 10px;">{p.ticker}</strong>
+                    <span style="font-size: 12px; color: var(--muted);">{p.quantity} contracts · Exp: {p.expirationDate} (DTE: {p.dte})</span>
                   </div>
                   <div>
-                    <span class="action-pill">Short ${pos.short_strike} / Long ${pos.long_strike}</span>
+                    <span class="action-pill">Short ${p.strikes[1] ?? p.strikes[0]} / Long ${p.strikes[0]}</span>
                   </div>
                 </div>
               ))}
             </div>
           ) : (
-            <div class="empty-state">No active positions or pending orders recorded for this session.</div>
+            <div style="background: #eeeee8; padding: 14px 18px; border-radius: 4px; color: var(--muted); font-size: 13px;">
+              0 open overnight positions (all {sessionPositions.length} session trades were managed and closed intraday).
+            </div>
           )}
-        </section>
+        </div>
+
+        {/* Working orders */}
+        <div>
+          <span style="font-family: var(--mono); font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; display: block; margin-bottom: 6px;">
+            Working Paper Orders ({workingOrders.length})
+          </span>
+          {workingOrders.length > 0 ? (
+            <div class="trade-table-wrap">
+              <table class="trade-table">
+                <thead>
+                  <tr>
+                    <th>Ticker</th>
+                    <th>Side</th>
+                    <th>Qty</th>
+                    <th>Limit Price</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {workingOrders.map((ord: any) => (
+                    <tr>
+                      <td class="ticker-cell"><strong>{ord.ticker}</strong></td>
+                      <td><span class="action-pill">{ord.side}</span></td>
+                      <td>{ord.quantity}</td>
+                      <td>${Number(ord.limit_price || 0).toFixed(2)}</td>
+                      <td><span class="action-pill neutral">{ord.execution_status}</span></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div style="background: #eeeee8; padding: 14px 18px; border-radius: 4px; color: var(--muted); font-size: 13px;">
+              0 working orders pending in paper queue.
+            </div>
+          )}
+        </div>
       </div>
-    ) : (
-      <div class="entry-stack">
-        {entry.entries.map((item) => {
-          const readout = readoutFor(item);
-          return (
-            <article class="entry-card">
-              <div class="entry-meta">
-                <span>{readout.label}</span>
-                <span class:list={['action-pill', readout.status.includes('exit') ? 'exit' : '']}>{readout.status}</span>
-              </div>
-              <h2>{readout.headline}</h2>
-              <p class="readout-body">{readout.body}</p>
-            </article>
-          );
-        })}
-      </div>
+    </section>
+
+    {/* 4. Candidate Screening & Decisions Table (Clean & Simplified) */}
+    {candidatesTable.length > 0 && (
+      <section class="trades-section" style="padding-bottom: 36px;">
+        <div class="section-heading">
+          <div>
+            <h2>Candidate Screening & Model Decisions</h2>
+            <p>Actionable mean-reversion setups prioritized by execution status and model win-probability</p>
+          </div>
+        </div>
+        <div class="trade-table-wrap">
+          <table class="trade-table">
+            <thead>
+              <tr>
+                <th>Ticker & Sector</th>
+                <th>Streak Setup</th>
+                <th>Model P(rev)</th>
+                <th>Stage</th>
+                <th>Decision & Rationale</th>
+              </tr>
+            </thead>
+            <tbody>
+              {candidatesTable.map((row) => (
+                <tr>
+                  <td class="ticker-cell">
+                    <strong>{row.ticker}</strong>
+                    <span style="display: block; font-size: 10px; color: var(--muted);">{row.sector}</span>
+                  </td>
+                  <td>
+                    {row.length > 0 ? (
+                      <span>{row.length}d ({row.direction}) · <span style="font-family: var(--mono); font-size: 11px;">Z: {row.robustZ !== undefined ? Number(row.robustZ).toFixed(2) : '—'}</span></span>
+                    ) : (
+                      '—'
+                    )}
+                  </td>
+                  <td>
+                    <strong style={typeof row.prob === 'number' && row.prob >= 0.50 ? 'color: var(--green);' : 'color: var(--muted);'}>
+                      {typeof row.prob === 'number' ? `${(row.prob * 100).toFixed(1)}%` : '—'}
+                    </strong>
+                  </td>
+                  <td>
+                    <span class:list={[
+                      'action-pill',
+                      row.stage === 'Filled' ? 'entry' : row.stage === 'Submitted' ? 'neutral' : row.stage === 'Screen Cleared' ? 'neutral' : 'exit'
+                    ]}>
+                      {row.stage}
+                    </span>
+                  </td>
+                  <td style="font-size: 12px; max-width: 320px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                    {row.reason}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    )}
+
+    {/* 5. Executive Commentary */}
+    {wsjSummary && (
+      <section class="dashboard-section" style="padding-bottom: 24px;">
+        <div class="context-panel" style="background:#eeeee8; padding:20px; border-left:3px solid var(--green);">
+          <h2 style="font-size:15px; margin-bottom:8px; color:var(--green);">WSJ Daily Commentary & Portfolio Note</h2>
+          <p style="font-size:14px; line-height:1.6; margin:0;">{wsjSummary}</p>
+        </div>
+      </section>
     )}
   </article>
 </Shell>

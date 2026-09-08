@@ -183,6 +183,155 @@ export async function getJournalDates(db?: any): Promise<string[]> {
   }
 }
 
+export type PositionEconomics = {
+  id: number;
+  ticker: string;
+  strategy: string;
+  direction: string;
+  quantity: number;
+  openedAt: string;
+  closedAt: string | null;
+  isActive: boolean;
+  closeReason: string | null;
+  shortStrike: number;
+  longStrike: number;
+  spreadWidth: number;
+  expiration: string;
+  entryCredit: number;
+  upfrontPremium: number;
+  grossMargin: number;
+  maxRisk: number;
+  maxRocPct: number;
+  exitPrice: number | null;
+  costToClose: number | null;
+  realizedPnl: number | null;
+  capitalPreserved: number | null;
+  robustZ?: number;
+  streakLength?: number;
+  streakDirection?: string;
+  reversionProbability?: number;
+  underlyingPrice?: number;
+  legs: any[];
+  metadata?: any;
+};
+
+export async function getSessionPositions(db?: any, date?: string): Promise<PositionEconomics[]> {
+  if (!db) return [];
+  try {
+    const posQuery = date
+      ? await db.prepare('SELECT * FROM positions WHERE opened_at = ? OR closed_at = ? ORDER BY id DESC').bind(date, date).all()
+      : await db.prepare('SELECT * FROM positions ORDER BY opened_at DESC, id DESC').all();
+
+    const eventQuery = date
+      ? await db.prepare("SELECT * FROM events WHERE trading_day = ? AND (kind = 'position_management' OR category = 'positions')").bind(date).all()
+      : await db.prepare("SELECT * FROM events WHERE kind = 'position_management' OR category = 'positions'").all();
+
+    const exitMap = new Map<number, { exitPrice: number; realizedPnl?: number; reason?: string }>();
+    for (const evt of eventQuery.results || []) {
+      const payload = parseJson(evt.payload);
+      const posId = Number(payload.position_id ?? (typeof evt.event_id === 'string' ? evt.event_id.replace(/^pos-/, '') : 0));
+      if (posId) {
+        const exitP = typeof payload.exit_price === 'number'
+          ? Math.abs(payload.exit_price)
+          : typeof payload.current_debit === 'number'
+            ? Math.abs(payload.current_debit)
+            : undefined;
+        if (exitP !== undefined) {
+          exitMap.set(posId, {
+            exitPrice: exitP,
+            realizedPnl: typeof payload.realized_pnl === 'number' ? payload.realized_pnl : undefined,
+            reason: payload.reason,
+          });
+        }
+      }
+    }
+
+    const rows = posQuery.results || [];
+    return rows.map((row: any) => {
+      const id = Number(row.id);
+      const ticker = String(row.ticker || '').toUpperCase();
+      const quantity = Math.max(1, Number(row.quantity || 1));
+      const entryCredit = Math.abs(Number(row.entry_credit ?? row.entry_debit ?? 0));
+      const shortStrike = Number(row.short_strike || 0);
+      const longStrike = Number(row.long_strike || 0);
+      const spreadWidth = Math.abs(Number(row.spread_width || Math.abs(shortStrike - longStrike) || 0));
+      const upfrontPremium = Math.round(entryCredit * 100 * quantity * 100) / 100;
+      const grossMargin = Math.round(spreadWidth * 100 * quantity * 100) / 100;
+      const maxRisk = Math.max(0, Math.round((spreadWidth - entryCredit) * 100 * quantity * 100) / 100);
+      const maxRocPct = maxRisk > 0 ? Math.round((upfrontPremium / maxRisk) * 1000) / 10 : 0;
+
+      const exitInfo = exitMap.get(id);
+      const exitPrice = exitInfo?.exitPrice ?? null;
+      let costToClose: number | null = null;
+      let realizedPnl: number | null = null;
+      let capitalPreserved: number | null = null;
+
+      if (exitPrice !== null && exitPrice !== undefined) {
+        costToClose = Math.round(exitPrice * 100 * quantity * 100) / 100;
+        realizedPnl = exitInfo?.realizedPnl ?? Math.round((entryCredit - exitPrice) * 100 * quantity * 100) / 100;
+        if (realizedPnl < 0) {
+          capitalPreserved = Math.max(0, Math.round((maxRisk - Math.abs(realizedPnl)) * 100) / 100);
+        }
+      }
+
+      const metrics = parseJson(row.selection_metrics);
+      const meta = parseJson(row.metadata);
+      const legs = Array.isArray(row.legs) ? row.legs : parseJson(row.legs);
+
+      const direction = shortStrike > longStrike ? 'Bullish' : 'Bearish';
+      const strategy = `${direction} Put Credit Spread`;
+
+      return {
+        id,
+        ticker,
+        strategy,
+        direction,
+        quantity,
+        openedAt: String(row.opened_at || ''),
+        closedAt: row.closed_at ? String(row.closed_at) : null,
+        isActive: Boolean(row.is_active),
+        closeReason: exitInfo?.reason || row.close_reason,
+        shortStrike,
+        longStrike,
+        spreadWidth,
+        expiration: String(row.expiration || '').slice(0, 10),
+        entryCredit,
+        upfrontPremium,
+        grossMargin,
+        maxRisk,
+        maxRocPct,
+        exitPrice,
+        costToClose,
+        realizedPnl,
+        capitalPreserved,
+        robustZ: typeof metrics.robust_z === 'number' ? metrics.robust_z : undefined,
+        streakLength: typeof metrics.streak_length === 'number' ? metrics.streak_length : undefined,
+        streakDirection: metrics.streak_direction,
+        reversionProbability: typeof metrics.reversion_probability === 'number' ? metrics.reversion_probability : undefined,
+        underlyingPrice: typeof metrics.underlying_price === 'number' ? metrics.underlying_price : undefined,
+        legs: Array.isArray(legs) ? legs : [],
+        metadata: meta,
+      };
+    });
+  } catch (err) {
+    console.error('Error in getSessionPositions:', err);
+    return [];
+  }
+}
+
+export async function getSessionOrders(db?: any, date?: string): Promise<any[]> {
+  if (!db) return [];
+  try {
+    const result = date
+      ? await db.prepare("SELECT * FROM orders WHERE submitted_at LIKE ? OR created_at LIKE ? ORDER BY id DESC").bind(`${date}%`, `${date}%`).all()
+      : await db.prepare("SELECT * FROM orders ORDER BY id DESC LIMIT 100").all();
+    return result.results || [];
+  } catch (err) {
+    console.error('Error in getSessionOrders:', err);
+    return [];
+  }
+}
+
 export async function getJournal(db?: any, tradingDay?: string): Promise<JournalEntry[]> {
   if (!db) return [];
   try {
