@@ -139,7 +139,7 @@ const formattedAsOf = latestRunTime
             {initialPosition.unrealizedPnL >= 0 ? '+' : ''}${initialPosition.unrealizedPnL.toFixed(2)}
           </strong>
           <span id="pos-pnl-pct" class:list={['callout-pct', { negative: initialPosition.unrealizedPnL < 0 }]}>
-            {initialPosition.unrealizedPnLPct == null ? '—' : `${initialPosition.unrealizedPnLPct >= 0 ? '+' : ''}${initialPosition.unrealizedPnLPct.toFixed(2)}% of risk basis`}
+            {initialPosition.unrealizedPnLPct == null ? '—' : `${initialPosition.unrealizedPnLPct >= 0 ? '+' : ''}${initialPosition.unrealizedPnLPct.toFixed(1)}% ${initialPosition.entryValue >= 0 ? 'of credit captured' : 'of premium paid'}`}
           </span>
         </div>
       </div>
@@ -147,14 +147,14 @@ const formattedAsOf = latestRunTime
       <!-- METRICS GRID -->
       <div class="metric-grid">
         <div class="metric">
-          <span>Entry Value</span>
-          <strong id="metric-credit">${initialPosition.entryValue.toFixed(2)}</strong>
-          <small id="metric-credit-sub">${initialPosition.entryValuePerContract.toFixed(2)} / position unit</small>
+          <span id="metric-entry-label">{initialPosition.entryValue >= 0 ? 'Net Premium (Max Gain)' : 'Debit Paid (Max Risk)'}</span>
+          <strong id="metric-credit">${Math.abs(initialPosition.entryValue).toFixed(2)}</strong>
+          <small id="metric-credit-sub">${Math.abs(initialPosition.entryValuePerContract).toFixed(2)} / share ({initialPosition.quantity} contracts)</small>
         </div>
         <div class="metric">
-          <span>Max Risk</span>
+          <span id="metric-risk-label">{initialPosition.entryValue >= 0 ? 'Margin Risk (Max Loss)' : 'Max Loss'}</span>
           <strong id="metric-risk">${initialPosition.maxRisk.toFixed(2)}</strong>
-          <small id="metric-roc">ROC: {initialPosition.maxRisk > 0 ? ((initialPosition.maxProfit / initialPosition.maxRisk) * 100).toFixed(1) : '—'}%</small>
+          <small id="metric-roc">ROC: {initialPosition.maxRisk > 0 ? ((initialPosition.maxProfit / initialPosition.maxRisk) * 100).toFixed(1) : '—'}% on margin</small>
         </div>
         <div class="metric">
           <span>Break-Even</span>
@@ -271,21 +271,29 @@ const formattedAsOf = latestRunTime
     const pnlPctEl = document.getElementById('pos-pnl-pct');
     const statusBadge = document.getElementById('pos-status-badge');
 
+    const isCredit = pos.entryValue >= 0;
     const pnl = pos.unrealizedPnL;
-    pnlValEl.textContent = `${pnl >= 0 ? '+' : ''}$${pnl}`;
+    pnlValEl.textContent = `${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)}`;
     pnlValEl.className = `callout-val ${pnl < 0 ? 'negative' : ''}`;
 
-    pnlPctEl.textContent = pos.unrealizedPnLPct == null ? '— of risk basis' : `${pos.unrealizedPnLPct >= 0 ? '+' : ''}${pos.unrealizedPnLPct.toFixed(2)}% of risk basis`;
+    const pnlPct = pos.unrealizedPnLPct;
+    const pctLabel = isCredit ? 'of credit captured' : 'of premium paid';
+    pnlPctEl.textContent = pnlPct == null ? '—' : `${pnlPct >= 0 ? '+' : ''}${pnlPct.toFixed(1)}% ${pctLabel}`;
     pnlPctEl.className = `callout-pct ${pnl < 0 ? 'negative' : ''}`;
 
     statusBadge.textContent = pnl >= 0 ? 'In Profit Zone' : 'At Risk';
     statusBadge.className = `status-pill ${pos.status}`;
 
     // Metrics updates
-    document.getElementById('metric-credit').textContent = `$${pos.entryValue.toFixed(2)}`;
-    document.getElementById('metric-credit-sub').textContent = `$${pos.entryValuePerContract.toFixed(2)} / position unit`;
+    const entryLabel = document.getElementById('metric-entry-label');
+    if (entryLabel) entryLabel.textContent = isCredit ? 'Net Premium (Max Gain)' : 'Debit Paid (Max Risk)';
+    document.getElementById('metric-credit').textContent = `$${Math.abs(pos.entryValue).toFixed(2)}`;
+    document.getElementById('metric-credit-sub').textContent = `$${Math.abs(pos.entryValuePerContract).toFixed(2)} / share (${pos.quantity} contracts)`;
+
+    const riskLabel = document.getElementById('metric-risk-label');
+    if (riskLabel) riskLabel.textContent = isCredit ? 'Margin Risk (Max Loss)' : 'Max Loss';
     document.getElementById('metric-risk').textContent = `$${pos.maxRisk.toFixed(2)}`;
-    document.getElementById('metric-roc').textContent = `ROC: ${pos.maxRisk > 0 ? ((pos.maxProfit / pos.maxRisk) * 100).toFixed(1) : '—'}%`;
+    document.getElementById('metric-roc').textContent = `ROC: ${pos.maxRisk > 0 ? ((pos.maxProfit / pos.maxRisk) * 100).toFixed(1) : '—'}% on margin`;
     document.getElementById('metric-breakeven').textContent = pos.breakEvenPoints.length ? pos.breakEvenPoints.map((point) => `$${point.toFixed(2)}`).join(' / ') : '—';
     document.getElementById('metric-be-sub').textContent = `${pos.direction} · ${pos.optionType}`;
     document.getElementById('metric-spot').textContent = pos.currentSpotPrice == null ? '—' : `$${pos.currentSpotPrice.toFixed(2)}`;

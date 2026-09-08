@@ -37,6 +37,10 @@ export type JournalItem = {
   marketPriceDate?: string;
   positions?: JsonRecord[];
   openOrders?: JsonRecord[];
+  quantity?: number;
+  limitPrice?: number;
+  fillPrice?: number;
+  side?: string;
 };
 
 export type JournalEntry = {
@@ -80,20 +84,61 @@ function parseJson(str: unknown): JsonRecord {
   return {};
 }
 
+function parseOcc(symbol: string): { type: 'put' | 'call'; strike: number; expiration: string } | null {
+  const value = symbol.trim().toUpperCase();
+  if (value.length < 16) return null;
+  const suffix = value.slice(-15);
+  if (!/^[0-9]{6}[CP][0-9]{8}$/.test(suffix)) return null;
+  const year = 2000 + Number(suffix.slice(0, 2));
+  const month = Number(suffix.slice(2, 4));
+  const day = Number(suffix.slice(4, 6));
+  const expiration = `${year.toString().padStart(4, '0')}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
+  const date = new Date(`${expiration}T00:00:00Z`);
+  if (Number.isNaN(date.getTime())) return null;
+  return { type: suffix[6] === 'P' ? 'put' : 'call', strike: Number(suffix.slice(7)) / 1000, expiration };
+}
+
 function contractDetails(record: JsonRecord, metadata: JsonRecord): ContractDetail[] {
-  const rows = Array.isArray(record.contracts)
+  const rawRows = Array.isArray(record.contracts)
     ? record.contracts
     : Array.isArray(metadata.contract_details)
       ? metadata.contract_details
+      : Array.isArray(record.legs)
+        ? record.legs
+        : Array.isArray(metadata.legs)
+          ? metadata.legs
+          : [];
+
+  if (rawRows.length > 0) {
+    return rawRows.map((row: JsonRecord) => {
+      const contractId = String(row.contract_id ?? row.symbol ?? '');
+      const occ = parseOcc(contractId);
+      return {
+        contractId,
+        ticker: asString(row.ticker ?? row.underlying),
+        expiration: asString(row.expiration ?? occ?.expiration),
+        optionType: asString(row.option_type ?? row.type ?? occ?.type),
+        strike: typeof row.strike === 'number' ? row.strike : occ?.strike,
+        role: asString(row.role ?? row.side ?? row.position_intent),
+      };
+    }).filter((row: ContractDetail) => row.contractId);
+  }
+
+  const ids = Array.isArray(record.contract_ids)
+    ? record.contract_ids
+    : Array.isArray(metadata.contract_ids)
+      ? metadata.contract_ids
       : [];
-  return rows.map((row: JsonRecord) => ({
-    contractId: String(row.contract_id ?? row.symbol ?? ''),
-    ticker: asString(row.ticker ?? row.underlying),
-    expiration: asString(row.expiration),
-    optionType: asString(row.option_type),
-    strike: typeof row.strike === 'number' ? row.strike : undefined,
-    role: asString(row.role),
-  })).filter((row: ContractDetail) => row.contractId);
+  return ids.map((id: unknown) => {
+    const contractId = String(id ?? '');
+    const occ = parseOcc(contractId);
+    return {
+      contractId,
+      expiration: occ?.expiration,
+      optionType: occ?.type,
+      strike: occ?.strike,
+    };
+  }).filter((row: ContractDetail) => row.contractId);
 }
 
 function contractIds(record: JsonRecord, metadata: JsonRecord, contracts: ContractDetail[]): string[] {
@@ -164,6 +209,30 @@ export async function getJournal(db?: any, tradingDay?: string): Promise<Journal
       const kind = String(row.kind ?? metadata.kind ?? row.category);
       const eventId = String(row.event_id ?? metadata.event_id ?? rawPayload.client_order_id ?? rawPayload.order_id);
 
+      const quantity = typeof rawPayload.quantity === 'number'
+        ? rawPayload.quantity
+        : typeof rawPayload.filled_qty === 'number'
+          ? rawPayload.filled_qty
+          : typeof metadata.quantity === 'number'
+            ? metadata.quantity
+            : undefined;
+
+      const fillPrice = rawPayload.filled_avg_price !== undefined && rawPayload.filled_avg_price !== null
+        ? Math.abs(Number(rawPayload.filled_avg_price))
+        : rawPayload.response?.filled_avg_price !== undefined && rawPayload.response?.filled_avg_price !== null
+          ? Math.abs(Number(rawPayload.response.filled_avg_price))
+          : typeof rawPayload.exit_price === 'number'
+            ? Math.abs(rawPayload.exit_price)
+            : undefined;
+
+      const limitPrice = typeof rawPayload.limit_price === 'number'
+        ? Math.abs(rawPayload.limit_price)
+        : typeof rawPayload.price === 'number'
+          ? Math.abs(rawPayload.price)
+          : undefined;
+
+      const side = asString(rawPayload.side ?? rawPayload.position_intent ?? metadata.side);
+
       const events = byDate.get(date) ?? [];
       events.push({
         eventId,
@@ -198,6 +267,10 @@ export async function getJournal(db?: any, tradingDay?: string): Promise<Journal
         marketPrice: typeof rawPayload.underlying_price === 'number' ? rawPayload.underlying_price : undefined,
         positions: Array.isArray(rawPayload.positions) ? rawPayload.positions : undefined,
         openOrders: Array.isArray(rawPayload.open_orders) ? rawPayload.open_orders : undefined,
+        quantity,
+        limitPrice,
+        fillPrice,
+        side,
       });
       byDate.set(date, events);
     }
@@ -243,6 +316,8 @@ export function isExecutedTrade(item: JournalItem) {
     status === 'filled' ||
     status === 'partially_filled' ||
     status === 'executed' ||
+    status === 'broker_closed' ||
+    status === 'closed' ||
     kind === 'fill' ||
     kind === 'execution' ||
     kind.includes('exit') ||
@@ -361,12 +436,37 @@ export function readoutFor(item: JournalItem): PublicReadout {
 export function tradeFor(item: JournalItem): PublicTrade {
   const strikes = [...new Set(item.contracts.map((contract) => contract.strike).filter((strike): strike is number => strike !== undefined))].sort((left, right) => right - left);
   const optionTypes = [...new Set(item.contracts.map((contract) => contract.optionType).filter(Boolean))];
-  const instrument = optionTypes.length === 1 ? `${optionTypes[0][0].toUpperCase()}${optionTypes[0].slice(1)} spread` : 'Options spread';
+  const side = (item.side ?? '').toLowerCase();
+  const isCredit = side.includes('sell') || side === 'sell_to_open';
+  const isDebit = side.includes('buy') || side === 'buy_to_open';
+
+  let spreadType = 'Options spread';
+  if (optionTypes.length === 1) {
+    const optName = optionTypes[0][0].toUpperCase() + optionTypes[0].slice(1);
+    if (isCredit) {
+      spreadType = `${optName} Credit Spread`;
+    } else if (isDebit) {
+      spreadType = `${optName} Debit Spread`;
+    } else {
+      spreadType = `${optName} spread`;
+    }
+  } else if (isCredit) {
+    spreadType = 'Credit Spread';
+  } else if (isDebit) {
+    spreadType = 'Debit Spread';
+  }
+
+  const qtyPrefix = item.quantity ? `${item.quantity}x ` : '';
+  const price = item.fillPrice ?? item.limitPrice;
+  const priceStr = price !== undefined ? ` @ $${price.toFixed(2)}` : '';
+  const strikesStr = strikes.map((s) => `$${s % 1 === 0 ? s : s.toFixed(2)}`).join(' / ');
+
   const description = strikes.length > 1
-    ? `${instrument} · ${strikes.map((strike) => `$${strike.toFixed(0)}`).join(' / ')}`
-    : displayName(item.kind);
+    ? `${qtyPrefix}${spreadType} · ${strikesStr}${priceStr}`
+    : `${qtyPrefix}${displayName(item.kind)}${priceStr}`;
+
   return {
-    action: /exit|close/.test(item.kind) ? 'Exit' : 'Entry',
+    action: /exit|close/.test(item.kind) || /close/.test(item.status) ? 'Exit' : 'Entry',
     ticker: item.ticker ?? '—',
     description,
     context: item.marketPrice !== undefined ? `Underlying near $${item.marketPrice.toFixed(2)}` : 'Price not recorded',

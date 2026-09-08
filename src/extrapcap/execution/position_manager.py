@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import time
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
 
@@ -200,7 +201,30 @@ def manage_live_positions(
         legs = _json(row.get("legs"), [])
         symbols = {str(leg.get("symbol") or "") for leg in legs}
         durable_symbols.update(symbols)
+        row_metadata = _json(row.get("metadata"), {})
         if not symbols & broker_positions.keys():
+            close_order_id = row_metadata.get("close_broker_order_id")
+            close_order = None
+            if close_order_id and hasattr(client, "order"):
+                try:
+                    close_order = client.order(str(close_order_id))
+                except Exception:
+                    pass
+            exit_price = None
+            if close_order and str(close_order.get("status") or "").lower() == "filled":
+                exit_price = abs(float(close_order.get("filled_avg_price") or 0))
+
+            entry_credit = abs(float(row["entry_credit"])) if row.get("entry_credit") is not None else None
+            entry_debit = abs(float(row["entry_debit"])) if row.get("entry_debit") is not None else None
+            qty = int(row.get("quantity") or 1)
+            realized_pnl = None
+            if exit_price is not None:
+                if entry_credit is not None:
+                    realized_pnl = round((entry_credit - exit_price) * qty * 100, 2)
+                elif entry_debit is not None:
+                    realized_pnl = round((exit_price - entry_debit) * qty * 100, 2)
+
+            reason = row_metadata.get("close_reason") or "broker_position_closed"
             records.append(
                 {
                     "kind": "position_management",
@@ -208,7 +232,15 @@ def manage_live_positions(
                     "position_id": row.get("id"),
                     "ticker": row.get("ticker"),
                     "status": "broker_closed",
-                    "reason": "broker_position_closed",
+                    "reason": reason,
+                    "metadata": row_metadata,
+                    "entry_credit": entry_credit,
+                    "entry_debit": entry_debit,
+                    "exit_price": exit_price,
+                    "realized_pnl": realized_pnl,
+                    "quantity": qty,
+                    "legs": legs,
+                    "spread_width": row.get("spread_width"),
                 }
             )
             continue
@@ -259,8 +291,8 @@ def manage_live_positions(
             )
             continue
 
-        entry_debit = row.get("entry_debit")
-        entry_credit = row.get("entry_credit")
+        entry_debit = abs(float(row["entry_debit"])) if row.get("entry_debit") is not None else None
+        entry_credit = abs(float(row["entry_credit"])) if row.get("entry_credit") is not None else None
         bought = next(leg for leg in refreshed_legs if leg.get("side") == "buy")
         sold = next(leg for leg in refreshed_legs if leg.get("side") == "sell")
         current_debit = max(
@@ -272,6 +304,7 @@ def manage_live_positions(
                 2,
             ),
         )
+        entry_price = float(entry_debit if entry_debit is not None else entry_credit)
         original_side = "buy_to_open" if entry_debit is not None else "sell_to_open"
         envelope = OrderEnvelope(
             str(row.get("opened_at"))[:10],
@@ -279,12 +312,12 @@ def manage_live_positions(
             original_side,
             tuple(legs),
             str(row.get("sleeve") or "core"),
-            float(entry_debit if entry_debit is not None else entry_credit),
+            entry_price,
             int(row.get("quantity") or 1),
         )
         managed = ManagedPosition(
             envelope,
-            float(entry_debit if entry_debit is not None else entry_credit),
+            entry_price,
             current_debit,
             float(row["spread_width"]),
             date.fromisoformat(str(row["opened_at"])[:10]),
@@ -318,12 +351,40 @@ def manage_live_positions(
         }
         if decision.action == "close":
             response = client.submit_order(build_close_envelope(managed, decision).alpaca_payload())
+            close_status = "close_submitted"
+            exit_price = None
+            qty = int(row.get("quantity") or 1)
+            realized_pnl = None
+
+            if hasattr(client, "order") and isinstance(response, dict) and response.get("id"):
+                close_order = response
+                for _ in range(6):
+                    time.sleep(0.5)
+                    try:
+                        close_order = client.order(str(response["id"]))
+                        if str(close_order.get("status") or "").lower() == "filled":
+                            break
+                    except Exception:
+                        pass
+                if str(close_order.get("status") or "").lower() == "filled":
+                    close_status = "broker_closed"
+                    exit_price = abs(float(close_order.get("filled_avg_price") or 0))
+                    if entry_credit is not None:
+                        realized_pnl = round((entry_credit - exit_price) * qty * 100, 2)
+                    elif entry_debit is not None:
+                        realized_pnl = round((exit_price - entry_debit) * qty * 100, 2)
+
             record.update(
                 {
-                    "status": "close_submitted",
+                    "status": close_status,
                     "order_id": response["id"],
                     "client_order_id": response.get("client_order_id"),
                     "response": response,
+                    "exit_price": exit_price,
+                    "realized_pnl": realized_pnl,
+                    "quantity": qty,
+                    "entry_credit": entry_credit,
+                    "entry_debit": entry_debit,
                     "metadata": {
                         **metadata,
                         "close_reason": decision.reason,

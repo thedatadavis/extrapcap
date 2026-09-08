@@ -451,6 +451,7 @@ class PaperRunCoordinator:
             "quantity": candidate.envelope.quantity,
             "limit_price": candidate.envelope.limit_price,
             "legs": list(candidate.envelope.legs),
+            "model_probability": candidate.model_probability,
             "strategy_variant": str(
                 candidate.selection_context.get("strategy_route") or candidate.envelope.sleeve
             ),

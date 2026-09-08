@@ -100,9 +100,8 @@ function parseLeg(raw: any, rowExpiration: string, index: number): OptionLeg {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(expiration)) throw new Error(`positions: leg ${symbol} has invalid expiration`);
   const side = String(raw.side ?? '').toLowerCase();
   if (side !== 'buy' && side !== 'sell') throw new Error(`positions: leg ${symbol} must declare buy or sell`);
-  const entryPrice = numeric(raw.entryPrice ?? raw.entry_price, `leg ${symbol} entry price`);
-  const currentPrice = numeric(raw.currentPrice ?? raw.current_price ?? raw.mark ?? raw.midpoint, `leg ${symbol} current mark`);
-  if (entryPrice < 0 || currentPrice < 0) throw new Error(`positions: leg ${symbol} prices cannot be negative`);
+  const entryPrice = Math.abs(numeric(raw.entryPrice ?? raw.entry_price, `leg ${symbol} entry price`));
+  const currentPrice = Math.abs(numeric(raw.currentPrice ?? raw.current_price ?? raw.mark ?? raw.midpoint, `leg ${symbol} current mark`));
   return {
     contractId: String(raw.contractId ?? raw.contract_id ?? symbol),
     symbol,

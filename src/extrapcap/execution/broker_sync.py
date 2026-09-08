@@ -39,6 +39,7 @@ def _entry_position(
         parsed = parse_occ_option_symbol(symbol)
         fill = filled_legs.get(symbol, {})
         broker_position = broker_positions[symbol]
+        leg_entry = float(fill.get("filled_avg_price") or broker_position.get("avg_entry_price") or 0)
         legs.append(
             {
                 **configured,
@@ -46,7 +47,7 @@ def _entry_position(
                 "strike": parsed.strike,
                 "expiration": parsed.expiration.isoformat(),
                 "qty": int(float(configured.get("ratio_qty") or 1)),
-                "entry_price": float(fill.get("filled_avg_price") or 0),
+                "entry_price": abs(leg_entry),
                 "current_price": float(broker_position.get("current_price") or 0),
             }
         )
@@ -58,7 +59,7 @@ def _entry_position(
             f"filled order {order.get('client_order_id')} does not contain a vertical spread"
         )
     metadata = _json(order.get("metadata"), {})
-    entry_price = float(broker_order.get("filled_avg_price") or order.get("limit_price") or 0)
+    entry_price = abs(float(broker_order.get("filled_avg_price") or order.get("limit_price") or 0))
     side = str(order.get("side") or "")
     return {
         "ticker": str(order["ticker"]).upper(),
