@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 
 from ..config import RiskConfig
 from ..execution.orders import OrderEnvelope
@@ -33,15 +33,27 @@ class ManagedPosition:
         return (self.entry_price - self.current_debit) / capital
 
     @property
+    def return_on_credit(self) -> float:
+        if self.entry_price <= 0:
+            return 0.0
+        return (self.entry_price - self.current_debit) / self.entry_price
+
+    @property
     def max_loss(self) -> float:
         return max(0.01, self.spread_width - self.entry_price)
 
     @property
     def days_held(self) -> int:
-        return max(0, (self.as_of - self.opened_at).days)
+        cur = self.opened_at
+        count = 0
+        while cur < self.as_of:
+            cur += timedelta(days=1)
+            if cur.weekday() < 5:
+                count += 1
+        return count
 
 
-def _hard_horizon(position: ManagedPosition, cfg: RiskConfig) -> ExitDecision | None:
+def _expiration_horizon(position: ManagedPosition, cfg: RiskConfig) -> ExitDecision | None:
     if position.expiration is not None:
         dte = (position.expiration - position.as_of).days
         if dte < 0:
@@ -50,8 +62,6 @@ def _hard_horizon(position: ManagedPosition, cfg: RiskConfig) -> ExitDecision | 
             return ExitDecision("close", f"forced_exit_dte_{dte}")
         if dte == 0 and position.opened_at == position.as_of:
             return ExitDecision("close", "zero_dte_session_exit")
-    if position.days_held >= cfg.max_holding_sessions:
-        return ExitDecision("close", f"max_holding_sessions_{cfg.max_holding_sessions}")
     return None
 
 
@@ -59,21 +69,28 @@ def evaluate_credit_exit(
     position: ManagedPosition, config: RiskConfig | None = None
 ) -> ExitDecision:
     cfg = config or RiskConfig()
-    hard = _hard_horizon(position, cfg)
-    if hard:
-        return hard
+    expiration_exit = _expiration_horizon(position, cfg)
+    if expiration_exit:
+        return expiration_exit
+
+    profit_pct = max(position.return_on_credit, position.return_on_capital)
     if (
-        position.return_on_capital >= cfg.early_profit_target_pct
+        profit_pct >= cfg.early_profit_target_pct
         and position.days_held <= cfg.early_profit_target_days
     ):
         return ExitDecision("close", "early_profit_target")
-    if position.return_on_capital >= cfg.core_profit_target_pct:
+    if profit_pct >= cfg.core_profit_target_pct:
         return ExitDecision("close", "profit_target")
-    if (
-        position.current_debit - position.entry_price
-        >= position.max_loss * cfg.core_stop_loss_multiple
-    ):
+
+    loss = position.current_debit - position.entry_price
+    credit_stop = position.entry_price * cfg.core_stop_loss_multiple
+    max_loss_stop = position.max_loss * 0.85
+    if loss >= min(credit_stop, max_loss_stop):
         return ExitDecision("close", "stop_loss")
+
+    if position.days_held >= cfg.max_holding_sessions:
+        return ExitDecision("close", f"max_holding_sessions_{cfg.max_holding_sessions}")
+
     return ExitDecision("hold", "risk_rules_satisfied")
 
 
@@ -103,13 +120,18 @@ def evaluate_debit_exit(
         as_of,
         expiration,
     )
-    hard = _hard_horizon(position, cfg)
-    if hard:
-        return hard
+    expiration_exit = _expiration_horizon(position, cfg)
+    if expiration_exit:
+        return expiration_exit
+
     if current_debit >= spread.debit * (1 + cfg.core_profit_target_pct):
         return ExitDecision("close", "debit_profit_target")
     if current_debit <= spread.debit * (1 - min(cfg.core_stop_loss_multiple, 1.0)):
         return ExitDecision("close", "debit_stop_loss")
+
+    if position.days_held >= cfg.max_holding_sessions:
+        return ExitDecision("close", f"max_holding_sessions_{cfg.max_holding_sessions}")
+
     return ExitDecision("hold", "risk_rules_satisfied")
 
 

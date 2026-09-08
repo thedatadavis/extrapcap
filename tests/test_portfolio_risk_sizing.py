@@ -200,3 +200,50 @@ def test_alpaca_options_data_retries_on_429(monkeypatch):
     result = provider.contracts("AAPL", "2026-08-12")
     assert len(calls) == 2
     assert result == {"option_contracts": []}
+
+
+def test_credit_exit_profit_target():
+    from extrapcap.execution.orders import OrderEnvelope
+    from extrapcap.execution.position_manager import ManagedPosition, evaluate_credit_exit
+
+    env = OrderEnvelope("2026-08-12", "ABC", "sell_to_open", (), "core", 1.0)
+    # Entry credit $1.00 on $5.00 wide spread. Spread now trades at $0.50 (captured 50% of credit).
+    pos = ManagedPosition(env, entry_price=1.0, current_debit=0.50, spread_width=5.0, opened_at=date(2026, 8, 10), as_of=date(2026, 8, 13), expiration=date(2026, 8, 28))
+    decision = evaluate_credit_exit(pos, RiskConfig())
+    assert decision.action == "close"
+    assert decision.reason == "profit_target"
+
+
+def test_credit_exit_early_profit_target():
+    from extrapcap.execution.orders import OrderEnvelope
+    from extrapcap.execution.position_manager import ManagedPosition, evaluate_credit_exit
+
+    env = OrderEnvelope("2026-08-12", "ABC", "sell_to_open", (), "core", 1.0)
+    # Entry credit $1.00. Current debit $0.65 (captured 35% of credit). Held 1 trading session.
+    pos = ManagedPosition(env, entry_price=1.0, current_debit=0.65, spread_width=5.0, opened_at=date(2026, 8, 12), as_of=date(2026, 8, 13), expiration=date(2026, 8, 28))
+    decision = evaluate_credit_exit(pos, RiskConfig())
+    assert decision.action == "close"
+    assert decision.reason == "early_profit_target"
+
+
+def test_credit_exit_stop_loss():
+    from extrapcap.execution.orders import OrderEnvelope
+    from extrapcap.execution.position_manager import ManagedPosition, evaluate_credit_exit
+
+    env = OrderEnvelope("2026-08-12", "ABC", "sell_to_open", (), "core", 1.0)
+    # Entry credit $1.00. Current debit $3.00 (loss of $2.00 = 2x credit).
+    pos = ManagedPosition(env, entry_price=1.0, current_debit=3.0, spread_width=5.0, opened_at=date(2026, 8, 12), as_of=date(2026, 8, 13), expiration=date(2026, 8, 28))
+    decision = evaluate_credit_exit(pos, RiskConfig())
+    assert decision.action == "close"
+    assert decision.reason == "stop_loss"
+
+
+def test_days_held_counts_trading_sessions_not_weekends():
+    from extrapcap.execution.orders import OrderEnvelope
+    from extrapcap.execution.position_manager import ManagedPosition
+
+    env = OrderEnvelope("2026-08-07", "ABC", "sell_to_open", (), "core", 1.0)
+    # Opened Friday 2026-08-07, evaluated Monday 2026-08-10.
+    # Calendar days = 3, but trading sessions = 1!
+    pos = ManagedPosition(env, entry_price=1.0, current_debit=0.90, spread_width=5.0, opened_at=date(2026, 8, 7), as_of=date(2026, 8, 10), expiration=date(2026, 8, 28))
+    assert pos.days_held == 1

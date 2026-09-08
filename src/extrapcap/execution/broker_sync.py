@@ -104,11 +104,7 @@ def synchronize_broker_state(
             active_entry_ids.add(metadata["entry_client_order_id"])
         legs = _json(position.get("legs"), [])
         symbols = {str(leg.get("symbol") or "") for leg in legs}
-        if (
-            symbols
-            and not symbols.intersection(broker_positions)
-            and metadata.get("close_broker_order_id")
-        ):
+        if symbols and not symbols.intersection(broker_positions):
             store.close_position(
                 int(position["id"]),
                 str(metadata.get("close_reason") or "broker_position_closed"),
