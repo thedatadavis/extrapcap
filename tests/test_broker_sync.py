@@ -173,3 +173,53 @@ def test_position_manager_submits_deterministic_forced_exit():
     assert record["reason"] == "forced_exit_dte_2"
     assert record["metadata"]["close_broker_order_id"] == "close-1"
     assert client.submitted[0]["order_class"] == "mleg"
+
+
+def test_manage_live_positions_detects_broker_closed_with_pnl():
+    class ClosedClient:
+        def positions(self):
+            return []
+
+        def open_orders(self):
+            return []
+
+        def order(self, order_id):
+            if order_id == "close-99":
+                return {
+                    "id": "close-99",
+                    "status": "filled",
+                    "filled_avg_price": "0.30",
+                    "filled_qty": "1",
+                }
+            return None
+
+    pos = {
+        "id": 12,
+        "ticker": "XYZ",
+        "long_symbol": LONG,
+        "short_symbol": SHORT,
+        "long_strike": 50,
+        "short_strike": 55,
+        "spread_width": 5,
+        "entry_credit": 1.20,
+        "entry_debit": None,
+        "opened_at": "2026-08-01",
+        "expiration": "2026-08-20",
+        "sleeve": "core",
+        "quantity": 2,
+        "legs": _configured_legs(),
+        "metadata": {
+            "close_broker_order_id": "close-99",
+            "close_reason": "profit_target",
+        },
+    }
+    records = manage_live_positions(ClosedClient(), None, positions=[pos], as_of=date(2026, 8, 12))
+    assert len(records) == 1
+    record = records[0]
+    assert record["status"] == "broker_closed"
+    assert record["reason"] == "profit_target"
+    assert record["exit_price"] == 0.30
+    # Realized P&L: (1.20 - 0.30) * 2 * 100 = $180.00
+    assert record["realized_pnl"] == 180.00
+    assert record["position_id"] == 12
+

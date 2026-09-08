@@ -100,6 +100,14 @@ def candidate_review():
         cf.append_events(events, run_id=run_id)
         errors = [event for event in events if event.get("status") == "error"]
         submitted = [event for event in events if event.get("category") == "orders"]
+        sync_result = {}
+        if submitted:
+            from extrapcap.execution.broker_sync import synchronize_broker_state
+
+            try:
+                sync_result = synchronize_broker_state(paper_client, cf, run_id=run_id)
+            except Exception as e:
+                print(f"Warning: broker sync in candidate_review failed: {e}")
         deferred = sum(int(event.get("deferred") or 0) for event in events)
         evaluated = len(
             [event for event in events if event.get("kind") != "basket_selection_summary"]
@@ -112,6 +120,7 @@ def candidate_review():
                 "errors": len(errors),
                 "deferred": deferred,
                 "unresolved_assets": unresolved_assets,
+                **sync_result,
             },
             start_time=start_time,
         )
@@ -127,6 +136,7 @@ def candidate_review():
             "errors": len(errors),
             "deferred": deferred,
             "unresolved_assets": unresolved_assets,
+            "sync": sync_result,
         }
     except Exception as exc:
         cf.fail_run(run_id, error=str(exc), start_time=start_time)

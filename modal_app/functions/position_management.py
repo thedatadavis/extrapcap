@@ -69,7 +69,7 @@ def position_management():
                 pos_id = record.get("position_id")
                 reason = record.get("reason", "Exit rule triggered")
                 if pos_id:
-                    cf.close_position(pos_id, reason)
+                    cf.close_position(pos_id, reason, run_id=run_id)
                 closed_count += 1
                 exit_events.append(record)
 

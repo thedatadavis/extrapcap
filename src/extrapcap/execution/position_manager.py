@@ -66,11 +66,41 @@ def _expiration_horizon(position: ManagedPosition, cfg: RiskConfig) -> ExitDecis
     return None
 
 
+def _credit_expiration_horizon(position: ManagedPosition, cfg: RiskConfig) -> ExitDecision | None:
+    """Evaluate expiration risk for credit spreads.
+
+    If decay is in our favor (position is comfortably OTM and profitable),
+    skip early forced liquidation and let the spread expire worthless (100% gain).
+    Only force exit near expiration (0-1 DTE) if the short strike is threatened.
+    """
+    if position.expiration is not None:
+        dte = (position.expiration - position.as_of).days
+        if dte < 0:
+            return ExitDecision("close", "expired_position")
+        if dte == 0 and position.opened_at == position.as_of:
+            return ExitDecision("close", "zero_dte_session_exit")
+        # 0 or 1 DTE: if threatened (underwater or <50% credit captured), close to prevent assignment/pin risk
+        if dte <= 1:
+            if position.return_on_credit < 0.50:
+                reason = "threatened_zero_dte" if dte == 0 else "threatened_expiration_risk"
+                return ExitDecision("close", reason)
+            # Comfortably OTM: let it run to expiration to capture full 100% credit without closing friction
+            return None
+        # 2 to forced_exit_dte (e.g. 3 DTE):
+        if dte <= cfg.forced_exit_dte:
+            # If decay is NOT in our favor (<25% credit captured or underwater), exit to avoid gamma
+            if position.return_on_credit < 0.25:
+                return ExitDecision("close", f"forced_exit_dte_{dte}")
+            # If decay IS in our favor, let it run
+            return None
+    return None
+
+
 def evaluate_credit_exit(
     position: ManagedPosition, config: RiskConfig | None = None
 ) -> ExitDecision:
     cfg = config or RiskConfig()
-    expiration_exit = _expiration_horizon(position, cfg)
+    expiration_exit = _credit_expiration_horizon(position, cfg)
     if expiration_exit:
         return expiration_exit
 
@@ -89,9 +119,7 @@ def evaluate_credit_exit(
     if loss >= min(credit_stop, max_loss_stop):
         return ExitDecision("close", "stop_loss")
 
-    if position.days_held >= cfg.max_holding_sessions:
-        return ExitDecision("close", f"max_holding_sessions_{cfg.max_holding_sessions}")
-
+    # Credit spreads hold for theta decay; max_holding_sessions does not truncate winning credit spreads.
     return ExitDecision("hold", "risk_rules_satisfied")
 
 

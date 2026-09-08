@@ -207,8 +207,8 @@ def test_credit_exit_profit_target():
     from extrapcap.execution.position_manager import ManagedPosition, evaluate_credit_exit
 
     env = OrderEnvelope("2026-08-12", "ABC", "sell_to_open", (), "core", 1.0)
-    # Entry credit $1.00 on $5.00 wide spread. Spread now trades at $0.50 (captured 50% of credit).
-    pos = ManagedPosition(env, entry_price=1.0, current_debit=0.50, spread_width=5.0, opened_at=date(2026, 8, 10), as_of=date(2026, 8, 13), expiration=date(2026, 8, 28))
+    # Entry credit $1.00 on $5.00 wide spread. Spread now trades at $0.20 (captured 80% of credit).
+    pos = ManagedPosition(env, entry_price=1.0, current_debit=0.20, spread_width=5.0, opened_at=date(2026, 8, 10), as_of=date(2026, 8, 13), expiration=date(2026, 8, 28))
     decision = evaluate_credit_exit(pos, RiskConfig())
     assert decision.action == "close"
     assert decision.reason == "profit_target"
@@ -247,3 +247,57 @@ def test_days_held_counts_trading_sessions_not_weekends():
     # Calendar days = 3, but trading sessions = 1!
     pos = ManagedPosition(env, entry_price=1.0, current_debit=0.90, spread_width=5.0, opened_at=date(2026, 8, 7), as_of=date(2026, 8, 10), expiration=date(2026, 8, 28))
     assert pos.days_held == 1
+
+
+def test_credit_spread_holds_past_three_sessions_for_theta():
+    from extrapcap.execution.orders import OrderEnvelope
+    from extrapcap.execution.position_manager import ManagedPosition, evaluate_credit_exit
+
+    env = OrderEnvelope("2026-08-03", "ABC", "sell_to_open", (), "core", 1.0)
+    # Held 5 sessions (Aug 3 to Aug 10). Credit is 50% captured (current debit $0.50). 14 DTE remaining.
+    # Should HOLD for theta decay, NOT get killed by max_holding_sessions_3!
+    pos = ManagedPosition(env, entry_price=1.0, current_debit=0.50, spread_width=5.0, opened_at=date(2026, 8, 3), as_of=date(2026, 8, 10), expiration=date(2026, 8, 24))
+    assert pos.days_held == 5
+    decision = evaluate_credit_exit(pos, RiskConfig())
+    assert decision.action == "hold"
+    assert decision.reason == "risk_rules_satisfied"
+
+
+def test_credit_spread_otm_expiration_runner():
+    from extrapcap.execution.orders import OrderEnvelope
+    from extrapcap.execution.position_manager import ManagedPosition, evaluate_credit_exit
+
+    env = OrderEnvelope("2026-08-03", "ABC", "sell_to_open", (), "core", 1.0)
+    # 2 DTE remaining (exp Aug 12, as_of Aug 10). Current debit $0.30 (70% profit, comfortably OTM).
+    # OTM expiration runner lets it run to expiration to capture 100% credit!
+    pos = ManagedPosition(env, entry_price=1.0, current_debit=0.30, spread_width=5.0, opened_at=date(2026, 8, 3), as_of=date(2026, 8, 10), expiration=date(2026, 8, 12))
+    decision = evaluate_credit_exit(pos, RiskConfig())
+    assert decision.action == "hold"
+
+    # If at 2 DTE the spread is struggling (debit $0.90, only 10% credit captured):
+    # Forced exit triggers to prevent gamma risk!
+    pos_threatened = ManagedPosition(env, entry_price=1.0, current_debit=0.90, spread_width=5.0, opened_at=date(2026, 8, 3), as_of=date(2026, 8, 10), expiration=date(2026, 8, 12))
+    decision_threatened = evaluate_credit_exit(pos_threatened, RiskConfig())
+    assert decision_threatened.action == "close"
+    assert decision_threatened.reason == "forced_exit_dte_2"
+
+
+def test_credit_spread_threatened_one_dte_exit():
+    from extrapcap.execution.orders import OrderEnvelope
+    from extrapcap.execution.position_manager import ManagedPosition, evaluate_credit_exit
+
+    env = OrderEnvelope("2026-08-03", "ABC", "sell_to_open", (), "core", 1.0)
+    # 1 DTE remaining (exp Aug 11, as_of Aug 10).
+    # If threatened (debit $0.80, <50% profit): force close to prevent assignment/pin risk!
+    pos_threatened = ManagedPosition(env, entry_price=1.0, current_debit=0.80, spread_width=5.0, opened_at=date(2026, 8, 3), as_of=date(2026, 8, 10), expiration=date(2026, 8, 11))
+    decision = evaluate_credit_exit(pos_threatened, RiskConfig())
+    assert decision.action == "close"
+    assert decision.reason == "threatened_expiration_risk"
+
+    # If comfortably OTM at 1 DTE (debit $0.10, 90% profit captured):
+    # Note: 90% >= 80% core_profit_target_pct will trigger profit_target if not already closed.
+    # At 75% profit (debit $0.25): comfortably OTM (>50%) and below 80% profit target -> holds to expire!
+    pos_otm = ManagedPosition(env, entry_price=1.0, current_debit=0.25, spread_width=5.0, opened_at=date(2026, 8, 3), as_of=date(2026, 8, 10), expiration=date(2026, 8, 11))
+    decision_otm = evaluate_credit_exit(pos_otm, RiskConfig())
+    assert decision_otm.action == "hold"
+

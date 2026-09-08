@@ -25,7 +25,27 @@ def daily_report():
     try:
         today_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
         basket = cf.get_basket(as_of=today_str) or cf.get_basket()
-        report = {"summary": f"{len(basket)} current opportunities evaluated", "evaluated_count": len(basket), "submitted_count": 0, "filled_count": 0}
+        today_orders = [
+            order
+            for order in cf.get_orders()
+            if str(order.get("created_at") or order.get("submitted_at") or "")[:10] == today_str
+        ]
+        submitted_count = len(today_orders)
+        filled_count = len(
+            [o for o in today_orders if str(o.get("status") or "").lower() == "filled"]
+        )
+        passed_prob_count = len(
+            [b for b in basket if float(b.get("reversion_probability") or 0) >= 0.50]
+        )
+
+        report = {
+            "summary": f"{len(basket)} current opportunities evaluated, {submitted_count} orders submitted ({filled_count} filled)",
+            "evaluated_count": len(basket),
+            "passed_gate_count": len(basket),
+            "passed_prob_count": passed_prob_count,
+            "submitted_count": submitted_count,
+            "filled_count": filled_count,
+        }
 
         event = {
             "journal": {
@@ -41,7 +61,16 @@ def daily_report():
         }
 
         cf.append_events([event])
-        cf.complete_run(run_id, summary={"report_date": today_str}, start_time=start_time)
+        cf.complete_run(
+            run_id,
+            summary={
+                "report_date": today_str,
+                "evaluated": len(basket),
+                "submitted": submitted_count,
+                "filled": filled_count,
+            },
+            start_time=start_time,
+        )
 
         # Send daily executive report email
         summary_info = {
@@ -50,7 +79,8 @@ def daily_report():
             "passed_prob": report.get("passed_prob_count", 0),
             "submitted": report.get("submitted_count", 0),
             "filled": report.get("filled_count", 0),
-            "wsj_summary": report.get("portfolio_note", {}).get("wsj_summary") or report.get("summary", "No market commentary recorded."),
+            "wsj_summary": report.get("portfolio_note", {}).get("wsj_summary")
+            or report.get("summary", "No market commentary recorded."),
         }
 
         send_resend_email(

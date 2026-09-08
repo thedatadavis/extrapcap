@@ -66,7 +66,7 @@ def test_format_position_exits_text_profit_target():
     assert "EXTRAPOLATION CAPITAL · POSITION EXITS TRIGGERED" in text
     assert "Positions Closed: 1" in text
     assert "• UPS · 25 contract(s)" in text
-    assert "Exit Trigger:  Profit Target Hit (50% max gain captured)" in text
+    assert "Exit Trigger:  Profit Target Hit (80% max gain captured)" in text
     assert "Spread:        Short $102 / Long $98 (Exp: 2026-09-25)" in text
     assert "Entry Credit:  $1.48 / share ($3,700.00 collected)" in text
     assert "Exit Debit:    $0.70 / share ($1,750.00 to close)" in text

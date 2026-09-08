@@ -116,14 +116,34 @@ def _parse_occ_symbol(symbol: str) -> dict | None:
 
 
 _REASON_MAP = {
-    "credit_profit_target": "Profit Target Hit (50% max gain captured)",
+    "profit_target": "Profit Target Hit (80% max gain captured)",
+    "early_profit_target": "Early Profit Target Hit (35% gain in <=2 days)",
+    "stop_loss": "Stop Loss Triggered (2x credit limit reached)",
+    "threatened_expiration_risk": "Near-Expiration Risk Exit (1 DTE threatened short strike)",
+    "threatened_zero_dte": "0 DTE Expiration Risk Exit (pin risk protection)",
+    "expired_position": "Position Expired",
+    "zero_dte_session_exit": "0 DTE Session Close",
+    "credit_profit_target": "Profit Target Hit (80% max gain captured)",
     "credit_stop_loss": "Stop Loss Triggered (2x credit limit reached)",
     "max_dte_reached": "Max DTE / Target Holding Period Reached",
+    "debit_profit_target": "Debit Take Profit Target Hit",
+    "debit_stop_loss": "Debit Stop Loss Triggered",
     "debit_take_profit": "Take Profit Target Hit",
-    "debit_stop_loss": "Stop Loss Triggered",
     "debit_time_decay": "Time Decay Threshold Reached",
-    "broker_position_closed": "Position Closed by Broker",
+    "broker_position_closed": "Position Closed at Broker",
 }
+
+
+def _friendly_exit_reason(raw_reason: str) -> str:
+    if raw_reason in _REASON_MAP:
+        return _REASON_MAP[raw_reason]
+    if raw_reason.startswith("forced_exit_dte_"):
+        dte = raw_reason.removeprefix("forced_exit_dte_")
+        return f"Forced Expiration Exit ({dte} DTE remaining)"
+    if raw_reason.startswith("max_holding_sessions_"):
+        sessions = raw_reason.removeprefix("max_holding_sessions_")
+        return f"Max Holding Period Reached ({sessions} sessions)"
+    return raw_reason.replace("_", " ").title()
 
 
 def format_candidate_orders_text(as_of: str, orders: list) -> str:
@@ -217,7 +237,7 @@ def format_position_exits_text(as_of: str, exits: list) -> str:
             or exit_evt.get("journal", {}).get("reason")
             or "Exit rule triggered"
         )
-        friendly_reason = _REASON_MAP.get(raw_reason, raw_reason)
+        friendly_reason = _friendly_exit_reason(raw_reason)
         qty = int(exit_evt.get("quantity") or 1)
 
         lines.append(f"• {ticker} · {qty} contract(s)")

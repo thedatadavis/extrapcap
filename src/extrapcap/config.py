@@ -18,7 +18,7 @@ class RiskConfig(BaseModel):
     asymmetric_time_stop_days: int = Field(10, gt=0)
     asymmetric_max_decay_pct: float = Field(0.50, gt=0, le=1)
     pause_asymmetric_core_drawdown_pct: float = Field(0.05, gt=0, le=1)
-    core_profit_target_pct: float = Field(0.50, gt=0, lt=1)
+    core_profit_target_pct: float = Field(0.80, gt=0, lt=1)
     early_profit_target_pct: float = Field(0.35, gt=0, lt=1)
     early_profit_target_days: int = Field(2, gt=0)
     core_stop_loss_multiple: float = Field(2.0, ge=1)
