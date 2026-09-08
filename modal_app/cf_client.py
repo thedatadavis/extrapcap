@@ -115,7 +115,11 @@ class CloudflareAPIClient:
                         metadata = {}
                 if metadata.get("entry_client_order_id") == client_order_id:
                     return int(existing["id"])
-        payload = {"run_id": run_id, **position} if run_id else position
+        payload = {"run_id": run_id, **position} if run_id else dict(position)
+        meta = payload.get("metadata")
+        if isinstance(meta, dict) and "phase" not in meta:
+            meta["phase"] = os.getenv("TRADING_PHASE", os.getenv("EXTRAPCAP_PHASE", "testing")).lower()
+            payload["metadata"] = meta
         response = self._require_success(
             self.client.post("/api/positions", json=payload), "position create"
         )
@@ -148,6 +152,12 @@ class CloudflareAPIClient:
         self._require_success(response, "position close")
 
     def record_order(self, order: dict, run_id: str | None = None):
+        meta = order.get("metadata") or {
+            "selection_context": order.get("selection_context") or {},
+            "market_data": order.get("market_data") or {},
+        }
+        if isinstance(meta, dict) and "phase" not in meta:
+            meta["phase"] = os.getenv("TRADING_PHASE", os.getenv("EXTRAPCAP_PHASE", "testing")).lower()
         payload = {
             "client_order_id": order["client_order_id"],
             "run_id": run_id,
@@ -160,11 +170,7 @@ class CloudflareAPIClient:
             "limit_price": order.get("limit_price"),
             "quantity": order.get("quantity") or 1,
             "legs": order.get("legs") or [],
-            "metadata": order.get("metadata")
-            or {
-                "selection_context": order.get("selection_context") or {},
-                "market_data": order.get("market_data") or {},
-            },
+            "metadata": meta,
             "execution_status": order.get("status") or order.get("execution_status") or "submitted",
             "submitted_at": (order.get("response") or {}).get("submitted_at")
             or order.get("submitted_at"),

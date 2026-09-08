@@ -1,0 +1,829 @@
+---
+import Shell from '../layouts/Shell.astro';
+import { getScoreboardData } from '../data/scoreboard';
+import { formatDate } from '../data/journal';
+
+if (Astro.response) {
+  Astro.response.headers.set('Cache-Control', 'public, max-age=0, must-revalidate');
+  Astro.response.headers.set('CDN-Cache-Control', 'no-cache');
+}
+
+const db = (Astro.locals as any).runtime?.env?.DB;
+const url = new URL(Astro.request.url);
+const selectedPhase = url.searchParams.get('phase') || undefined;
+
+let scoreboardData = await getScoreboardData(db, selectedPhase);
+const { summary, streakMetrics, directionMetrics, trades, availablePhases, activePhase } = scoreboardData;
+
+let latestRunTime: string | null = null;
+if (db) {
+  try {
+    const run = await db
+      .prepare("SELECT * FROM runs WHERE workflow = 'position_management' ORDER BY started_at DESC LIMIT 1")
+      .first();
+    if (run?.finished_at || run?.started_at) latestRunTime = run.finished_at || run.started_at;
+  } catch (err) {
+    console.error('Error fetching latest run time for scoreboard:', err);
+  }
+}
+
+const formattedAsOf = latestRunTime
+  ? new Date(latestRunTime).toLocaleString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+      timeZoneName: 'short',
+    })
+  : 'Latest sync';
+
+function fmtCurrency(val: number | null | undefined, includeSign = false): string {
+  if (val == null || !Number.isFinite(val)) return '—';
+  const prefix = includeSign && val > 0 ? '+' : '';
+  return `${prefix}$${Math.abs(val).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+function fmtPct(val: number | null | undefined, includeSign = false): string {
+  if (val == null || !Number.isFinite(val)) return '—';
+  const prefix = includeSign && val > 0 ? '+' : '';
+  return `${prefix}${val.toFixed(1)}%`;
+}
+---
+
+<Shell>
+  <header class="topbar">
+    <div class="topbar-left">
+      <a class="back-link" href="/">← Overview</a>
+      <span class="sep">/</span>
+      <span>Strategy Scoreboard</span>
+    </div>
+    <div class="topbar-right">
+      <a href="/positions/active" style="margin-right: 1.25rem;">Active Positions ↗</a>
+      <a href="https://github.com/thedatadavis/extrapcap" aria-label="View source on GitHub">Source ↗</a>
+    </div>
+  </header>
+
+  <section class="scoreboard-header">
+    <div class="scoreboard-intro">
+      <div class="kicker">Strategy Performance & Hypotheses</div>
+      <h1>Scoreboard</h1>
+      <p class="hero-copy">
+        Realized options performance tracking, win rate, capital preservation, and empirical streak mean-reversion efficacy.
+      </p>
+    </div>
+    <div class="header-summary-badge">
+      <span class="badge-label">As of {formattedAsOf}</span>
+      <div class="badge-stats">
+        <strong class="badge-count">{summary.totalTrades} Closed Trades</strong>
+        <span class="badge-winrate">{summary.winRatePct.toFixed(1)}% Win Rate</span>
+      </div>
+      {availablePhases.length > 1 && (
+        <div class="phase-selector">
+          <a href="/scoreboard" class:list={['phase-chip', { active: activePhase === 'all' }]}>All</a>
+          {availablePhases.map((p) => (
+            <a href={`/scoreboard?phase=${p}`} class:list={['phase-chip', { active: activePhase === p }]}>
+              {p[0].toUpperCase() + p.slice(1)}
+            </a>
+          ))}
+        </div>
+      )}
+    </div>
+  </section>
+
+  <!-- SECTION 1: TOP PERFORMANCE SCORECARD (KPIs) -->
+  <section class="scorecard-section">
+    <div class="section-heading">
+      <div>
+        <h2>Portfolio Scorecard</h2>
+        <p>Realized capital returns across closed credit spread positions</p>
+      </div>
+      <div class="data-note">Closed Trades Only · Cash-Settled</div>
+    </div>
+
+    <div class="kpi-grid">
+      <!-- Card 1: Win Rate -->
+      <div class="kpi-card">
+        <div class="kpi-label">Win Rate</div>
+        <div class="kpi-value">{fmtPct(summary.winRatePct)}</div>
+        <div class="kpi-sub">
+          <span class="win-tag">{summary.wins} Wins</span> · <span class="loss-tag">{summary.losses} Losses</span>
+          {summary.pushes > 0 ? ` · ${summary.pushes} Pushes` : ''}
+        </div>
+      </div>
+
+      <!-- Card 2: Net Realized P&L -->
+      <div class="kpi-card">
+        <div class="kpi-label">Net Realized P&L</div>
+        <div class:list={['kpi-value', summary.netPnl >= 0 ? 'pos' : 'neg']}>
+          {summary.netPnl >= 0 ? '+' : '-'}${Math.abs(summary.netPnl).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+        </div>
+        <div class="kpi-sub">
+          Gross Wins: {fmtCurrency(summary.grossProfit)} · Losses: {fmtCurrency(summary.grossLoss)}
+        </div>
+      </div>
+
+      <!-- Card 3: Profit Factor -->
+      <div class="kpi-card">
+        <div class="kpi-label">Profit Factor</div>
+        <div class="kpi-value">{summary.profitFactor !== null ? summary.profitFactor.toFixed(2) : '—'}</div>
+        <div class="kpi-sub">Ratio of gross gains to gross losses</div>
+      </div>
+
+      <!-- Card 4: Average Trade Return -->
+      <div class="kpi-card">
+        <div class="kpi-label">Avg Return / Trade</div>
+        <div class:list={['kpi-value', summary.avgReturnPct >= 0 ? 'pos' : 'neg']}>
+          {fmtPct(summary.avgReturnPct, true)}
+        </div>
+        <div class="kpi-sub">
+          Avg Win: {fmtCurrency(summary.avgWin)} · Avg Loss: {fmtCurrency(summary.avgLoss)}
+        </div>
+      </div>
+
+      <!-- Card 5: Capital Preserved -->
+      <div class="kpi-card">
+        <div class="kpi-label">Capital Preserved</div>
+        <div class="kpi-value pos">{fmtCurrency(summary.totalCapitalPreserved)}</div>
+        <div class="kpi-sub">Saved via feasibility & stop discipline</div>
+      </div>
+
+      <!-- Card 6: Average Holding Time -->
+      <div class="kpi-card">
+        <div class="kpi-label">Avg Holding Period</div>
+        <div class="kpi-value">{summary.avgHoldingDays} <span class="unit">days</span></div>
+        <div class="kpi-sub">Target window: 1–4 trading sessions</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SECTION 2: STREAK & MEAN-REVERSION HYPOTHESIS VALIDATION -->
+  <section class="hypothesis-section">
+    <div class="section-heading">
+      <div>
+        <h2>Streak & Mean-Reversion Efficacy</h2>
+        <p>Empirical performance broken down by streak length and market direction</p>
+      </div>
+      <div class="data-note">Hypothesis Testing Telemetry</div>
+    </div>
+
+    <div class="analytics-grid">
+      <!-- Streak Length Breakdown -->
+      <div class="analytics-card">
+        <div class="analytics-card-header">
+          <h3>Efficacy by Streak Length</h3>
+          <span class="metric-note">Consecutive Trend Sessions</span>
+        </div>
+        <p class="analytics-copy">
+          Evaluates whether longer underlying streaks correlate with higher probability of successful mean reversion.
+        </p>
+
+        {streakMetrics.length === 0 ? (
+          <div class="empty-mini">No streak telemetry recorded yet</div>
+        ) : (
+          <div class="streak-table-wrap">
+            <table class="analytics-table">
+              <thead>
+                <tr>
+                  <th>Streak Length</th>
+                  <th>Trades</th>
+                  <th>Win Rate</th>
+                  <th>Realized P&L</th>
+                </tr>
+              </thead>
+              <tbody>
+                {streakMetrics.map((sm) => (
+                  <tr>
+                    <td>
+                      <span class="streak-pill">{sm.streakLength} Sessions</span>
+                    </td>
+                    <td>{sm.totalTrades}</td>
+                    <td>
+                      <div class="rate-bar-cell">
+                        <span class="rate-num">{sm.winRatePct.toFixed(1)}%</span>
+                        <div class="mini-bar-bg">
+                          <div class="mini-bar-fill" style={`width: ${sm.winRatePct}%`}></div>
+                        </div>
+                      </div>
+                    </td>
+                    <td class:list={['pnl-cell', sm.netPnl >= 0 ? 'pos' : 'neg']}>
+                      {sm.netPnl >= 0 ? '+' : '-'}${Math.abs(sm.netPnl).toFixed(2)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      <!-- Direction & Sleeve Breakdown -->
+      <div class="analytics-card">
+        <div class="analytics-card-header">
+          <h3>Direction & Rebound Mode</h3>
+          <span class="metric-note">Setup Asymmetry</span>
+        </div>
+        <p class="analytics-copy">
+          Compares bull put credit spreads on oversold pullbacks versus bear call credit spreads on extended rallies.
+        </p>
+
+        {directionMetrics.length === 0 ? (
+          <div class="empty-mini">No directional setups recorded yet</div>
+        ) : (
+          <div class="streak-table-wrap">
+            <table class="analytics-table">
+              <thead>
+                <tr>
+                  <th>Setup Route</th>
+                  <th>Trades</th>
+                  <th>Win Rate</th>
+                  <th>Realized P&L</th>
+                </tr>
+              </thead>
+              <tbody>
+                {directionMetrics.map((dm) => (
+                  <tr>
+                    <td>
+                      <strong>{dm.direction}</strong>
+                    </td>
+                    <td>{dm.totalTrades}</td>
+                    <td>
+                      <div class="rate-bar-cell">
+                        <span class="rate-num">{dm.winRatePct.toFixed(1)}%</span>
+                        <div class="mini-bar-bg">
+                          <div class="mini-bar-fill" style={`width: ${dm.winRatePct}%`}></div>
+                        </div>
+                      </div>
+                    </td>
+                    <td class:list={['pnl-cell', dm.netPnl >= 0 ? 'pos' : 'neg']}>
+                      {dm.netPnl >= 0 ? '+' : '-'}${Math.abs(dm.netPnl).toFixed(2)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
+  </section>
+
+  <!-- SECTION 3: CLOSED TRADES LEDGER -->
+  <section class="ledger-section">
+    <div class="section-heading">
+      <div>
+        <h2>Closed Trades Ledger</h2>
+        <p>Complete historical record of exited spread positions with economics and exit telemetry</p>
+      </div>
+      <div class="data-note">{trades.length} Completed Records</div>
+    </div>
+
+    {trades.length === 0 ? (
+      <div class="ledger-empty">
+        <h3>No closed trades recorded</h3>
+        <p>Positions will appear here automatically once exit orders execute and settle.</p>
+      </div>
+    ) : (
+      <div class="ledger-table-wrap">
+        <table class="ledger-table">
+          <thead>
+            <tr>
+              <th>Closed / Opened</th>
+              <th>Ticker & Strategy</th>
+              <th>Streak Setup</th>
+              <th>Credit / Max Risk</th>
+              <th>Exit Price</th>
+              <th>Realized P&L</th>
+              <th>Return</th>
+              <th>Exit Rule</th>
+              <th>Report</th>
+            </tr>
+          </thead>
+          <tbody>
+            {trades.map((trade) => (
+              <tr>
+                <!-- Dates -->
+                <td class="date-cell">
+                  <strong>{formatDate(trade.closedAt)}</strong>
+                  <small>Opened {trade.openedAt}</small>
+                </td>
+
+                <!-- Ticker & Strategy -->
+                <td class="ticker-cell">
+                  <div class="ticker-name">
+                    <a href={trade.journalUrl} class="ticker-symbol">{trade.ticker}</a>
+                    {trade.companyName && <span class="company-sub">{trade.companyName}</span>}
+                  </div>
+                  <small class="strategy-sub">{trade.quantity}x {trade.strategy}</small>
+                </td>
+
+                <!-- Streak & Z -->
+                <td class="streak-cell">
+                  {trade.streakLength ? (
+                    <div>
+                      <span class="streak-tag">{trade.streakLength}d streak</span>
+                      {trade.robustZ !== undefined && (
+                        <small class="z-sub">Z: {trade.robustZ.toFixed(2)}</small>
+                      )}
+                    </div>
+                  ) : (
+                    <span class="muted-text">—</span>
+                  )}
+                </td>
+
+                <!-- Credit & Risk -->
+                <td class="economics-cell">
+                  <div>Credit: ${trade.entryCredit.toFixed(2)}</div>
+                  <small>Risk: ${trade.maxRisk.toFixed(0)}</small>
+                </td>
+
+                <!-- Exit Price -->
+                <td class="exit-price-cell">
+                  {trade.exitPrice !== null ? `$${trade.exitPrice.toFixed(2)}` : '—'}
+                </td>
+
+                <!-- Realized P&L -->
+                <td class="pnl-cell">
+                  {trade.realizedPnl !== null ? (
+                    <span class:list={['pnl-pill', trade.realizedPnl >= 0 ? 'win' : 'loss']}>
+                      {trade.realizedPnl >= 0 ? '+' : '-'}${Math.abs(trade.realizedPnl).toFixed(2)}
+                    </span>
+                  ) : (
+                    '—'
+                  )}
+                </td>
+
+                <!-- Return % -->
+                <td class="return-cell">
+                  {trade.returnPct !== null ? (
+                    <span class:list={['return-text', trade.returnPct >= 0 ? 'pos' : 'neg']}>
+                      {fmtPct(trade.returnPct, true)}
+                    </span>
+                  ) : (
+                    '—'
+                  )}
+                </td>
+
+                <!-- Exit Rule -->
+                <td class="reason-cell">
+                  <span class:list={['reason-badge', trade.isWin ? 'win-badge' : 'loss-badge']}>
+                    {trade.closeReasonDisplay}
+                  </span>
+                </td>
+
+                <!-- Action Link -->
+                <td class="action-cell">
+                  <a href={trade.journalUrl} class="details-btn" title="View trade economics report">
+                    Details ↗
+                  </a>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    )}
+  </section>
+</Shell>
+
+<style>
+  .topbar-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .sep {
+    color: var(--faint);
+  }
+  .topbar-right {
+    display: flex;
+    align-items: center;
+  }
+
+  .scoreboard-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 24px;
+    padding: 36px 0 40px;
+    border-bottom: 1px solid var(--faint);
+    flex-wrap: wrap;
+  }
+  .scoreboard-intro h1 {
+    font-size: clamp(36px, 4.5vw, 54px);
+    margin-bottom: 8px;
+    line-height: 1;
+    letter-spacing: -0.04em;
+  }
+  .hero-copy {
+    color: var(--muted);
+    font-size: 15px;
+    line-height: 1.5;
+    max-width: 580px;
+    margin: 0;
+  }
+  .header-summary-badge {
+    background: #eeeee8;
+    padding: 16px 20px;
+    border-left: 3px solid var(--green);
+    min-width: 240px;
+  }
+  .badge-label {
+    display: block;
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  .badge-stats {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    margin-top: 4px;
+  }
+  .badge-count {
+    font-size: 16px;
+    font-weight: 600;
+  }
+  .badge-winrate {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--green);
+  }
+  .phase-selector {
+    display: flex;
+    gap: 6px;
+    margin-top: 10px;
+    padding-top: 8px;
+    border-top: 1px solid rgba(32, 33, 31, 0.08);
+  }
+  .phase-chip {
+    font-family: var(--mono);
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    padding: 3px 8px;
+    background: rgba(32, 33, 31, 0.05);
+    color: var(--muted);
+    border-radius: 2px;
+    transition: all 0.15s ease;
+  }
+  .phase-chip:hover {
+    color: var(--ink);
+    background: rgba(32, 33, 31, 0.1);
+  }
+  .phase-chip.active {
+    background: var(--ink);
+    color: var(--paper);
+    font-weight: 500;
+  }
+
+  /* SECTION 1: SCORECARD */
+  .scorecard-section {
+    padding: 36px 0 44px;
+    border-bottom: 1px solid var(--faint);
+  }
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+    margin-top: 16px;
+  }
+  .kpi-card {
+    background: #eeeee8;
+    padding: 20px 18px;
+    display: flex;
+    flex-direction: column;
+    min-height: 120px;
+  }
+  .kpi-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+  .kpi-value {
+    font-family: var(--serif);
+    font-size: 38px;
+    line-height: 1.1;
+    margin: 8px 0 6px;
+    font-weight: 400;
+  }
+  .kpi-value.pos {
+    color: var(--green);
+  }
+  .kpi-value.neg {
+    color: var(--red);
+  }
+  .kpi-value .unit {
+    font-family: var(--sans);
+    font-size: 18px;
+    color: var(--muted);
+  }
+  .kpi-sub {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--muted);
+    margin-top: auto;
+  }
+  .win-tag {
+    color: var(--green);
+    font-weight: 500;
+  }
+  .loss-tag {
+    color: var(--red);
+    font-weight: 500;
+  }
+
+  /* SECTION 2: HYPOTHESIS & STREAK ANALYTICS */
+  .hypothesis-section {
+    padding: 36px 0 44px;
+    border-bottom: 1px solid var(--faint);
+  }
+  .analytics-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin-top: 16px;
+  }
+  .analytics-card {
+    background: #eeeee8;
+    padding: 22px 20px;
+    display: flex;
+    flex-direction: column;
+  }
+  .analytics-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 4px;
+  }
+  .analytics-card-header h3 {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+  .metric-note {
+    font-family: var(--mono);
+    font-size: 9px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  .analytics-copy {
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.45;
+    margin: 0 0 16px;
+  }
+  .streak-table-wrap {
+    overflow-x: auto;
+  }
+  .analytics-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+  }
+  .analytics-table th {
+    text-align: left;
+    padding: 8px 6px;
+    border-bottom: 1px solid rgba(32, 33, 31, 0.1);
+    font-family: var(--mono);
+    font-size: 9px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  .analytics-table td {
+    padding: 10px 6px;
+    border-bottom: 1px solid rgba(32, 33, 31, 0.06);
+  }
+  .streak-pill {
+    display: inline-block;
+    font-family: var(--mono);
+    font-size: 10px;
+    padding: 2px 7px;
+    background: rgba(32, 33, 31, 0.06);
+    border-radius: 2px;
+  }
+  .rate-bar-cell {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .rate-num {
+    font-family: var(--mono);
+    font-size: 11px;
+    width: 42px;
+  }
+  .mini-bar-bg {
+    flex: 1;
+    height: 6px;
+    background: rgba(32, 33, 31, 0.08);
+    border-radius: 3px;
+    overflow: hidden;
+    min-width: 50px;
+  }
+  .mini-bar-fill {
+    height: 100%;
+    background: var(--green);
+    border-radius: 3px;
+  }
+  .pnl-cell {
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 500;
+  }
+  .pnl-cell.pos {
+    color: var(--green);
+  }
+  .pnl-cell.neg {
+    color: var(--red);
+  }
+  .empty-mini {
+    padding: 24px;
+    text-align: center;
+    color: var(--muted);
+    font-size: 12px;
+  }
+
+  /* SECTION 3: LEDGER TABLE */
+  .ledger-section {
+    padding: 36px 0 64px;
+  }
+  .ledger-empty {
+    background: #eeeee8;
+    padding: 40px;
+    text-align: center;
+    color: var(--muted);
+  }
+  .ledger-empty h3 {
+    margin: 0 0 8px;
+    color: var(--ink);
+  }
+  .ledger-table-wrap {
+    overflow-x: auto;
+    border-top: 1px solid var(--faint);
+    margin-top: 16px;
+  }
+  .ledger-table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 900px;
+  }
+  .ledger-table th {
+    text-align: left;
+    padding: 12px 10px;
+    border-bottom: 1px solid var(--faint);
+    font-family: var(--mono);
+    font-size: 9px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+  .ledger-table td {
+    padding: 14px 10px;
+    border-bottom: 1px solid var(--faint);
+    font-size: 12px;
+    vertical-align: middle;
+  }
+  .date-cell strong {
+    display: block;
+    font-size: 12px;
+  }
+  .date-cell small {
+    display: block;
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+  .ticker-cell .ticker-symbol {
+    font-family: var(--mono);
+    font-weight: 600;
+    font-size: 13px;
+    color: var(--ink);
+  }
+  .ticker-cell .ticker-symbol:hover {
+    color: var(--green);
+    text-decoration: underline;
+  }
+  .company-sub {
+    font-size: 11px;
+    color: var(--muted);
+    margin-left: 6px;
+  }
+  .strategy-sub {
+    display: block;
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+  .streak-tag {
+    display: inline-block;
+    font-family: var(--mono);
+    font-size: 10px;
+    background: rgba(32, 33, 31, 0.06);
+    padding: 2px 6px;
+    border-radius: 2px;
+  }
+  .z-sub {
+    display: block;
+    font-family: var(--mono);
+    font-size: 9px;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+  .economics-cell {
+    font-family: var(--mono);
+    font-size: 11px;
+  }
+  .economics-cell small {
+    display: block;
+    color: var(--muted);
+    font-size: 9px;
+    margin-top: 2px;
+  }
+  .exit-price-cell {
+    font-family: var(--mono);
+    font-size: 11px;
+  }
+  .pnl-pill {
+    display: inline-block;
+    padding: 3px 8px;
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 500;
+    border-radius: 2px;
+  }
+  .pnl-pill.win {
+    background: #e2e9e3;
+    color: var(--green);
+  }
+  .pnl-pill.loss {
+    background: #f0e4e0;
+    color: var(--red);
+  }
+  .return-text {
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 500;
+  }
+  .return-text.pos {
+    color: var(--green);
+  }
+  .return-text.neg {
+    color: var(--red);
+  }
+  .reason-badge {
+    display: inline-block;
+    font-family: var(--mono);
+    font-size: 10px;
+    padding: 3px 7px;
+    border-radius: 2px;
+  }
+  .reason-badge.win-badge {
+    background: rgba(73, 107, 86, 0.1);
+    color: var(--green);
+  }
+  .reason-badge.loss-badge {
+    background: rgba(155, 94, 80, 0.1);
+    color: var(--red);
+  }
+  .details-btn {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--green);
+    white-space: nowrap;
+  }
+  .details-btn:hover {
+    text-decoration: underline;
+  }
+  .muted-text {
+    color: var(--muted);
+  }
+
+  @media (max-width: 860px) {
+    .kpi-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+    .analytics-grid {
+      grid-template-columns: 1fr;
+    }
+    .scoreboard-header {
+      flex-direction: column;
+    }
+    .header-summary-badge {
+      width: 100%;
+    }
+  }
+  @media (max-width: 580px) {
+    .kpi-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>

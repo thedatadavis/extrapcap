@@ -112,7 +112,19 @@ def test_sync_materializes_filled_order_as_durable_position():
     assert position["long_symbol"] == LONG
     assert position["short_symbol"] == SHORT
     assert position["metadata"]["entry_client_order_id"] == "xpc-1"
+    assert position["metadata"]["phase"] == "testing"
     assert position["legs"][0]["entry_price"] == 2.3
+
+
+def test_trading_phase_configuration(monkeypatch):
+    from extrapcap.config import AppConfig
+    cfg = AppConfig()
+    assert cfg.trading_phase == "testing"
+
+    monkeypatch.setenv("TRADING_PHASE", "prod")
+    cfg_prod = AppConfig.from_env()
+    assert cfg_prod.trading_phase == "prod"
+
 
 
 class PositionClient:

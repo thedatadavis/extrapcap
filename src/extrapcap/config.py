@@ -53,6 +53,7 @@ class StrategyConfig(BaseModel):
 class AppConfig(BaseModel):
     benchmark: str = "SPY"
     paper_only: bool = True
+    trading_phase: str = Field("testing", description="Current execution phase: testing or prod")
     risk: RiskConfig = RiskConfig()
     strategy: StrategyConfig = StrategyConfig()
 
@@ -60,4 +61,5 @@ class AppConfig(BaseModel):
     def from_env(cls) -> "AppConfig":
         if os.getenv("ALPACA_PAPER", "true").lower() != "true":
             raise RuntimeError("extrapcap only supports Alpaca paper trading")
-        return cls(paper_only=True)
+        phase = os.getenv("TRADING_PHASE", os.getenv("EXTRAPCAP_PHASE", "testing")).lower().strip()
+        return cls(paper_only=True, trading_phase=phase)

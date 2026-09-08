@@ -42,6 +42,7 @@ const currentPath = Astro.url.pathname;
         <nav aria-label="Primary navigation">
           <a class:list={{ active: currentPath === '/' || currentPath === '' }} href="/">Overview</a>
           <a class:list={{ active: currentPath.includes('/positions/active') }} href="/positions/active">Active Positions</a>
+          <a class:list={{ active: currentPath.includes('/scoreboard') }} href="/scoreboard">Scoreboard</a>
           <p class="nav-heading">Journal</p>
           {Object.entries(months).map(([month, dates], index) => (
             <details open={index === 0} class="month-folder">

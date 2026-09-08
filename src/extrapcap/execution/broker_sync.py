@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 from datetime import UTC, datetime, timedelta
 
 from ..options_data import parse_occ_option_symbol
@@ -61,6 +62,7 @@ def _entry_position(
     metadata = _json(order.get("metadata"), {})
     entry_price = abs(float(broker_order.get("filled_avg_price") or order.get("limit_price") or 0))
     side = str(order.get("side") or "")
+    phase = str(metadata.get("phase") or os.getenv("TRADING_PHASE", os.getenv("EXTRAPCAP_PHASE", "testing"))).lower()
     return {
         "ticker": str(order["ticker"]).upper(),
         "short_symbol": sold["symbol"],
@@ -80,6 +82,7 @@ def _entry_position(
         "selection_metrics": metadata.get("selection_context") or {},
         "metadata": {
             **metadata,
+            "phase": phase,
             "entry_client_order_id": order["client_order_id"],
             "entry_broker_order_id": broker_order.get("id"),
         },
