@@ -12,7 +12,7 @@ from ..execution.alpaca import AlpacaPaperClient
 from ..execution.intraday_state import build_intraday_risk_state
 from ..options_data import AlpacaOptionsData
 from ..risk import approve_intraday_order
-from .paper_run import PaperRunCoordinator, build_candidate
+from .paper_run import PaperRunCoordinator, build_candidate, build_candidates
 
 
 def _account_risk(client):
@@ -32,6 +32,9 @@ def run_live_cycle(
     preferred_dte: int = 10,
     max_quote_spread_pct: float = 0.40,
     max_absolute_spread: float = 0.15,
+    max_strike_attempts: int = 3,
+    poll_timeout: float = 15.0,
+    natural_poll_timeout: float = 10.0,
 ) -> dict:
     day = trading_day or datetime.now(UTC).date()
     context = dict(selection_context or {})
@@ -75,7 +78,7 @@ def run_live_cycle(
     if underlying <= 0:
         raise ValueError(f"{symbol} missing current underlying price")
     event = event_decision_for_ticker(symbol, day)
-    candidate = build_candidate(
+    candidates = build_candidates(
         underlying=symbol.upper(),
         trading_day=day,
         underlying_price=underlying,
@@ -92,7 +95,54 @@ def run_live_cycle(
         preferred_dte=preferred_dte,
         max_quote_spread_pct=max_quote_spread_pct,
         max_absolute_spread=max_absolute_spread,
+        limit=5,
     )
-    result = PaperRunCoordinator(client).execute(candidate)
-    result["data_tier"] = tier.value
-    return result
+    if not candidates:
+        return {
+            "ticker": symbol.upper(),
+            "status": "vetoed",
+            "reason": "no_viable_vertical_spreads",
+            "selection_context": context,
+            "data_tier": tier.value,
+        }
+
+    # Filter to approved candidates (quote quality and risk gates pass)
+    approved_candidates = [
+        c for c in candidates if c.risk_decision.allowed and c.event_decision.allowed
+    ]
+    if not approved_candidates:
+        best = candidates[0]
+        reason = (
+            best.event_decision.reason
+            if not best.event_decision.allowed
+            else best.risk_decision.reason
+        )
+        return {
+            "ticker": symbol.upper(),
+            "status": "vetoed",
+            "reason": reason,
+            "selection_context": context,
+            "data_tier": tier.value,
+            "market_data": best.market_data_details,
+        }
+
+    coordinator = PaperRunCoordinator(client)
+    last_result = None
+    for candidate in approved_candidates[:max_strike_attempts]:
+        result = coordinator.execute_with_fill_loop(
+            candidate,
+            poll_timeout=poll_timeout,
+            natural_poll_timeout=natural_poll_timeout,
+        )
+        result["data_tier"] = tier.value
+        status = str(result.get("status") or "").lower()
+        if status in {"filled", "partially_filled", "submitted", "new", "accepted"}:
+            return result
+        last_result = result
+
+    return {
+        **(last_result or {}),
+        "status": "unfilled",
+        "reason": "exhausted_strike_attempts",
+        "data_tier": tier.value,
+    }

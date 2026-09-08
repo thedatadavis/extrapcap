@@ -72,7 +72,7 @@ def run_basket(
     dte_min: int = 0,
     dte_max: int = 21,
     preferred_dte: int = 10,
-    max_submissions: int = 1,
+    max_submissions: int = 8,
     max_candidates: int | None = None,
     throttle_seconds: float = 0.0,
     max_quote_spread_pct: float = 0.40,

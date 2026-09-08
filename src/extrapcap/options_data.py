@@ -179,7 +179,7 @@ class ExpectedValueSolution:
     dte: int
 
 
-def select_highest_ev_vertical(
+def select_candidate_verticals(
     underlying: str,
     contracts: list[OptionContract],
     quotes: list[OptionQuote],
@@ -194,8 +194,9 @@ def select_highest_ev_vertical(
     preferred_dte: int = 10,
     min_width_pct: float = 0.005,
     max_width_pct: float = 0.05,
-) -> ExpectedValueSolution:
-    """Scan directional vertical spreads in option chain and return the one with the highest EV >= min_ev."""
+    limit: int | None = None,
+) -> list[ExpectedValueSolution]:
+    """Scan directional vertical spreads in option chain and return viable ones sorted by EV descending."""
     if underlying_price <= 0:
         raise ValueError(f"invalid real underlying price ${underlying_price}")
 
@@ -293,14 +294,78 @@ def select_highest_ev_vertical(
                             solutions.append((ev, max_profit, max_risk, spread_credit, selected_credit))
 
     if not solutions:
-        raise ValueError(f"no {target_direction} vertical spread meets expected value threshold of ${min_ev:.2f}")
+        return []
 
-    best_ev, max_profit, max_risk, best_spread, best_selected = max(
-        solutions,
-        key=lambda item: (item[0], -abs((date.fromisoformat(item[4].short.expiration if isinstance(item[4], SelectedVertical) else item[4].long.expiration) - trading_day).days - preferred_dte)),
+    # Sort descending by EV, tie-breaking by closeness to preferred DTE
+    def _rank_key(item):
+        ev = item[0]
+        selected_obj = item[4]
+        exp_str = (
+            selected_obj.short.expiration
+            if isinstance(selected_obj, SelectedVertical)
+            else selected_obj.long.expiration
+        )
+        dte_diff = abs((date.fromisoformat(exp_str) - trading_day).days - preferred_dte)
+        return (ev, -dte_diff)
+
+    sorted_solutions = sorted(solutions, key=_rank_key, reverse=True)
+    if limit is not None and limit > 0:
+        sorted_solutions = sorted_solutions[:limit]
+
+    results = []
+    for ev, max_profit, max_risk, spread, selected in sorted_solutions:
+        exp_str = (
+            selected.short.expiration
+            if isinstance(selected, SelectedVertical)
+            else selected.long.expiration
+        )
+        dte = (date.fromisoformat(exp_str) - trading_day).days
+        results.append(
+            ExpectedValueSolution(spread, selected, ev, max_profit, max_risk, exp_str, dte)
+        )
+    return results
+
+
+def select_highest_ev_vertical(
+    underlying: str,
+    contracts: list[OptionContract],
+    quotes: list[OptionQuote],
+    underlying_price: float,
+    win_probability: float,
+    min_ev: float = 0.0,
+    widths: tuple[float, ...] | None = None,
+    streak_direction: str = "negative",
+    trading_day: date | None = None,
+    dte_min: int = 0,
+    dte_max: int = 21,
+    preferred_dte: int = 10,
+    min_width_pct: float = 0.005,
+    max_width_pct: float = 0.05,
+) -> ExpectedValueSolution:
+    """Scan directional vertical spreads in option chain and return the one with the highest EV >= min_ev."""
+    candidates = select_candidate_verticals(
+        underlying=underlying,
+        contracts=contracts,
+        quotes=quotes,
+        underlying_price=underlying_price,
+        win_probability=win_probability,
+        min_ev=min_ev,
+        widths=widths,
+        streak_direction=streak_direction,
+        trading_day=trading_day,
+        dte_min=dte_min,
+        dte_max=dte_max,
+        preferred_dte=preferred_dte,
+        min_width_pct=min_width_pct,
+        max_width_pct=max_width_pct,
+        limit=1,
     )
-    expiration = best_selected.short.expiration if isinstance(best_selected, SelectedVertical) else best_selected.long.expiration
-    return ExpectedValueSolution(best_spread, best_selected, best_ev, max_profit, max_risk, expiration, (date.fromisoformat(expiration) - trading_day).days)
+    if not candidates:
+        target_direction = "bullish" if streak_direction == "negative" else "bearish"
+        raise ValueError(
+            f"no {target_direction} vertical spread meets expected value threshold of ${min_ev:.2f}"
+        )
+    return candidates[0]
 
 
 # Kept as a narrow import alias for external callers while the old strategy name is removed.
