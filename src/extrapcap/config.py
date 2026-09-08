@@ -28,6 +28,7 @@ class RiskConfig(BaseModel):
     zero_dte_entry_cutoff_minutes: int = Field(30, ge=1)
     zero_dte_risk_fraction: float = Field(0.25, gt=0, le=1)
     one_dte_risk_fraction: float = Field(0.50, gt=0, le=1)
+    max_contracts_per_order: int = Field(25, gt=0)
 
 
 class StrategyConfig(BaseModel):

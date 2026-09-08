@@ -122,6 +122,8 @@ def candidate_from_solution(
 
     allocated_risk = min(target_dollar_risk, available_budget, ticker_remaining)
     target_quantity = max(1, int(allocated_risk // unit_loss))
+    max_contracts = getattr(risk_config, "max_contracts_per_order", 25)
+    target_quantity = min(target_quantity, max_contracts)
 
     while target_quantity > 1 and (
         (sleeve_open + target_quantity * unit_loss > risk_state.nav * sleeve_cap)
@@ -152,6 +154,7 @@ def candidate_from_solution(
             selected.long.strike,
             price,
             contracts=target_quantity,
+            direction=getattr(solution.spread, "direction", "bullish"),
         )
     )
     sector = str(context.get("sector") or "").strip()
@@ -247,6 +250,10 @@ def build_candidates(
     direction = str(context.get("streak_direction") or "").lower()
     if direction not in {"negative", "positive"}:
         raise ValueError("selection context requires streak direction")
+    sleeve = str(context.get("sleeve") or "core").lower()
+    spread_types = context.get("spread_types") or (
+        ("credit",) if sleeve == "core" else ("debit", "credit")
+    )
     contracts = contracts_from_payload(contracts_payload)
     quotes = normalize_chain(snapshot_payload)
     solutions = select_candidate_verticals(
@@ -264,6 +271,7 @@ def build_candidates(
         preferred_dte=preferred_dte,
         min_width_pct=min_width_pct,
         max_width_pct=max_width_pct,
+        spread_types=spread_types,
         limit=limit,
     )
     quote_map = {quote.symbol: quote for quote in quotes}

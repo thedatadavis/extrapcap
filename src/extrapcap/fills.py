@@ -27,7 +27,10 @@ def debit_fill(long_ask: float, short_bid: float, contracts: int, assumptions: F
 
 
 def vertical_expiration_pnl(spread: VerticalSpread, underlying_price: float, commissions: float = 0.0) -> float:
-    intrinsic = min(spread.width, max(0.0, spread.short_strike - underlying_price))
+    if getattr(spread, "direction", "bullish") == "bearish" or spread.short_strike < spread.long_strike:
+        intrinsic = min(spread.width, max(0.0, underlying_price - spread.short_strike))
+    else:
+        intrinsic = min(spread.width, max(0.0, spread.short_strike - underlying_price))
     return (spread.credit - intrinsic) * 100 * spread.contracts - commissions
 
 
@@ -46,5 +49,7 @@ def debit_expiration_pnl(spread: DebitSpread, underlying_price: float, commissio
 
 
 def early_assignment_exposure(spread: VerticalSpread, underlying_price: float, days_to_expiry: int) -> bool:
-    """Conservative flag for an American short put that is ITM before expiry."""
+    """Conservative flag for an American short leg that is ITM before expiry."""
+    if getattr(spread, "direction", "bullish") == "bearish" or spread.short_strike < spread.long_strike:
+        return days_to_expiry > 0 and underlying_price > spread.short_strike
     return days_to_expiry > 0 and underlying_price < spread.short_strike

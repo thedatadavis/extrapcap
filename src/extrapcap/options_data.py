@@ -194,6 +194,7 @@ def select_candidate_verticals(
     preferred_dte: int = 10,
     min_width_pct: float = 0.005,
     max_width_pct: float = 0.05,
+    spread_types: tuple[str, ...] = ("credit", "debit"),
     limit: int | None = None,
 ) -> list[ExpectedValueSolution]:
     """Scan directional vertical spreads in option chain and return viable ones sorted by EV descending."""
@@ -242,56 +243,107 @@ def select_candidate_verticals(
                         continue
                 width = strike_diff
 
-                # Determine direction of debit / credit spreads
-                # Call Debit (c1=long lower, c2=short higher) -> Bullish
-                # Put Debit (c2=long higher, c1=short lower) -> Bearish
-                # Put Credit (c2=short higher, c1=long lower) -> Bullish
-                # Call Credit (c1=short lower, c2=long higher) -> Bearish
-                if opt_type == "call":
-                    debit_dir = "bullish"
-                    credit_dir = "bearish"
-                    long_debit, short_debit = c1, c2
-                    q_long_debit, q_short_debit = q1, q2
-                    short_credit, long_credit = c1, c2
-                    q_short_credit, q_long_credit = q1, q2
-                else:  # put
-                    debit_dir = "bearish"
-                    credit_dir = "bullish"
-                    long_debit, short_debit = c2, c1
-                    q_long_debit, q_short_debit = q2, q1
-                    short_credit, long_credit = c2, c1
-                    q_short_credit, q_long_credit = q2, q1
+                # Credit Spreads (Core mean-reversion)
+                if "credit" in spread_types:
+                    if target_direction == "bullish" and opt_type == "put":
+                        # Put Credit Spread: c2 is short (higher strike), c1 is long (lower strike)
+                        # Short strike must be OTM or ATM: c2.strike <= underlying_price * 1.01
+                        if c2.strike <= underlying_price * 1.01:
+                            delta_ok = q2.delta is None or (0.05 <= abs(q2.delta) <= 0.60)
+                            if (
+                                delta_ok
+                                and q2.bid is not None
+                                and q2.bid > 0
+                                and q1.ask is not None
+                                and q1.ask > 0
+                                and q2.bid > q1.ask
+                            ):
+                                credit = round(q2.bid - q1.ask, 2)
+                                if 0.05 <= credit < width:
+                                    max_profit = round(credit * 100, 2)
+                                    max_risk = round((width - credit) * 100, 2)
+                                    stop_risk = min(max_risk, round(2.0 * credit * 100, 2))
+                                    ev = round((win_probability * max_profit) - ((1.0 - win_probability) * stop_risk), 2)
+                                    if ev >= min_ev:
+                                        selected_credit = SelectedVertical(underlying, c2, c1, credit, q2.delta)
+                                        spread_credit = VerticalSpread(underlying, c2.strike, c1.strike, credit, direction="bullish")
+                                        solutions.append((ev, max_profit, max_risk, spread_credit, selected_credit))
+                    elif target_direction == "bearish" and opt_type == "call":
+                        # Call Credit Spread: c1 is short (lower strike), c2 is long (higher strike)
+                        # Short strike must be OTM or ATM: c1.strike >= underlying_price * 0.99
+                        if c1.strike >= underlying_price * 0.99:
+                            delta_ok = q1.delta is None or (0.05 <= abs(q1.delta) <= 0.60)
+                            if (
+                                delta_ok
+                                and q1.bid is not None
+                                and q1.bid > 0
+                                and q2.ask is not None
+                                and q2.ask > 0
+                                and q1.bid > q2.ask
+                            ):
+                                credit = round(q1.bid - q2.ask, 2)
+                                if 0.05 <= credit < width:
+                                    max_profit = round(credit * 100, 2)
+                                    max_risk = round((width - credit) * 100, 2)
+                                    stop_risk = min(max_risk, round(2.0 * credit * 100, 2))
+                                    ev = round((win_probability * max_profit) - ((1.0 - win_probability) * stop_risk), 2)
+                                    if ev >= min_ev:
+                                        selected_credit = SelectedVertical(underlying, c1, c2, credit, q1.delta)
+                                        spread_credit = VerticalSpread(underlying, c1.strike, c2.strike, credit, direction="bearish")
+                                        solutions.append((ev, max_profit, max_risk, spread_credit, selected_credit))
 
-                # Debit Spread
-                if debit_dir == target_direction and q_long_debit.ask is not None and q_short_debit.bid is not None and q_long_debit.ask > q_short_debit.bid:
-                    debit = q_long_debit.ask - q_short_debit.bid
-                    if 0 < debit < width:
-                        max_profit = (width - debit) * 100
-                        max_risk = debit * 100
-                        ev = (win_probability * max_profit) - ((1 - win_probability) * max_risk)
-                        if ev >= min_ev:
-                            selected_debit = SelectedDebitVertical(underlying, long_debit, short_debit, debit, q_long_debit.delta)
-                            spread_debit = DebitSpread(
-                                underlying,
-                                long_debit.strike,
-                                short_debit.strike,
-                                debit,
-                                sleeve="asymmetric",
-                                direction=debit_dir,
-                            )
-                            solutions.append((ev, max_profit, max_risk, spread_debit, selected_debit))
-
-                # Credit Spread
-                if credit_dir == target_direction and q_short_credit.bid is not None and q_long_credit.ask is not None and q_short_credit.bid > q_long_credit.ask:
-                    credit = q_short_credit.bid - q_long_credit.ask
-                    if 0 < credit < width:
-                        max_profit = credit * 100
-                        max_risk = (width - credit) * 100
-                        ev = (win_probability * max_profit) - ((1 - win_probability) * max_risk)
-                        if ev >= min_ev:
-                            selected_credit = SelectedVertical(underlying, short_credit, long_credit, credit, q_short_credit.delta)
-                            spread_credit = VerticalSpread(underlying, short_credit.strike, long_credit.strike, credit)
-                            solutions.append((ev, max_profit, max_risk, spread_credit, selected_credit))
+                # Debit Spreads (Asymmetric momentum)
+                if "debit" in spread_types:
+                    if target_direction == "bullish" and opt_type == "call":
+                        # Call Debit Spread: c1 is long (lower strike), c2 is short (higher strike)
+                        if (
+                            q1.ask is not None
+                            and q1.ask >= 0.05
+                            and q2.bid is not None
+                            and q2.bid >= 0.05
+                            and q1.ask > q2.bid
+                        ):
+                            debit = round(q1.ask - q2.bid, 2)
+                            if 0.05 <= debit < width:
+                                max_profit = round((width - debit) * 100, 2)
+                                max_risk = round(debit * 100, 2)
+                                ev = round((win_probability * max_profit) - ((1.0 - win_probability) * max_risk), 2)
+                                if ev >= min_ev:
+                                    selected_debit = SelectedDebitVertical(underlying, c1, c2, debit, q1.delta)
+                                    spread_debit = DebitSpread(
+                                        underlying,
+                                        c1.strike,
+                                        c2.strike,
+                                        debit,
+                                        sleeve="asymmetric",
+                                        direction="bullish",
+                                    )
+                                    solutions.append((ev, max_profit, max_risk, spread_debit, selected_debit))
+                    elif target_direction == "bearish" and opt_type == "put":
+                        # Put Debit Spread: c2 is long (higher strike), c1 is short (lower strike)
+                        if (
+                            q2.ask is not None
+                            and q2.ask >= 0.05
+                            and q1.bid is not None
+                            and q1.bid >= 0.05
+                            and q2.ask > q1.bid
+                        ):
+                            debit = round(q2.ask - q1.bid, 2)
+                            if 0.05 <= debit < width:
+                                max_profit = round((width - debit) * 100, 2)
+                                max_risk = round(debit * 100, 2)
+                                ev = round((win_probability * max_profit) - ((1.0 - win_probability) * max_risk), 2)
+                                if ev >= min_ev:
+                                    selected_debit = SelectedDebitVertical(underlying, c2, c1, debit, q2.delta)
+                                    spread_debit = DebitSpread(
+                                        underlying,
+                                        c2.strike,
+                                        c1.strike,
+                                        debit,
+                                        sleeve="asymmetric",
+                                        direction="bearish",
+                                    )
+                                    solutions.append((ev, max_profit, max_risk, spread_debit, selected_debit))
 
     if not solutions:
         return []
@@ -341,6 +393,7 @@ def select_highest_ev_vertical(
     preferred_dte: int = 10,
     min_width_pct: float = 0.005,
     max_width_pct: float = 0.05,
+    spread_types: tuple[str, ...] = ("credit", "debit"),
 ) -> ExpectedValueSolution:
     """Scan directional vertical spreads in option chain and return the one with the highest EV >= min_ev."""
     candidates = select_candidate_verticals(
@@ -358,6 +411,7 @@ def select_highest_ev_vertical(
         preferred_dte=preferred_dte,
         min_width_pct=min_width_pct,
         max_width_pct=max_width_pct,
+        spread_types=spread_types,
         limit=1,
     )
     if not candidates:
@@ -366,6 +420,7 @@ def select_highest_ev_vertical(
             f"no {target_direction} vertical spread meets expected value threshold of ${min_ev:.2f}"
         )
     return candidates[0]
+
 
 
 # Kept as a narrow import alias for external callers while the old strategy name is removed.

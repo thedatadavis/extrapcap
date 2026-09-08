@@ -5,6 +5,7 @@ import pytest
 
 from extrapcap.config import RiskConfig
 from extrapcap.events import EventDecision
+from extrapcap.options import VerticalSpread
 from extrapcap.options_data import (
     OptionContract,
     OptionQuote,
@@ -232,3 +233,78 @@ def test_run_basket_defaults_to_multi_submission_limit():
     assert len(calls) == 8
     orders = [r for r in results if r.get("category") == "orders"]
     assert len(orders) == 8
+
+
+def test_select_candidate_verticals_directional_credit_spreads():
+    trading_day = date(2026, 8, 12)
+    # Negative streak -> Put Credit Spread
+    put_contracts = [
+        OptionContract("STK-P100", "STK", "2026-08-21", 100.0, "put"),
+        OptionContract("STK-P95", "STK", "2026-08-21", 95.0, "put"),
+    ]
+    put_quotes = [
+        OptionQuote("STK-P100", "now", 2.00, 2.20, 2.10, delta=-0.30),
+        OptionQuote("STK-P95", "now", 0.50, 0.60, 0.55, delta=-0.12),
+    ]
+    put_solutions = select_candidate_verticals(
+        underlying="STK",
+        contracts=put_contracts,
+        quotes=put_quotes,
+        underlying_price=102.0,
+        win_probability=0.70,
+        streak_direction="negative",
+        trading_day=trading_day,
+        spread_types=("credit",),
+    )
+    assert len(put_solutions) == 1
+    assert isinstance(put_solutions[0].spread, VerticalSpread)
+    assert put_solutions[0].spread.short_strike == 100.0
+    assert put_solutions[0].spread.long_strike == 95.0
+    assert put_solutions[0].spread.credit == 1.40  # 2.00 - 0.60
+    assert put_solutions[0].expected_value > 0
+
+    # Positive streak -> Call Credit Spread
+    call_contracts = [
+        OptionContract("STK-C105", "STK", "2026-08-21", 105.0, "call"),
+        OptionContract("STK-C110", "STK", "2026-08-21", 110.0, "call"),
+    ]
+    call_quotes = [
+        OptionQuote("STK-C105", "now", 1.80, 2.00, 1.90, delta=0.28),
+        OptionQuote("STK-C110", "now", 0.40, 0.50, 0.45, delta=0.10),
+    ]
+    call_solutions = select_candidate_verticals(
+        underlying="STK",
+        contracts=call_contracts,
+        quotes=call_quotes,
+        underlying_price=102.0,
+        win_probability=0.70,
+        streak_direction="positive",
+        trading_day=trading_day,
+        spread_types=("credit",),
+    )
+    assert len(call_solutions) == 1
+    assert isinstance(call_solutions[0].spread, VerticalSpread)
+    assert call_solutions[0].spread.short_strike == 105.0
+    assert call_solutions[0].spread.long_strike == 110.0
+    assert call_solutions[0].spread.credit == 1.30  # 1.80 - 0.50
+    assert call_solutions[0].expected_value > 0
+
+
+def test_build_candidate_caps_quantity_at_max_contracts_per_order():
+    contracts_payload, snapshot_payload = _make_chain()
+    # Huge NAV and buying power that would ordinarily allow hundreds of contracts
+    risk_state = PortfolioRiskState(nav=1_000_000.0, options_buying_power=2_000_000.0, options_trading_level=3)
+    cfg = RiskConfig(max_contracts_per_order=15)
+    candidate = build_candidate(
+        underlying="AAPL",
+        trading_day=date(2026, 8, 12),
+        underlying_price=225.0,
+        contracts_payload=contracts_payload,
+        snapshot_payload=snapshot_payload,
+        model_probability=0.85,
+        risk_state=risk_state,
+        risk_config=cfg,
+        event_decision=EventDecision("calendar", True, "approved"),
+        selection_context={"streak_direction": "negative", "sector": "Technology"},
+    )
+    assert candidate.envelope.quantity == 15

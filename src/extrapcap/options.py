@@ -9,10 +9,11 @@ class VerticalSpread:
     credit: float
     contracts: int = 1
     sleeve: str = "core"
+    direction: str = "bullish"
 
     def __post_init__(self) -> None:
-        if self.long_strike >= self.short_strike:
-            raise ValueError("put vertical requires long strike below short strike")
+        if self.short_strike == self.long_strike:
+            raise ValueError("vertical spread strikes must differ")
         if self.credit <= 0 or self.credit >= self.width:
             raise ValueError("credit must be positive and less than spread width")
         if self.contracts < 1:
@@ -20,7 +21,7 @@ class VerticalSpread:
 
     @property
     def width(self) -> float:
-        return self.short_strike - self.long_strike
+        return abs(self.short_strike - self.long_strike)
 
     @property
     def max_loss(self) -> float:
