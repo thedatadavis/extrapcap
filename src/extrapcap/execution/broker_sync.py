@@ -43,7 +43,7 @@ def _entry_position(
         legs.append(
             {
                 **configured,
-                "type": parsed.option_type,
+                "type": "put" if parsed.option_type == "P" else "call",
                 "strike": parsed.strike,
                 "expiration": parsed.expiration.isoformat(),
                 "qty": int(float(configured.get("ratio_qty") or 1)),

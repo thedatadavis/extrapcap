@@ -113,11 +113,13 @@ function contractDetails(record: JsonRecord, metadata: JsonRecord): ContractDeta
     return rawRows.map((row: JsonRecord) => {
       const contractId = String(row.contract_id ?? row.symbol ?? '');
       const occ = parseOcc(contractId);
+      const rawType = String(row.option_type ?? row.type ?? '').toLowerCase().trim();
+      const optionType = rawType === 'p' || rawType === 'put' ? 'put' : rawType === 'c' || rawType === 'call' ? 'call' : occ?.type;
       return {
         contractId,
         ticker: asString(row.ticker ?? row.underlying),
         expiration: asString(row.expiration ?? occ?.expiration),
-        optionType: asString(row.option_type ?? row.type ?? occ?.type),
+        optionType,
         strike: typeof row.strike === 'number' ? row.strike : occ?.strike,
         role: asString(row.role ?? row.side ?? row.position_intent),
       };

@@ -93,7 +93,8 @@ function parseLeg(raw: any, rowExpiration: string, index: number): OptionLeg {
   const symbol = String(raw.symbol ?? raw.contract_id ?? '').trim();
   if (!symbol) throw new Error(`positions: leg ${index} is missing its contract symbol`);
   const occ = parseOcc(symbol);
-  const typeValue = String(raw.type ?? raw.option_type ?? occ?.type ?? '').toLowerCase();
+  const rawType = String(raw.type ?? raw.option_type ?? '').toLowerCase().trim();
+  const typeValue = rawType === 'p' || rawType === 'put' ? 'put' : rawType === 'c' || rawType === 'call' ? 'call' : occ?.type;
   if (typeValue !== 'put' && typeValue !== 'call') throw new Error(`positions: leg ${symbol} is missing option type`);
   const strike = numeric(raw.strike ?? raw.strike_price ?? occ?.strike, `leg ${symbol} strike`);
   const expiration = String(raw.expiration ?? raw.expiration_date ?? occ?.expiration ?? rowExpiration).slice(0, 10);
