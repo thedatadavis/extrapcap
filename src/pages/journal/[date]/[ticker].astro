@@ -35,6 +35,17 @@ const capitalPreserved = pos?.capitalPreserved ?? (realizedPnl !== null && reali
 
 const pnlColor = realizedPnl !== null ? (realizedPnl >= 0 ? 'var(--green)' : 'var(--red)') : 'var(--ink)';
 const pnlSign = realizedPnl !== null && realizedPnl > 0 ? '+' : '';
+
+const breakevenPrice = pos?.breakevenPrice ?? (pos?.shortStrike && entryCredit ? pos.shortStrike - entryCredit : null);
+const requiredMovePct = pos?.requiredMovePct !== undefined ? pos.requiredMovePct : null;
+const expectedMovePct = pos?.expectedMovePct !== undefined ? pos.expectedMovePct : null;
+const feasibilityRatio = pos?.feasibilityRatio !== undefined ? pos.feasibilityRatio : null;
+const distanceToMeanPct = pos?.distanceToMeanPct !== undefined ? pos.distanceToMeanPct : null;
+const longWingBreached = pos?.longWingBreached ?? false;
+
+const isFeasible = feasibilityRatio !== null ? feasibilityRatio <= 1.25 : true;
+const feasibilityStatusColor = isFeasible ? 'var(--green)' : 'var(--red)';
+const feasibilityStatusText = isFeasible ? 'Feasible (Recovery Projected)' : 'Improbable (>1.25x Expected Move)';
 ---
 
 <Shell>
@@ -138,8 +149,8 @@ const pnlSign = realizedPnl !== null && realizedPnl > 0 ? '+' : '';
                 <td><strong>${pos?.shortStrike.toFixed(2)}</strong></td>
                 <td>Put</td>
                 <td>{pos?.expiration}</td>
-                <td>—</td>
-                <td>—</td>
+                <td>${entryCredit.toFixed(2)}</td>
+                <td>{exitPrice !== null && exitPrice !== undefined ? `$${exitPrice.toFixed(2)}` : '—'}</td>
               </tr>
             )}
           </tbody>
@@ -147,11 +158,64 @@ const pnlSign = realizedPnl !== null && realizedPnl > 0 ? '+' : '';
       </div>
     </section>
 
-    <!-- 3. Capital & Risk Allocation Breakdown -->
+    <!-- 3. Feasibility & Mean-Reversion Telemetry -->
     <section class="dashboard-section" style="padding-bottom: 32px;">
       <div class="section-heading">
         <div>
-          <h2>3. Capital & Risk Allocation Economics</h2>
+          <h2>3. Feasibility & Mean-Reversion Telemetry</h2>
+          <p>Contextual stop-loss monitoring: required move to breakeven vs. remaining DTE expected volatility</p>
+        </div>
+      </div>
+      <div class="metric-grid" style="grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));">
+        <div class="metric">
+          <span>Breakeven Line</span>
+          <strong style="color: var(--green);">{breakevenPrice ? `$${breakevenPrice.toFixed(2)}` : '—'}</strong>
+          <small>Short strike minus credit</small>
+        </div>
+        <div class="metric">
+          <span>Move Needed to Win</span>
+          <strong>{requiredMovePct !== null ? `+${(requiredMovePct * 100).toFixed(2)}%` : '0.00%'}</strong>
+          <small>{breakevenPrice && pos?.underlyingPrice ? (pos.underlyingPrice < breakevenPrice ? `+$${(breakevenPrice - pos.underlyingPrice).toFixed(2)} to BE` : 'In The Money') : 'Breakeven drift'}</small>
+        </div>
+        <div class="metric">
+          <span>Expected Move (1σ)</span>
+          <strong>{expectedMovePct !== null ? `±${(expectedMovePct * 100).toFixed(2)}%` : '—'}</strong>
+          <small>Volatility over remaining DTE</small>
+        </div>
+        <div class="metric">
+          <span>Feasibility Ratio</span>
+          <strong style={`color: ${feasibilityStatusColor};`}>
+            {feasibilityRatio !== null ? `${feasibilityRatio.toFixed(2)}x EM` : '—'}
+          </strong>
+          <small>Threshold: &le; 1.25x EM</small>
+        </div>
+        <div class="metric">
+          <span>Long Wing Barrier</span>
+          <strong style={longWingBreached ? 'color: var(--red);' : ''}>
+            {pos?.longStrike ? `$${pos.longStrike.toFixed(2)}` : '—'}
+          </strong>
+          <small>{longWingBreached ? 'Wing breached' : 'Structural floor intact'}</small>
+        </div>
+      </div>
+
+      <div style="background: #eeeee8; padding: 14px 18px; border-radius: 4px; margin-top: 14px; font-size: 13px; color: #4b4c48; border-left: 3px solid var(--accent);">
+        <strong>Feasibility Rule Status:</strong> {feasibilityStatusText}.
+        {feasibilityRatio !== null && (
+          <span>
+            {isFeasible
+              ? ` The required move to breakeven (${((requiredMovePct || 0) * 100).toFixed(2)}%) represents only ${(feasibilityRatio * 100).toFixed(0)}% of the statistical expected move over the remaining holding window, meaning mean reversion remains highly feasible.`
+              : ` The required move to breakeven (${((requiredMovePct || 0) * 100).toFixed(2)}%) exceeds 1.25x the expected move, indicating statistically improbable recovery before expiration.`
+            }
+          </span>
+        )}
+      </div>
+    </section>
+
+    <!-- 4. Capital & Risk Allocation Breakdown -->
+    <section class="dashboard-section" style="padding-bottom: 32px;">
+      <div class="section-heading">
+        <div>
+          <h2>4. Capital & Risk Allocation Economics</h2>
           <p>Detailed margin requirement, cash premium collected, maximum capped loss, and return on capital</p>
         </div>
       </div>
@@ -184,11 +248,11 @@ const pnlSign = realizedPnl !== null && realizedPnl > 0 ? '+' : '';
       </div>
     </section>
 
-    <!-- 4. Realized Outcome & Capital Preservation -->
+    <!-- 5. Realized Outcome & Capital Preservation -->
     <section class="dashboard-section" style="padding-bottom: 32px;">
       <div class="section-heading">
         <div>
-          <h2>4. Realized Outcome & Capital Preservation</h2>
+          <h2>5. Realized Outcome & Capital Preservation</h2>
           <p>Intraday management, stop-loss trigger, realized P&L, and downside capital shielded</p>
         </div>
       </div>
@@ -244,7 +308,7 @@ const pnlSign = realizedPnl !== null && realizedPnl > 0 ? '+' : '';
       <section class="trades-section" style="padding-top: 12px;">
         <div class="section-heading">
           <div>
-            <h2>5. Broker Execution Audit Trail</h2>
+            <h2>6. Broker Execution Audit Trail</h2>
             <p>Alpaca paper trading order submissions and fills</p>
           </div>
         </div>

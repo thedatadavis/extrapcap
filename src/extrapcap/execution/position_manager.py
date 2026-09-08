@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import math
 import time
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
@@ -27,6 +28,12 @@ class ManagedPosition:
     opened_at: date
     as_of: date
     expiration: date | None = None
+    short_strike: float | None = None
+    long_strike: float | None = None
+    underlying_price: float | None = None
+    volatility: float | None = None
+    rolling_mean: float | None = None
+    option_type: str = "put"
 
     @property
     def return_on_capital(self) -> float:
@@ -52,6 +59,61 @@ class ManagedPosition:
             if cur.weekday() < 5:
                 count += 1
         return count
+
+    @property
+    def dte(self) -> float:
+        if self.expiration is None:
+            return 0.0
+        days = (self.expiration - self.as_of).days
+        return max(0.0, float(days))
+
+    @property
+    def breakeven_price(self) -> float | None:
+        if self.short_strike is None or self.entry_price <= 0:
+            return None
+        if str(self.option_type).lower() == "call":
+            return round(self.short_strike + self.entry_price, 2)
+        return round(self.short_strike - self.entry_price, 2)
+
+    @property
+    def required_move_pct(self) -> float:
+        if self.underlying_price is None or self.breakeven_price is None or self.underlying_price <= 0:
+            return 0.0
+        if str(self.option_type).lower() == "call":
+            if self.underlying_price > self.breakeven_price:
+                return (self.underlying_price - self.breakeven_price) / self.underlying_price
+            return 0.0
+        else:
+            if self.underlying_price < self.breakeven_price:
+                return (self.breakeven_price - self.underlying_price) / self.underlying_price
+            return 0.0
+
+    @property
+    def expected_move_pct(self) -> float:
+        vol = self.volatility if self.volatility and self.volatility > 0 else 0.30
+        eff_dte = max(0.5, self.dte)
+        return float(vol * math.sqrt(eff_dte / 252.0))
+
+    @property
+    def feasibility_ratio(self) -> float:
+        em = self.expected_move_pct
+        if em <= 0:
+            return 0.0
+        return self.required_move_pct / em
+
+    @property
+    def distance_to_mean_pct(self) -> float | None:
+        if self.underlying_price is None or self.rolling_mean is None or self.rolling_mean <= 0:
+            return None
+        return (self.underlying_price - self.rolling_mean) / self.rolling_mean
+
+    @property
+    def long_wing_breached(self) -> bool:
+        if self.underlying_price is None or self.long_strike is None:
+            return False
+        if str(self.option_type).lower() == "call":
+            return self.underlying_price >= self.long_strike
+        return self.underlying_price <= self.long_strike
 
 
 def _expiration_horizon(position: ManagedPosition, cfg: RiskConfig) -> ExitDecision | None:
@@ -113,11 +175,21 @@ def evaluate_credit_exit(
     if profit_pct >= cfg.core_profit_target_pct:
         return ExitDecision("close", "profit_target")
 
-    loss = position.current_debit - position.entry_price
-    credit_stop = position.entry_price * cfg.core_stop_loss_multiple
-    max_loss_stop = position.max_loss * 0.85
-    if loss >= min(credit_stop, max_loss_stop):
-        return ExitDecision("close", "stop_loss")
+    # 1. Structural barrier: Long protective wing breached
+    if position.long_wing_breached:
+        return ExitDecision("close", "long_wing_breached")
+
+    # 2. Contextual Reversion Feasibility:
+    # If required move to breakeven exceeds threshold * expected move,
+    # recovery is statistically improbable given remaining DTE.
+    if position.underlying_price is not None and position.feasibility_ratio > cfg.feasibility_em_threshold:
+        return ExitDecision("close", f"feasibility_stop_exceeded_{position.feasibility_ratio:.2f}x")
+
+    # 3. Catastrophic spread-width debit backstop:
+    # If debit reaches 85% of spread width (nearing theoretical max loss), cut to preserve capital.
+    catastrophic_cap = position.spread_width * cfg.catastrophic_debit_pct
+    if position.current_debit >= catastrophic_cap:
+        return ExitDecision("close", "catastrophic_debit_cap")
 
     # Credit spreads hold for theta decay; max_holding_sessions does not truncate winning credit spreads.
     return ExitDecision("hold", "risk_rules_satisfied")
@@ -207,11 +279,33 @@ def manage_live_positions(
     ledger=None,
     as_of: date | None = None,
     risk_config: RiskConfig | None = None,
+    market_data=None,
+    stock_prices: dict[str, float] | None = None,
 ) -> list[dict]:
     """Evaluate D1-backed spreads against the matching live broker legs."""
     day = as_of or datetime.now(UTC).date()
     cfg = risk_config or RiskConfig()
     durable_positions = positions or []
+    if stock_prices is None:
+        tickers = list({str(p.get("ticker")).upper() for p in durable_positions if p.get("ticker")})
+        if tickers:
+            md = market_data
+            if md is None:
+                try:
+                    from ..data.alpaca_market import AlpacaMarketData
+                    md = AlpacaMarketData()
+                except Exception:
+                    md = None
+            if md and hasattr(md, "stock_snapshots"):
+                try:
+                    stock_prices = md.stock_snapshots(tickers)
+                except Exception:
+                    stock_prices = {}
+            else:
+                stock_prices = {}
+    else:
+        stock_prices = dict(stock_prices)
+
     broker_positions = {
         str(position.get("symbol") or ""): position
         for position in client.positions()
@@ -333,7 +427,22 @@ def manage_live_positions(
             ),
         )
         entry_price = float(entry_debit if entry_debit is not None else entry_credit)
+        selection_metrics = _json(row.get("selection_metrics"), {})
+        row_ticker = str(row.get("ticker") or "").upper()
+        spot_price = stock_prices.get(row_ticker) if stock_prices else None
+        if spot_price is None and selection_metrics.get("underlying_price"):
+            try:
+                spot_price = float(selection_metrics["underlying_price"])
+            except (ValueError, TypeError):
+                pass
+
+        short_strike = float(sold.get("strike") or row.get("short_strike") or 0) or None
+        long_strike = float(bought.get("strike") or row.get("long_strike") or 0) or None
+        opt_type = str(sold.get("type") or "put").lower()
+        volatility = float(selection_metrics.get("volatility_context") or 0) or None
+        rolling_mean = float(selection_metrics.get("rolling_mean") or 0) or None
         original_side = "buy_to_open" if entry_debit is not None else "sell_to_open"
+
         envelope = OrderEnvelope(
             str(row.get("opened_at"))[:10],
             str(row["ticker"]),
@@ -351,6 +460,12 @@ def manage_live_positions(
             date.fromisoformat(str(row["opened_at"])[:10]),
             day,
             date.fromisoformat(str(row["expiration"])[:10]),
+            short_strike=short_strike,
+            long_strike=long_strike,
+            underlying_price=spot_price,
+            volatility=volatility,
+            rolling_mean=rolling_mean,
+            option_type=opt_type,
         )
         if entry_debit is not None:
             spread = DebitSpread(
@@ -366,6 +481,19 @@ def manage_live_positions(
             )
         else:
             decision = evaluate_credit_exit(managed, cfg)
+
+        feasibility_ctx = {
+            "underlying_price": managed.underlying_price,
+            "breakeven_price": managed.breakeven_price,
+            "required_move_pct": round(managed.required_move_pct, 4) if managed.required_move_pct is not None else None,
+            "expected_move_pct": round(managed.expected_move_pct, 4) if managed.expected_move_pct is not None else None,
+            "feasibility_ratio": round(managed.feasibility_ratio, 3) if managed.feasibility_ratio is not None else None,
+            "distance_to_mean_pct": round(managed.distance_to_mean_pct, 4) if managed.distance_to_mean_pct is not None else None,
+            "long_wing_breached": managed.long_wing_breached,
+            "dte": managed.dte,
+        }
+        metadata["feasibility_context"] = feasibility_ctx
+
         record = {
             "kind": "position_management",
             "category": "positions",
@@ -374,6 +502,9 @@ def manage_live_positions(
             "status": decision.action,
             "reason": decision.reason,
             "current_debit": current_debit,
+            "underlying_price": managed.underlying_price,
+            "breakeven_price": managed.breakeven_price,
+            "feasibility_context": feasibility_ctx,
             "legs": refreshed_legs,
             "metadata": metadata,
         }

@@ -226,16 +226,114 @@ def test_credit_exit_early_profit_target():
     assert decision.reason == "early_profit_target"
 
 
-def test_credit_exit_stop_loss():
+def test_credit_exit_feasibility_stop():
     from extrapcap.execution.orders import OrderEnvelope
     from extrapcap.execution.position_manager import ManagedPosition, evaluate_credit_exit
 
     env = OrderEnvelope("2026-08-12", "ABC", "sell_to_open", (), "core", 1.0)
-    # Entry credit $1.00. Current debit $3.00 (loss of $2.00 = 2x credit).
-    pos = ManagedPosition(env, entry_price=1.0, current_debit=3.0, spread_width=5.0, opened_at=date(2026, 8, 12), as_of=date(2026, 8, 13), expiration=date(2026, 8, 28))
+    # Short 100, Long 90, credit $1.00 -> Breakeven $99.00. DTE = 10 days. Vol = 30%.
+    # Expected Move over 10 DTE = 0.30 * sqrt(10/252) = 5.98%.
+    # Stock drops to $90.50 (above long strike $90.00) -> required move to $99 is +9.39% -> Feasibility Ratio = 1.57x > 1.25x!
+    pos = ManagedPosition(
+        env,
+        entry_price=1.0,
+        current_debit=2.50,
+        spread_width=10.0,
+        opened_at=date(2026, 8, 12),
+        as_of=date(2026, 8, 13),
+        expiration=date(2026, 8, 23),
+        short_strike=100.0,
+        long_strike=90.0,
+        underlying_price=90.50,
+        volatility=0.30,
+        option_type="put",
+    )
     decision = evaluate_credit_exit(pos, RiskConfig())
     assert decision.action == "close"
-    assert decision.reason == "stop_loss"
+    assert "feasibility_stop_exceeded" in decision.reason
+
+
+def test_credit_exit_long_wing_breached():
+    from extrapcap.execution.orders import OrderEnvelope
+    from extrapcap.execution.position_manager import ManagedPosition, evaluate_credit_exit
+
+    env = OrderEnvelope("2026-08-12", "ABC", "sell_to_open", (), "core", 1.0)
+    # Short 100, Long 95. Underlying drops to $94.50 (below long strike $95.00).
+    pos = ManagedPosition(
+        env,
+        entry_price=1.0,
+        current_debit=3.0,
+        spread_width=5.0,
+        opened_at=date(2026, 8, 12),
+        as_of=date(2026, 8, 13),
+        expiration=date(2026, 8, 28),
+        short_strike=100.0,
+        long_strike=95.0,
+        underlying_price=94.50,
+        volatility=0.30,
+        option_type="put",
+    )
+    decision = evaluate_credit_exit(pos, RiskConfig())
+    assert decision.action == "close"
+    assert decision.reason == "long_wing_breached"
+
+
+def test_credit_exit_catastrophic_debit_cap():
+    from extrapcap.execution.orders import OrderEnvelope
+    from extrapcap.execution.position_manager import ManagedPosition, evaluate_credit_exit
+
+    env = OrderEnvelope("2026-08-12", "ABC", "sell_to_open", (), "core", 1.0)
+    # Spread width 5.0. 85% catastrophic cap is 5.0 * 0.85 = $4.25.
+    # Current debit reaches $4.30 -> catastrophic cap triggers!
+    pos = ManagedPosition(
+        env,
+        entry_price=1.0,
+        current_debit=4.30,
+        spread_width=5.0,
+        opened_at=date(2026, 8, 12),
+        as_of=date(2026, 8, 13),
+        expiration=date(2026, 8, 28),
+        short_strike=100.0,
+        long_strike=95.0,
+        underlying_price=98.0,
+        volatility=0.30,
+        option_type="put",
+    )
+    decision = evaluate_credit_exit(pos, RiskConfig())
+    assert decision.action == "close"
+    assert decision.reason == "catastrophic_debit_cap"
+
+
+def test_credit_spread_holds_when_feasible_despite_debit_noise():
+    from extrapcap.execution.orders import OrderEnvelope
+    from extrapcap.execution.position_manager import ManagedPosition, evaluate_credit_exit
+
+    env = OrderEnvelope("2026-08-12", "PTC", "sell_to_open", (), "core", 0.40)
+    # The exact PTC scenario:
+    # Short 135, Long 130, credit $0.40 -> Breakeven $134.60.
+    # 10 DTE remaining. Vol = 35%. Expected Move over 10 DTE = ~6.97%.
+    # Underlying is at $133.89. Required move to $134.60 is only +0.53%!
+    # Feasibility ratio = 0.53% / 6.97% = 0.08x << 1.25x.
+    # Option debit widened to $3.00 (7.5x entry credit due to bid-ask noise).
+    # Under new rules: HOLDS!
+    pos = ManagedPosition(
+        env,
+        entry_price=0.40,
+        current_debit=3.00,
+        spread_width=5.0,
+        opened_at=date(2026, 8, 12),
+        as_of=date(2026, 8, 13),
+        expiration=date(2026, 8, 23),
+        short_strike=135.0,
+        long_strike=130.0,
+        underlying_price=133.89,
+        volatility=0.35,
+        option_type="put",
+    )
+    decision = evaluate_credit_exit(pos, RiskConfig())
+    assert decision.action == "hold"
+    assert decision.reason == "risk_rules_satisfied"
+
 
 
 def test_days_held_counts_trading_sessions_not_weekends():

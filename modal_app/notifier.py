@@ -118,13 +118,16 @@ def _parse_occ_symbol(symbol: str) -> dict | None:
 _REASON_MAP = {
     "profit_target": "Profit Target Hit (80% max gain captured)",
     "early_profit_target": "Early Profit Target Hit (35% gain in <=2 days)",
-    "stop_loss": "Stop Loss Triggered (2x credit limit reached)",
+    "stop_loss": "Stop Loss Triggered",
+    "feasibility_stop_exceeded": "Feasibility Stop Triggered (required move exceeds expected move threshold)",
+    "long_wing_breached": "Long Protective Wing Breached (structural stop)",
+    "catastrophic_debit_cap": "Catastrophic Debit Cap Hit (85% spread width barrier)",
     "threatened_expiration_risk": "Near-Expiration Risk Exit (1 DTE threatened short strike)",
     "threatened_zero_dte": "0 DTE Expiration Risk Exit (pin risk protection)",
     "expired_position": "Position Expired",
     "zero_dte_session_exit": "0 DTE Session Close",
     "credit_profit_target": "Profit Target Hit (80% max gain captured)",
-    "credit_stop_loss": "Stop Loss Triggered (2x credit limit reached)",
+    "credit_stop_loss": "Stop Loss Triggered",
     "max_dte_reached": "Max DTE / Target Holding Period Reached",
     "debit_profit_target": "Debit Take Profit Target Hit",
     "debit_stop_loss": "Debit Stop Loss Triggered",
@@ -137,6 +140,9 @@ _REASON_MAP = {
 def _friendly_exit_reason(raw_reason: str) -> str:
     if raw_reason in _REASON_MAP:
         return _REASON_MAP[raw_reason]
+    if raw_reason.startswith("feasibility_stop_exceeded_"):
+        ratio = raw_reason.removeprefix("feasibility_stop_exceeded_")
+        return f"Feasibility Stop Triggered (move needed is {ratio} expected move)"
     if raw_reason.startswith("forced_exit_dte_"):
         dte = raw_reason.removeprefix("forced_exit_dte_")
         return f"Forced Expiration Exit ({dte} DTE remaining)"
@@ -261,6 +267,20 @@ def format_position_exits_text(as_of: str, exits: list) -> str:
             s_strike = f"${short_leg['strike']:.2f}".rstrip("0").rstrip(".")
             l_strike = f"${long_leg['strike']:.2f}".rstrip("0").rstrip(".")
             lines.append(f"  Spread:        Short {s_strike} / Long {l_strike} (Exp: {exp_date})")
+
+        fc = exit_evt.get("feasibility_context") or exit_evt.get("metadata", {}).get("feasibility_context")
+        if fc and isinstance(fc, dict):
+            spot = fc.get("underlying_price")
+            be = fc.get("breakeven_price")
+            req_move = fc.get("required_move_pct")
+            em = fc.get("expected_move_pct")
+            ratio = fc.get("feasibility_ratio")
+            dte_val = fc.get("dte")
+            if spot is not None and be is not None:
+                dte_str = f" · {int(dte_val)} DTE" if dte_val is not None else ""
+                lines.append(f"  Underlying:    Spot ${spot:.2f} · Breakeven ${be:.2f}{dte_str}")
+            if req_move is not None and em is not None and ratio is not None:
+                lines.append(f"  Feasibility:   Req Move {req_move*100:+.2f}% vs EM {em*100:.2f}% ({ratio:.2f}x EM)")
 
         entry_credit = exit_evt.get("entry_credit")
         entry_debit = exit_evt.get("entry_debit")

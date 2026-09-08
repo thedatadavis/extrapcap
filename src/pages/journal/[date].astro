@@ -278,13 +278,22 @@ if (dailyReportEvent?.marketData?.wsj_summary) {
                   </div>
                 </div>
 
-                {/* Capital Preservation Note */}
-                {pos.capitalPreserved !== null && pos.capitalPreserved > 0 && (
-                  <div style="font-size: 11px; color: var(--muted); font-family: var(--mono); display: flex; justify-content: space-between; align-items: center; border-top: 1px solid rgba(32,33,31,0.06); padding-top: 8px;">
+                {/* Feasibility & Capital Preservation Note */}
+                <div style="font-size: 11px; color: var(--muted); font-family: var(--mono); display: flex; justify-content: space-between; align-items: center; border-top: 1px solid rgba(32,33,31,0.06); padding-top: 8px; flex-wrap: wrap; gap: 8px;">
+                  {pos.exitPrice !== null && pos.exitPrice !== undefined ? (
                     <span>Exit Fill: ${pos.exitPrice?.toFixed(2)} / sh (${pos.costToClose?.toLocaleString('en-US', { minimumFractionDigits: 2 })} total)</span>
+                  ) : (
+                    <span>Status: Active Holding ({pos.shortStrike > pos.longStrike ? 'Bull Put' : 'Bear Call'})</span>
+                  )}
+                  {pos.feasibilityRatio !== undefined && (
+                    <span style={`color: ${pos.feasibilityRatio <= 1.25 ? 'var(--green)' : 'var(--red)'};`}>
+                      Feasibility: {pos.feasibilityRatio.toFixed(2)}x EM ({pos.feasibilityRatio <= 1.25 ? 'Feasible' : 'Improbable'})
+                    </span>
+                  )}
+                  {pos.capitalPreserved !== null && pos.capitalPreserved > 0 && (
                     <span style="color: var(--green);">Downside Shielded: +${pos.capitalPreserved.toLocaleString('en-US', { minimumFractionDigits: 2 })} vs max risk</span>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
             );
           })}

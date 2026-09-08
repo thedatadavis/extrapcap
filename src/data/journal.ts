@@ -211,6 +211,12 @@ export type PositionEconomics = {
   streakDirection?: string;
   reversionProbability?: number;
   underlyingPrice?: number;
+  breakevenPrice?: number;
+  requiredMovePct?: number;
+  expectedMovePct?: number;
+  feasibilityRatio?: number;
+  distanceToMeanPct?: number;
+  longWingBreached?: boolean;
   legs: any[];
   metadata?: any;
 };
@@ -277,6 +283,44 @@ export async function getSessionPositions(db?: any, date?: string): Promise<Posi
       const metrics = parseJson(row.selection_metrics);
       const meta = parseJson(row.metadata);
       const legs = Array.isArray(row.legs) ? row.legs : parseJson(row.legs);
+      const fc = meta.feasibility_context || {};
+
+      const underlyingPrice = typeof fc.underlying_price === 'number'
+        ? fc.underlying_price
+        : (typeof metrics.underlying_price === 'number' ? metrics.underlying_price : undefined);
+
+      const breakevenPrice = typeof fc.breakeven_price === 'number'
+        ? fc.breakeven_price
+        : (shortStrike > 0 && entryCredit > 0 ? Math.round((shortStrike - entryCredit) * 100) / 100 : undefined);
+
+      let requiredMovePct = typeof fc.required_move_pct === 'number' ? fc.required_move_pct : undefined;
+      let expectedMovePct = typeof fc.expected_move_pct === 'number' ? fc.expected_move_pct : undefined;
+      let feasibilityRatio = typeof fc.feasibility_ratio === 'number' ? fc.feasibility_ratio : undefined;
+      let distanceToMeanPct = typeof fc.distance_to_mean_pct === 'number' ? fc.distance_to_mean_pct : undefined;
+      let longWingBreached = typeof fc.long_wing_breached === 'boolean' ? fc.long_wing_breached : undefined;
+
+      const expDate = String(row.expiration || '').slice(0, 10);
+      const openDate = String(row.opened_at || '').slice(0, 10);
+      let dte = 10;
+      if (expDate && openDate) {
+        const diffMs = new Date(expDate).getTime() - new Date(openDate).getTime();
+        dte = Math.max(0.5, Math.round(diffMs / (1000 * 60 * 60 * 24)));
+      }
+      if (underlyingPrice !== undefined && breakevenPrice !== undefined) {
+        if (requiredMovePct === undefined) {
+          requiredMovePct = underlyingPrice < breakevenPrice ? Math.round(((breakevenPrice - underlyingPrice) / underlyingPrice) * 10000) / 10000 : 0;
+        }
+        if (expectedMovePct === undefined) {
+          const vol = (typeof metrics.volatility_context === 'number' && metrics.volatility_context > 0) ? metrics.volatility_context : 0.35;
+          expectedMovePct = Math.round(vol * Math.sqrt(dte / 252.0) * 10000) / 10000;
+        }
+        if (feasibilityRatio === undefined && expectedMovePct > 0) {
+          feasibilityRatio = Math.round((requiredMovePct / expectedMovePct) * 1000) / 1000;
+        }
+        if (longWingBreached === undefined && longStrike) {
+          longWingBreached = underlyingPrice <= longStrike;
+        }
+      }
 
       const direction = shortStrike > longStrike ? 'Bullish' : 'Bearish';
       const strategy = `${direction} Put Credit Spread`;
@@ -308,7 +352,13 @@ export async function getSessionPositions(db?: any, date?: string): Promise<Posi
         streakLength: typeof metrics.streak_length === 'number' ? metrics.streak_length : undefined,
         streakDirection: metrics.streak_direction,
         reversionProbability: typeof metrics.reversion_probability === 'number' ? metrics.reversion_probability : undefined,
-        underlyingPrice: typeof metrics.underlying_price === 'number' ? metrics.underlying_price : undefined,
+        underlyingPrice,
+        breakevenPrice,
+        requiredMovePct,
+        expectedMovePct,
+        feasibilityRatio,
+        distanceToMeanPct,
+        longWingBreached,
         legs: Array.isArray(legs) ? legs : [],
         metadata: meta,
       };

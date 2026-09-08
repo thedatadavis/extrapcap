@@ -22,6 +22,8 @@ class RiskConfig(BaseModel):
     early_profit_target_pct: float = Field(0.35, gt=0, lt=1)
     early_profit_target_days: int = Field(2, gt=0)
     core_stop_loss_multiple: float = Field(2.0, ge=1)
+    feasibility_em_threshold: float = Field(1.25, gt=0)
+    catastrophic_debit_pct: float = Field(0.85, gt=0, le=1)
     core_time_stop_days: int = Field(4, gt=0)
     max_holding_sessions: int = Field(3, ge=1)
     forced_exit_dte: int = Field(3, ge=0)

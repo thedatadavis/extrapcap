@@ -41,17 +41,19 @@ def position_management():
 
     try:
         from extrapcap.options_data import AlpacaOptionsData
+        from extrapcap.data.alpaca_market import AlpacaMarketData
         from extrapcap.execution.position_manager import manage_live_positions
         from extrapcap.execution.broker_sync import synchronize_broker_state
 
         paper_client = AlpacaPaperClient.from_env()
         options_client = AlpacaOptionsData.from_env()
+        market_data = AlpacaMarketData()
 
         today_str = today.strftime("%Y-%m-%d")
         sync = synchronize_broker_state(paper_client, cf, run_id=run_id)
         positions = cf.get_active_positions()
         records = manage_live_positions(
-            paper_client, options_client, positions=positions, as_of=today
+            paper_client, options_client, positions=positions, as_of=today, market_data=market_data
         )
 
         # Report events and closed positions to Cloudflare D1

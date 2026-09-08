@@ -169,3 +169,29 @@ class AlpacaMarketData:
             "include_content": "true" if include_content else None,
         }
         return self._get("/v1beta1/news", params)
+
+    def stock_snapshots(self, symbols: list[str], feed: str = "iex") -> dict[str, float]:
+        """Fetch latest stock prices for symbols via /v2/stocks/snapshots."""
+        requested = list(dict.fromkeys(s.strip().upper() for s in symbols if s.strip()))
+        if not requested:
+            return {}
+        try:
+            res = self._get("/v2/stocks/snapshots", {"symbols": ",".join(requested), "feed": feed})
+        except Exception:
+            return {}
+        prices: dict[str, float] = {}
+        if isinstance(res, dict):
+            for sym, snap in res.items():
+                if not isinstance(snap, dict):
+                    continue
+                latest_trade = snap.get("latestTrade") or {}
+                minute_bar = snap.get("minuteBar") or {}
+                daily_bar = snap.get("dailyBar") or {}
+                p = latest_trade.get("p") or minute_bar.get("c") or daily_bar.get("c")
+                if p is not None:
+                    try:
+                        prices[sym] = float(p)
+                    except (ValueError, TypeError):
+                        pass
+        return prices
+
