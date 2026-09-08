@@ -2,7 +2,7 @@ import time
 from datetime import UTC, datetime
 
 from modal_app.bar_store import read_bar_partitions
-from modal_app.base import app, image, secrets, state_volume
+from modal_app.base import app, image, secrets, state_mount, state_volume
 from modal_app.cf_client import CloudflareAPIClient
 
 
@@ -65,6 +65,7 @@ def run_streak_screening(
 @app.function(
     image=image,
     secrets=secrets,
+    volumes=state_mount,
     timeout=300,
 )
 def streak_screen():

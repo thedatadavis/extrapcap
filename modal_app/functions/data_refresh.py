@@ -4,13 +4,14 @@ from datetime import UTC, datetime, timedelta
 import modal
 
 from modal_app.bar_store import write_bar_partitions
-from modal_app.base import app, image, secrets, state_volume
+from modal_app.base import app, image, secrets, state_mount, state_volume
 from modal_app.cf_client import CloudflareAPIClient
 
 
 @app.function(
     image=image,
     secrets=secrets,
+    volumes=state_mount,
     schedule=modal.Cron("0 4 * * 1-5"),
     timeout=600,
 )
