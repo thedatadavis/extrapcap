@@ -51,10 +51,12 @@ Positions are monitored intraday on a scheduled cadence. Rather than utilizing s
 1. **Profit Targets**:
    - Standard exit at **80% capture** of maximum potential credit.
    - Early profit exit at **35% capture** if reached within the first 2 holding sessions ($\ge 4$ DTE remaining).
-2. **Time Stop**:
-   - Maximum holding period of **3 trading sessions**. If the position has not reached a target or stopped out by session 3, it is closed to free capital.
-3. **Expiration Horizon**:
-   - Orderly close at **2–3 DTE** for any underwater position to eliminate assignment and pin risk ahead of expiration.
+2. **Time Stop (Debit Spreads)**:
+   - Debit spreads enforce a maximum holding period of **3 trading sessions** to prevent theta decay from eroding option premium.
+3. **Expiration Horizon & Theta Holding (Credit Spreads)**:
+   - Credit spreads hold past 3 sessions to let positive theta decay work in the trade's favor.
+   - At **2–3 DTE**, any underwater position (<25% profit captured) is orderly closed to eliminate gamma and assignment risk.
+   - At **0–1 DTE**, any threatened position (<50% profit captured) is closed; comfortably OTM positions are allowed to expire for full 100% credit capture without closing fees.
 4. **Hard Structural Barrier (Long Wing Breach)**:
    - Immediate close if the underlying spot price breaches through the protective long strike ($K_{\text{long}}$).
 5. **Contextual Feasibility Stop**:

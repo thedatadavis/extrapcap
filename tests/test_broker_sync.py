@@ -235,3 +235,64 @@ def test_manage_live_positions_detects_broker_closed_with_pnl():
     assert record["realized_pnl"] == 180.00
     assert record["position_id"] == 12
 
+
+def test_manage_live_positions_cancels_stale_close_order_and_requotes():
+    class StaleClient:
+        def __init__(self):
+            self.canceled = []
+            self.submitted = []
+
+        def positions(self):
+            return _broker_positions(long_price=0.20, short_price=0.25)
+
+        def open_orders(self):
+            return [
+                {
+                    "id": "stale-order-1",
+                    "status": "new",
+                    "legs": [
+                        {"symbol": LONG, "side": "sell"},
+                        {"symbol": SHORT, "side": "buy"},
+                    ],
+                }
+            ]
+
+        def cancel_order(self, order_id):
+            self.canceled.append(order_id)
+            return {"id": order_id, "status": "canceled"}
+
+        def order(self, order_id):
+            return {"id": order_id, "status": "canceled"}
+
+        def submit_order(self, payload):
+            self.submitted.append(payload)
+            return {"id": "new-close-2", "client_order_id": payload["client_order_id"]}
+
+    client = StaleClient()
+    pos = {
+        "id": 15,
+        "ticker": "XYZ",
+        "long_symbol": LONG,
+        "short_symbol": SHORT,
+        "long_strike": 50,
+        "short_strike": 55,
+        "spread_width": 5,
+        "entry_credit": 1.20,
+        "entry_debit": None,
+        "opened_at": "2026-08-01",
+        "expiration": "2026-08-20",
+        "sleeve": "core",
+        "quantity": 1,
+        "legs": _configured_legs(),
+        "metadata": {
+            "close_broker_order_id": "stale-order-1",
+            "close_reason": "profit_target",
+        },
+    }
+    records = manage_live_positions(client, None, positions=[pos], as_of=date(2026, 8, 12))
+    assert "stale-order-1" in client.canceled
+    assert len(client.submitted) == 1
+    assert len(records) == 1
+    assert records[0]["status"] == "close_submitted"
+
+

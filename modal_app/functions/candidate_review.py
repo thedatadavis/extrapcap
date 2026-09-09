@@ -47,7 +47,7 @@ def _attach_asset_identities(basket: list[dict]) -> tuple[list[dict], int]:
     image=image,
     secrets=secrets,
     volumes=state_mount,
-    schedule=modal.Cron("45 13,15,19 * * 1-5"),
+    schedule=modal.Cron("45 9,11,15 * * 1-5", timezone="America/New_York"),
     timeout=2400,
 )
 def candidate_review():

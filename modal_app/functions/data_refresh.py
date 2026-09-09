@@ -12,11 +12,11 @@ from modal_app.cf_client import CloudflareAPIClient
     image=image,
     secrets=secrets,
     volumes=state_mount,
-    schedule=modal.Cron("0 4 * * 1-5"),
+    schedule=modal.Cron("0 4 * * 1-5", timezone="America/New_York"),
     timeout=600,
 )
 def data_refresh():
-    """Daily market data refresh (4:00 AM UTC Mon-Fri)."""
+    """Daily market data refresh (4:00 AM ET Mon-Fri)."""
     cf = CloudflareAPIClient()
     start_time = time.time()
     run_id = cf.register_run("data_refresh")

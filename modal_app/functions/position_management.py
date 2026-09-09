@@ -14,11 +14,11 @@ from modal_app.notifier import (
     image=image,
     secrets=secrets,
     volumes=state_mount,
-    schedule=modal.Cron("*/30 13-20 * * 1-5"),
+    schedule=modal.Cron("*/30 9-16 * * 1-5", timezone="America/New_York"),
     timeout=300,
 )
 def position_management():
-    """Position Management Cron: Every 30 minutes during market hours."""
+    """Position Management Cron: Every 30 minutes during market hours (ET)."""
     today = datetime.now(timezone.utc).date()
     if today.weekday() >= 5:
         return {"status": "skipped", "reason": "weekend_market_closed"}

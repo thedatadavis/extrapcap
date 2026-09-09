@@ -62,6 +62,7 @@ Options Buying Pwr:  ${buying_power:,.2f}
 Daily Session P&L:   {pnl_str}
 
 Web Dashboard: https://extrapcap.pages.dev
+Scoreboard:    https://extrapcap.pages.dev/scoreboard
 Admin Console: https://extrapcap.pages.dev/admin
 --------------------------------------------------
 System status: Reconciled with Alpaca Paper Trading
@@ -94,6 +95,7 @@ WSJ DAILY COMMENTARY & MARKET NOTE
 {wsj}
 
 Interactive Journal: https://extrapcap.pages.dev/journal/{as_of}
+Strategy Scoreboard: https://extrapcap.pages.dev/scoreboard
 --------------------------------------------------
 Extrapolation Capital Automated Research System
 """
@@ -316,6 +318,7 @@ def format_position_exits_text(as_of: str, exits: list) -> str:
 
     lines.extend([
         "--------------------------------------------------",
+        "Strategy Scoreboard:  https://extrapcap.pages.dev/scoreboard",
         "View Active Positions: https://extrapcap.pages.dev/positions/active",
     ])
 

@@ -67,7 +67,10 @@ const formattedAsOf = latestRunTime
   ) : ACTIVE_POSITIONS.length === 0 ? (
     <div class="positions-empty">
       <h2>No active positions</h2>
-      <p>There are no active option positions in D1.</p>
+      <p>There are no open option positions in D1.</p>
+      <p style="margin-top: 12px;">
+        Review finalized performance on the <a href="/scoreboard" style="color: var(--green); text-decoration: underline; font-weight: 500;">Scoreboard</a> or browse daily records in the <a href="/" style="color: var(--green); text-decoration: underline; font-weight: 500;">Journal</a>.
+      </p>
     </div>
   ) : (
   <div class="positions-layout">

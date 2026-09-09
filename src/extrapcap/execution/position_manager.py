@@ -386,6 +386,24 @@ def manage_live_positions(
         ]
         metadata = _json(row.get("metadata"), {})
         close_order_id = metadata.get("close_broker_order_id")
+
+        # Stale close order recovery: if a previous close order is still open from an earlier run,
+        # cancel it so this cycle can re-evaluate at the latest market quote and re-attempt to close.
+        if matching_open and hasattr(client, "cancel_order"):
+            for open_ord in list(matching_open):
+                ord_id = str(open_ord.get("id") or "")
+                if ord_id and (ord_id == str(close_order_id) or not close_order_id):
+                    try:
+                        client.cancel_order(ord_id)
+                        matching_open.remove(open_ord)
+                    except Exception:
+                        pass
+            if not matching_open:
+                metadata = {
+                    key: value for key, value in metadata.items() if not key.startswith("close_")
+                }
+                close_order_id = None
+
         if close_order_id and not matching_open:
             close_order = client.order(str(close_order_id))
             if str(close_order.get("status") or "").lower() in {

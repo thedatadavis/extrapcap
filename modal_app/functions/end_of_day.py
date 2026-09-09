@@ -10,7 +10,7 @@ from modal_app.base import app, image, secrets, state_mount
     image=image,
     secrets=secrets,
     volumes=state_mount,
-    schedule=modal.Cron("30 20 * * 1-5"),
+    schedule=modal.Cron("30 16 * * 1-5", timezone="America/New_York"),
     timeout=1200,
 )
 def end_of_day():
