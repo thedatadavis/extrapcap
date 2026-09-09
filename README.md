@@ -1,60 +1,147 @@
 # Extrapolation Capital
 
-Extrapolation Capital is a paper-traded options research system built around a simple thesis: liquid markets can periodically overprice fear, but harvesting that premium is only acceptable when risk is bounded, observable, and easy to replay.
+Extrapolation Capital is an automated, paper-traded options trading system designed to trade short-horizon mean reversion on US equities following extended relative-performance streaks against the S&P 500 (SPY).
 
-The system has two sleeves:
+The system trades defined-risk vertical spreads (primarily bull put credit spreads on oversold stocks, and bear call credit spreads on overbought stocks), managing them with a multi-tier exit hierarchy based on statistical expected move feasibility.
 
-- **Core premium engine:** defined-risk put spreads, with baseline and higher-POP OTM variants.
-- **Asymmetric opportunity engine:** a separately budgeted sleeve funded only from realized core premium.
+---
 
-This repository provides the research core, trade construction, risk engine, Modal serverless execution pipeline, and Cloudflare Pages SSR dashboard backed by Cloudflare D1.
+## The Trading Strategy
 
-## System Architecture
+### 1. Streak Detection & Relative Momentum
 
-- **Compute Platform**: [Modal](https://modal.com) — Serverless Python crons for market data refresh, streak screening, pre-market prep, candidate review, position management, reconciliation, and daily EOD reporting.
-- **Transactional state**: Cloudflare D1 — Managed SQLite database storing trading events, active positions, order registries, the current basket, and account history.
-- **Historical market data**: Modal Volume — Immutable daily Parquet partitions for the high-volume stock-bar history used by refresh and streak-screen workflows.
-- **Dashboard**: [Cloudflare Pages](https://extrapcap.pages.dev) — Astro SSR web application with real-time D1 bindings and an interactive option spread visualizer.
-- **Admin Console**: Available at `/admin` (password-protected) for monitoring workflow execution runs and position status.
+The core hypothesis is that equities experiencing multi-day runs of under- or out-performance relative to the benchmark develop predictable statistical tendencies toward mean reversion once trend momentum exhausts.
 
-## Quick start
+- **Universe**: Liquid US common equities with weekly options chains, tight bid-ask penny pricing, and minimum average daily volume.
+- **Relative Returns**: Daily excess return measured against SPY:
+  $$R_{\text{rel}, t} = R_{\text{stock}, t} - R_{\text{SPY}, t}$$
+- **Streak Length**: Consecutive sessions where $R_{\text{rel}, t}$ shares the same sign (typically tracking 2 to 7+ consecutive sessions).
+- **Robust Z-Score**: Evaluates whether the cumulative magnitude of the streak is statistically extreme relative to the stock's historical distribution, using Median Absolute Deviation (MAD) rather than standard deviation to resist outlier skew:
+  $$Z_{\text{robust}} = \frac{\text{Streak Return} - \text{Median}}{\text{MAD} \times 1.4826}$$
+  A streak qualifies for trade consideration when $Z_{\text{robust}} \le -0.5$ (oversold) or $Z_{\text{robust}} \ge +0.5$ (overbought), with prioritization given to deeper deviations ($Z \le -2.0$).
 
-```bash
-python -m venv .venv
-source .venv/bin/activate
-pip install -e '.[dev]'
-pytest
-python -m extrapcap.backtest.cli --input examples/sample_bars.csv
-python -m extrapcap.backtest.compare_cli --input examples/sample_bars.csv
-python -m extrapcap.research.matrix_cli --input examples/sample_bars.csv
-python -m extrapcap.backtest.chain_cli --input examples/sample_option_observations.csv
+### 2. Bayesian Reversion Modeling
+
+Before trade generation, candidate streaks pass through a Bayesian probability estimator that conditions historical reversion odds on:
+- Streak direction and length
+- Robust $Z$-score magnitude
+- Sector-specific tendency
+- Historical ticker sample size and cell observations
+
+The model generates an estimated probability of mean reversion within the target holding window, establishing a baseline expected value ($EV$) hurdle for candidate trade structures.
+
+### 3. Trade Construction
+
+When a candidate passes screening and risk filters, the execution engine constructs a defined-risk vertical spread:
+
+- **Structure**:
+  - **Oversold setups**: Bull Put Credit Spread (Sell OTM Put, Buy further OTM Put).
+  - **Overbought setups**: Bear Call Credit Spread (Sell OTM Call, Buy further OTM Call).
+- **Strike Selection**:
+  - Short strike targeted at $0.10$ to $0.35$ delta.
+  - Spread width standardized to \$5.00 (or $0.5\%$ to $5\%$ of underlying price).
+  - Minimum collected credit threshold (typically $\ge 5\%$ of spread width).
+- **Expiration**: Target 10 DTE (with an allowable window of 7 to 21 DTE).
+- **Order Routing**: Iterative multi-leg limit laddering beginning at natural midpoints, iteratively adjusting toward market depth until filled.
+
+### 4. Position Management & Exit Hierarchy
+
+Positions are monitored intraday on a scheduled cadence. Rather than utilizing static multiple-of-credit stops (which often trigger prematurely on short-dated option noise), credit spreads are managed through an objective, multi-tiered hierarchy:
+
+1. **Profit Targets**:
+   - Standard exit at **80% capture** of maximum potential credit.
+   - Early profit exit at **35% capture** if reached within the first 2 holding sessions ($\ge 4$ DTE remaining).
+2. **Time Stop**:
+   - Maximum holding period of **3 trading sessions**. If the position has not reached a target or stopped out by session 3, it is closed to free capital.
+3. **Expiration Horizon**:
+   - Orderly close at **2–3 DTE** for any underwater position to eliminate assignment and pin risk ahead of expiration.
+4. **Hard Structural Barrier (Long Wing Breach)**:
+   - Immediate close if the underlying spot price breaches through the protective long strike ($K_{\text{long}}$).
+5. **Contextual Feasibility Stop**:
+   - Evaluates whether the underlying stock still has a realistic statistical probability of recovering past the breakeven price before expiry:
+     $$\text{Feasibility Ratio} = \frac{\text{Required Move to Breakeven \%}}{\text{Expected Move over Remaining DTE \%}}$$
+     where $\text{Expected Move \%} = \sigma_{\text{ann}} \times \sqrt{\frac{\text{DTE}}{252}}$.
+   - If the position is underwater and the required move exceeds **$1.25\times$ the $1\sigma$ expected move**, the position is closed.
+6. **Catastrophic Spread Width Cap**:
+   - Hard backstop triggered if the spread market debit exceeds **85% of total spread width**.
+
+### 5. Portfolio Risk Limits
+
+- **Core Risk Budget**: Maximum 70% of portfolio equity allocated across active core credit positions.
+- **Asymmetric Sleeve**: Secondary speculative sleeve capped at 15% of equity, funded exclusively from realized net gains generated by the core sleeve.
+- **Concentration Limits**: Max 20% portfolio risk in any single ticker; max 40% in any single industry sector.
+- **Drawdown Brake**: Halts new entries if daily portfolio loss reaches 15% or cumulative drawdown reaches 25%.
+
+---
+
+## Daily Operational Process
+
+The execution pipeline runs on serverless Python functions scheduled throughout the trading day:
+
+```
+04:00 UTC         09:00 EDT         09:45 EDT         10:00 EDT         Every 30m         16:45 EDT
+─────────         ─────────         ─────────         ─────────         ─────────         ─────────
+Data Refresh  ─►  Streak Screen  ─► Candidate Review ─► Trade Execution ─► Position Mgmt ─► EOD Report
+(Sync Alpaca      (Rank relative    (Risk vetoes,     (Iterative limit  (Feasibility stops,(Reconcile D1,
+ daily bars)       streaks & Z)      liquidity, EV)    order routing)    profit targets)   journal & PnL)
 ```
 
-## Automated CI/CD Deployment
+1. **Data Refresh (04:00 UTC)**: Downloads preceding day bars across the universe, updates benchmark calculations, and archives daily partitions to cloud storage.
+2. **Streak Screening (09:00 EDT)**: Computes relative return streaks and robust $Z$-scores across the universe, populating the qualified tradable basket for the day.
+3. **Candidate Review (09:45 EDT)**: Performs pre-trade validation on top-ranked candidates:
+   - Earnings calendar veto (rejects tickers reporting earnings within holding window)
+   - News risk filter (checks for structural corporate events or material sentiment anomalies)
+   - Option liquidity validation (minimum open interest, quote freshness, and bid-ask spread limits)
+4. **Trade Execution (10:00 EDT)**: Evaluates live portfolio capacity and executes multi-leg orders via Alpaca Paper API.
+5. **Position Management (Every 30 min intraday)**: Samples underlying prices and option marks, evaluates the exit hierarchy, executes closing orders for triggered rules, and sends alert notifications.
+6. **Reconciliation & Daily Journal (16:45 EDT)**: Reconciles broker positions and orders against Cloudflare D1 records, logs run events, and updates the research journal and scoreboard.
 
-Pushes to the `main` branch trigger `.github/workflows/deploy.yml` which automatically:
-1. Runs the `pytest` test suite.
-2. Builds the Astro SSR application and deploys to Cloudflare Pages & D1.
-3. Deploys scheduled Python serverless crons to Modal Labs.
+---
 
-**Required Repository Secrets**:
-- `CLOUDFLARE_API_TOKEN` & `CLOUDFLARE_ACCOUNT_ID`
-- `MODAL_TOKEN_ID` & `MODAL_TOKEN_SECRET`
+## System Infrastructure
 
-## Manual Modal & Cloudflare Deployment
+- **Compute & Scheduling**: [Modal](https://modal.com) serverless Python crons (`modal_app/`).
+- **Data & Ledger**: [Cloudflare D1](https://developers.cloudflare.com/d1/) managed SQLite for run audits, trade orders, active positions, and account history.
+- **Market Data & Execution**: [Alpaca Markets](https://alpaca.markets) Paper Trading API for real-time market data, multi-leg options quotes, and order lifecycle management.
+- **Research Dashboard**: [Cloudflare Pages](https://extrapcap.pages.dev) Astro SSR application providing real-time trade telemetry, active position payoff curves, daily journal archives, and the strategy scoreboard.
+
+---
+
+## Repository Structure
+
+```
+extrapcap/
+├── modal_app/                  # Serverless crons and execution runners
+│   ├── app.py                  # Modal application definition and cron schedule
+│   ├── cf_client.py            # HTTP client for Cloudflare D1 Pages API
+│   ├── notifier.py             # Exit and error email alerting
+│   └── functions/              # Scheduled operational tasks
+├── src/
+│   ├── extrapcap/              # Core quantitative logic
+│   │   ├── config.py           # Strategy parameters and risk thresholds
+│   │   ├── selection.py        # Streak detection and candidate screening
+│   │   ├── risk.py             # Portfolio risk budgeting and concentration caps
+│   │   ├── earnings.py         # Corporate event and earnings vetoes
+│   │   ├── data/               # Alpaca market data client and snapshots
+│   │   └── execution/          # Position manager, broker sync, and order loops
+│   ├── data/                   # Dashboard data access (journal, positions, scoreboard)
+│   └── pages/                  # Astro UI pages (Dashboard, Active Positions, Scoreboard, Journal)
+└── tests/                      # Automated test suite (100+ unit and integration tests)
+```
+
+---
+
+## Local Verification
+
+Run the test suite:
 
 ```bash
-# Modal deployment
-modal deploy modal_app/app.py
+uv run pytest
+```
 
-# Cloudflare Pages & D1 deployment
+Build the web application:
+
+```bash
+pnpm install
 pnpm build
-pnpm wrangler pages deploy dist --project-name=extrapcap
-pnpm wrangler d1 execute extrapcap --remote --file=schema.sql
 ```
-
-## Operating modes
-
-`end_of_day`, `hybrid`, and `intraday_loop` are configuration choices, not separate strategies. The first implementation consumes bars supplied by a data adapter, so the same strategy can be tested at daily or intraday frequency without changing decision logic.
-
-The tradable-basket screen uses the completed relative-return streak versus SPY. The default screen retains lengths 2 through 7, records every decision, and ranks longer negative streaks with robust Z at or below `-2.0` first.
