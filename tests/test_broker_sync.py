@@ -296,3 +296,64 @@ def test_manage_live_positions_cancels_stale_close_order_and_requotes():
     assert records[0]["status"] == "close_submitted"
 
 
+def test_sync_reconciles_uncovered_broker_option_legs():
+    # Scenario: midpoint order xpc-mid was canceled, but fallback order xpc-nat filled in Alpaca.
+    # D1 only knows about xpc-mid, but Alpaca broker positions has the legs.
+    class FallbackClient:
+        def orders_after(self, _after):
+            return [
+                {
+                    "id": "broker-mid-1",
+                    "client_order_id": "xpc-mid",
+                    "status": "canceled",
+                    "legs": [
+                        {"symbol": LONG, "side": "buy"},
+                        {"symbol": SHORT, "side": "sell"},
+                    ],
+                },
+                {
+                    "id": "broker-nat-2",
+                    "client_order_id": "xpc-nat",
+                    "status": "filled",
+                    "filled_at": "2026-08-12T14:05:00Z",
+                    "filled_qty": "1",
+                    "filled_avg_price": "1.75",
+                    "legs": [
+                        {"symbol": LONG, "side": "buy", "filled_avg_price": "2.25"},
+                        {"symbol": SHORT, "side": "sell", "filled_avg_price": "0.50"},
+                    ],
+                },
+            ]
+
+        def positions(self):
+            return _broker_positions()
+
+        def open_orders(self):
+            return []
+
+    store = SyncStore()
+    # Store only has record of xpc-mid
+    store.get_orders = lambda: [
+        {
+            "client_order_id": "xpc-mid",
+            "ticker": "ABC",
+            "sleeve": "asymmetric",
+            "side": "buy_to_open",
+            "strategy_variant": "bearish_reversal_watch",
+            "quantity": 1,
+            "legs": _configured_legs(),
+            "metadata": {"selection_context": {"robust_z": -2.4}},
+        }
+    ]
+
+    summary = synchronize_broker_state(FallbackClient(), store)
+    assert summary["positions_created"] == 1
+    assert len(store.created) == 1
+    created_pos = store.created[0][0]
+    assert created_pos["ticker"] == "ABC"
+    assert created_pos["entry_debit"] == 1.75
+    assert created_pos["metadata"]["entry_client_order_id"] == "xpc-nat"
+    assert created_pos["metadata"]["entry_broker_order_id"] == "broker-nat-2"
+
+
+

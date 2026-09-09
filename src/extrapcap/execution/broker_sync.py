@@ -101,11 +101,15 @@ def synchronize_broker_state(
     }
     active_positions = store.get_active_positions()
     active_entry_ids = set()
+    covered_symbols = set()
     closed = 0
     for position in active_positions:
         metadata = _json(position.get("metadata"), {})
         if metadata.get("entry_client_order_id"):
             active_entry_ids.add(metadata["entry_client_order_id"])
+        for leg in _json(position.get("legs"), []):
+            if leg.get("symbol"):
+                covered_symbols.add(str(leg["symbol"]))
 
     updated = 0
     created = 0
@@ -128,7 +132,57 @@ def synchronize_broker_state(
         if position:
             store.create_position(position, run_id=run_id)
             active_entry_ids.add(client_order_id)
+            for leg in position.get("legs") or []:
+                if leg.get("symbol"):
+                    covered_symbols.add(str(leg["symbol"]))
             created += 1
+
+    # Reconcile any open broker option legs not yet covered by active positions
+    # (e.g. from orders submitted during price-walk fallbacks or out-of-band fills)
+    uncovered_legs = set(broker_positions.keys()) - covered_symbols
+    if uncovered_legs:
+        filled_broker_orders = [
+            bo
+            for bo in broker_orders
+            if str(bo.get("status") or "").lower() == "filled" and (bo.get("legs") or [])
+        ]
+        all_d1_orders = store.get_orders()
+        for bo in filled_broker_orders:
+            bo_legs = {str(l.get("symbol") or "") for l in bo.get("legs") or []}
+            if bo_legs and bo_legs.issubset(uncovered_legs):
+                matching_d1_order = next(
+                    (
+                        d1_o
+                        for d1_o in all_d1_orders
+                        if {str(l.get("symbol") or "") for l in _json(d1_o.get("legs"), [])} == bo_legs
+                    ),
+                    None,
+                )
+                order_to_use = dict(matching_d1_order) if matching_d1_order else {}
+                order_to_use["client_order_id"] = str(
+                    bo.get("client_order_id") or order_to_use.get("client_order_id") or ""
+                )
+                order_to_use["broker_order_id"] = str(bo.get("id") or "")
+                if not order_to_use.get("ticker") and bo_legs:
+                    order_to_use["ticker"] = parse_occ_option_symbol(next(iter(bo_legs))).underlying
+                if not order_to_use.get("legs"):
+                    order_to_use["legs"] = [
+                        {
+                            "symbol": str(l.get("symbol")),
+                            "side": str(l.get("side")),
+                            "position_intent": str(
+                                l.get("position_intent")
+                                or ("sell_to_open" if l.get("side") == "sell" else "buy_to_open")
+                            ),
+                            "ratio_qty": int(float(l.get("ratio_qty") or 1)),
+                        }
+                        for l in bo.get("legs") or []
+                    ]
+                pos = _entry_position(order_to_use, bo, broker_positions)
+                if pos:
+                    store.create_position(pos, run_id=run_id)
+                    uncovered_legs -= bo_legs
+                    created += 1
 
     return {
         "orders_observed": len(broker_orders),

@@ -575,6 +575,7 @@ class PaperRunCoordinator:
                         if nat_status in {"filled", "partially_filled"}:
                             result = {
                                 **common,
+                                "client_order_id": natural_envelope.client_order_id,
                                 "status": "filled",
                                 "order_id": nat_order_id,
                                 "limit_price": natural_price,
@@ -600,6 +601,7 @@ class PaperRunCoordinator:
                         }:
                             result = {
                                 **common,
+                                "client_order_id": natural_envelope.client_order_id,
                                 "status": "filled",
                                 "order_id": nat_order_id,
                                 "limit_price": natural_price,
