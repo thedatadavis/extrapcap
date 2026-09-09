@@ -190,6 +190,78 @@ def test_data_refresh_persists_all_bars_to_modal_storage(monkeypatch):
     assert res["unavailable_symbols"] == ["AXIA"]
 
 
+def test_data_refresh_succeeds_even_if_bar_storage_fails(monkeypatch):
+    from datetime import datetime
+
+    import modal_app.functions.data_refresh as dr_mod
+    from modal_app.cf_client import CloudflareAPIClient
+
+    class MockDatetime:
+        @classmethod
+        def now(cls, tz=None):
+            return datetime(2026, 8, 6, 4, 0, 0, tzinfo=UTC)
+
+    monkeypatch.setattr(dr_mod, "datetime", MockDatetime)
+
+    appended_events = []
+
+    def mock_failing_write_bar_partitions(frame, volume, **kwargs):
+        raise RuntimeError("Modal function has no attached volumes")
+
+    def mock_run_streak_screening(cf, greenlist, bars_df, run_id=None):
+        return {
+            "status": "success",
+            "universe_count": len(greenlist),
+            "candidates_count": 1,
+            "candidate_symbols": ["BG"],
+            "run_id": run_id,
+        }
+
+    monkeypatch.setattr(CloudflareAPIClient, "register_run", lambda self, wf: "test-run-refresh")
+    monkeypatch.setattr(CloudflareAPIClient, "complete_run", lambda self, run_id, summary, start_time: None)
+    monkeypatch.setattr(dr_mod, "write_bar_partitions", mock_failing_write_bar_partitions)
+    monkeypatch.setattr(
+        CloudflareAPIClient,
+        "append_events",
+        lambda self, events, run_id=None: appended_events.extend(events),
+    )
+    monkeypatch.setattr("modal_app.functions.streak_screen.run_streak_screening", mock_run_streak_screening)
+    monkeypatch.setattr("extrapcap.secrets.require_paper_credentials", lambda: ("key", "sec"))
+
+    class FakeMarketData:
+        def __init__(self, api_key, secret_key):
+            pass
+        def stock_bars(self, symbols, start, end, timeframe, allow_partial=False):
+            return {
+                "bars": {
+                    "SPY": [{"t": "2026-08-05T04:00:00Z", "o": 1, "h": 2, "l": 1, "c": 2, "v": 100, "vw": 1.5}],
+                    "BG": [{"t": "2026-08-05T04:00:00Z", "o": 10, "h": 20, "l": 10, "c": 15, "v": 200, "vw": 15.0}],
+                },
+                "errors": {},
+                "unresolved_symbols": [],
+            }
+
+    monkeypatch.setattr("extrapcap.data.alpaca_market.AlpacaMarketData", FakeMarketData)
+
+    class FakeUrllib:
+        def __enter__(self):
+            return self
+        def __exit__(self, exc_type, exc_val, exc_tb):
+            pass
+        def read(self):
+            return b"ticker,sector\nBG,Agriculture\n"
+
+    monkeypatch.setattr("urllib.request.urlopen", lambda url, timeout=30: FakeUrllib())
+
+    res = dr_mod.data_refresh.local()
+    assert res["status"] == "success"
+    assert res["candidate_stocks"] == ["BG"]
+    warning_events = [e for e in appended_events if e.get("kind") == "bar_volume_warning"]
+    assert len(warning_events) == 1
+    assert "Modal function has no attached volumes" in warning_events[0]["reason"]
+
+
+
 def test_bayesian_reversion_model_discards_short_history():
     import pandas as pd
     import pytest

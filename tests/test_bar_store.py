@@ -88,3 +88,17 @@ def test_write_bar_partitions_purges_only_old_date_partitions(tmp_path):
 
     assert result["partitions_purged"] == 1
     assert (tmp_path / "date=2026-09-01").exists()
+
+
+def test_write_bar_partitions_tolerates_commit_runtime_error(tmp_path):
+    pytest.importorskip("pyarrow")
+
+    class ErrorVolume:
+        def commit(self):
+            raise RuntimeError("Modal function has no attached volumes")
+
+    result = write_bar_partitions(
+        _bars(), ErrorVolume(), root=str(tmp_path), reference_date=date(2026, 9, 2)
+    )
+    assert result["partitions_written"] == 2
+

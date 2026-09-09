@@ -52,13 +52,19 @@ def _partition_day(path: Path) -> date | None:
 def _commit(volume) -> None:
     commit = getattr(volume, "commit", None)
     if callable(commit):
-        commit()
+        try:
+            commit()
+        except RuntimeError:
+            pass
 
 
 def _reload(volume) -> None:
     reload = getattr(volume, "reload", None)
     if callable(reload):
-        reload()
+        try:
+            reload()
+        except RuntimeError:
+            pass
 
 
 def write_bar_partitions(

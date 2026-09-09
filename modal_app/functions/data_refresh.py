@@ -92,8 +92,27 @@ def data_refresh():
             )
 
         # 3. Persist analytical bars outside D1 as immutable daily partitions.
-        # The screen still runs over the complete in-memory provider response.
-        bar_storage = write_bar_partitions(bars_df, state_volume)
+        # The screen runs over the in-memory provider response; volume write is non-fatal.
+        bar_storage = {
+            "input_rows": len(bars_df),
+            "partitions_written": 0,
+            "partitions_skipped": 0,
+            "partitions_purged": 0,
+        }
+        try:
+            bar_storage = write_bar_partitions(bars_df, state_volume)
+        except Exception as exc:
+            cf.append_events(
+                [
+                    {
+                        "category": "data",
+                        "kind": "bar_volume_warning",
+                        "status": "warning",
+                        "reason": f"volume_partition_write_failed: {exc}",
+                    }
+                ],
+                run_id=run_id,
+            )
 
         # 4. Run streak screening in-memory over full universe bars
         from modal_app.functions.streak_screen import run_streak_screening
