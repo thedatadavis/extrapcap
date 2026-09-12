@@ -69,7 +69,15 @@ System status: Reconciled with Alpaca Paper Trading
 """
 
 
-def format_daily_report_text(as_of: str, summary: dict, events: list) -> str:
+def format_daily_report_text(
+    as_of: str,
+    summary: dict,
+    events: list = None,
+    orders: list = None,
+    positions: list = None,
+    account: dict = None,
+    exits: list = None,
+) -> str:
     evaluated = summary.get("evaluated", 0)
     passed_gate = summary.get("passed_gate", 0)
     passed_prob = summary.get("passed_prob", 0)
@@ -77,28 +85,226 @@ def format_daily_report_text(as_of: str, summary: dict, events: list) -> str:
     filled = summary.get("filled", 0)
     wsj = summary.get("wsj_summary", "No market commentary recorded.")
 
-    return f"""==================================================
-EXTRAPOLATION CAPITAL · DAILY EXECUTIVE REPORT
-Date: {as_of}
-==================================================
+    lines = [
+        "==================================================",
+        "EXTRAPOLATION CAPITAL · DAILY EXECUTIVE REPORT",
+        f"Date: {as_of}",
+        "==================================================",
+        "",
+    ]
 
-EVALUATION FUNNEL SUMMARY
---------------------------------------------------
-Candidates Evaluated: {evaluated}
-Signal Passed:        {passed_gate}
-Model Approved (>50%):{passed_prob}
-Orders Submitted:     {submitted}
-Confirmed Fills:      {filled}
+    # 1. ACCOUNT & PORTFOLIO SNAPSHOT
+    if account:
+        equity = float(account.get("equity") or account.get("portfolio_value") or account.get("balance") or 0.0)
+        cash = float(account.get("cash") or 0.0)
+        bp = float(account.get("buying_power") or account.get("buyingPower") or 0.0)
+        pnl = float(account.get("daily_pnl") or 0.0)
+        pnl_str = f"+${pnl:,.2f}" if pnl >= 0 else f"-${abs(pnl):,.2f}"
 
-WSJ DAILY COMMENTARY & MARKET NOTE
---------------------------------------------------
-{wsj}
+        lines.extend([
+            "ACCOUNT & PORTFOLIO SNAPSHOT",
+            "--------------------------------------------------",
+            f"Total Equity:        ${equity:,.2f}",
+            f"Cash Balance:        ${cash:,.2f}",
+            f"Options Buying Pwr:  ${bp:,.2f}",
+            f"Daily Session P&L:   {pnl_str}",
+            "",
+        ])
 
-Interactive Journal: https://extrapcap.pages.dev/journal/{as_of}
-Strategy Scoreboard: https://extrapcap.pages.dev/scoreboard
---------------------------------------------------
-Extrapolation Capital Automated Research System
-"""
+    # 2. EVALUATION FUNNEL SUMMARY
+    lines.extend([
+        "EVALUATION FUNNEL SUMMARY",
+        "--------------------------------------------------",
+        f"Candidates Evaluated: {evaluated}",
+        f"Signal Passed:        {passed_gate}",
+        f"Model Approved (>50%):{passed_prob}",
+        f"Orders Submitted:     {submitted}",
+        f"Confirmed Fills:      {filled}",
+        "",
+    ])
+
+    # 3. EXECUTED TRADES & TRADE ECONOMICS
+    if orders:
+        filled_orders = [o for o in orders if str(o.get("execution_status") or o.get("status") or "").lower() == "filled"]
+        if filled_orders:
+            lines.extend([
+                "EXECUTED TRADES & TRADE ECONOMICS",
+                "--------------------------------------------------",
+            ])
+            for order in filled_orders:
+                ticker = order.get("ticker") or order.get("journal", {}).get("ticker", "N/A")
+                qty = int(order.get("quantity") or order.get("filled_qty") or 1)
+
+                matched_pos = None
+                if positions:
+                    for p in positions:
+                        if p.get("ticker") == ticker:
+                            matched_pos = p
+                            break
+
+                raw_price = order.get("filled_avg_price")
+                if raw_price is None and matched_pos:
+                    raw_price = matched_pos.get("entry_credit") or matched_pos.get("entry_debit")
+                if raw_price is None:
+                    raw_price = order.get("limit_price", 0.0)
+                price = abs(float(raw_price or 0.0))
+
+                legs = order.get("legs") or (matched_pos.get("legs") if matched_pos else [])
+                if isinstance(legs, str):
+                    try:
+                        import json
+                        legs = json.loads(legs)
+                    except Exception:
+                        legs = []
+                short_leg = None
+                long_leg = None
+                exp_date = ""
+                for leg in legs:
+                    occ = _parse_occ_symbol(leg.get("symbol", ""))
+                    leg_side = str(leg.get("side") or leg.get("position_intent") or "").lower()
+                    if occ:
+                        exp_date = occ["expiration"]
+                        if "sell" in leg_side:
+                            short_leg = occ
+                        else:
+                            long_leg = occ
+
+                side = str(order.get("side") or "").lower()
+                is_credit = "sell" in side or side == "sell_to_open" or price > 0
+                spread_type = f"{short_leg['type'] if short_leg else 'Put'} {'Credit' if is_credit else 'Debit'} Spread"
+
+                total_premium = round(price * qty * 100, 2)
+                spread_width = abs(short_leg["strike"] - long_leg["strike"]) if short_leg and long_leg else (float(matched_pos.get("spread_width") or 10.0) if matched_pos else 10.0)
+                gross_margin = spread_width * 100 * qty
+                max_risk = max(0.0, gross_margin - total_premium) if is_credit else total_premium
+
+                be_price = short_leg["strike"] - price if short_leg and is_credit else None
+                meta = order.get("metadata") or {}
+                if isinstance(meta, str):
+                    try:
+                        import json
+                        meta = json.loads(meta)
+                    except Exception:
+                        meta = {}
+                fc = order.get("feasibility_context") or meta.get("feasibility_context") or {}
+                spot = fc.get("underlying_price") or (order.get("selection_context") or {}).get("underlying_price") or meta.get("selection_context", {}).get("underlying_price")
+
+                current_mark = None
+                if matched_pos:
+                    pos_meta = matched_pos.get("metadata") or {}
+                    if isinstance(pos_meta, str):
+                        try:
+                            import json
+                            pos_meta = json.loads(pos_meta)
+                        except Exception:
+                            pos_meta = {}
+                    pos_fc = matched_pos.get("feasibility_context") or pos_meta.get("feasibility_context") or {}
+                    if pos_fc.get("underlying_price"):
+                        spot = pos_fc.get("underlying_price")
+                    if pos_fc.get("breakeven_price"):
+                        be_price = pos_fc.get("breakeven_price")
+
+                    pos_legs = matched_pos.get("legs") or []
+                    if isinstance(pos_legs, str):
+                        try:
+                            import json
+                            pos_legs = json.loads(pos_legs)
+                        except Exception:
+                            pos_legs = []
+                    short_cur = None
+                    long_cur = None
+                    for pl in pos_legs:
+                        pl_side = str(pl.get("side") or pl.get("position_intent") or "").lower()
+                        cur_p = pl.get("current_price")
+                        if "sell" in pl_side and cur_p is not None:
+                            short_cur = float(cur_p)
+                        elif "buy" in pl_side and cur_p is not None:
+                            long_cur = float(cur_p)
+                    if short_cur is not None and long_cur is not None:
+                        current_mark = round(short_cur - long_cur, 2)
+
+                lines.append(f"• {ticker} · {qty}x {spread_type}")
+                if short_leg and long_leg:
+                    s_strike = f"${short_leg['strike']:.2f}".rstrip("0").rstrip(".")
+                    l_strike = f"${long_leg['strike']:.2f}".rstrip("0").rstrip(".")
+                    lines.append(f"  Strikes:       Short {s_strike} / Long {l_strike} (Exp: {exp_date})")
+                lines.append(f"  Execution:     ${price:.2f} Net Credit (Filled: {qty} contracts)")
+                lines.append(f"  Total Premium: ${total_premium:,.2f} collected upfront")
+                lines.append(f"  Max Risk:      ${max_risk:,.2f} capped worst-case (${gross_margin:,.2f} collateral)")
+                if be_price is not None and spot is not None:
+                    cushion = spot - be_price
+                    lines.append(f"  Underlying:    Spot ${spot:.2f} · Breakeven ${be_price:.2f} (+${cushion:.2f} cushion)")
+                if current_mark is not None and is_credit:
+                    unrealized_pnl = round((price - float(current_mark)) * qty * 100, 2)
+                    unrealized_pct = (unrealized_pnl / total_premium * 100) if total_premium > 0 else 0.0
+                    pnl_sign = "+" if unrealized_pnl >= 0 else "-"
+                    lines.append(f"  Current Mark:  ${float(current_mark):.2f}/sh (${float(current_mark)*qty*100:,.2f} to close)")
+                    lines.append(f"  Unrealized P&L:{pnl_sign}${abs(unrealized_pnl):,.2f} ({unrealized_pct:+.1f}% on credit)")
+                    lines.append(f"  Status:        Active Holding (In The Money / Feasible)")
+                lines.append("")
+
+    # 4. POSITION EXITS TRIGGERED
+    if exits:
+        lines.extend([
+            "POSITION EXITS TRIGGERED",
+            "--------------------------------------------------",
+        ])
+        for exit_evt in exits:
+            ticker = exit_evt.get("ticker") or exit_evt.get("journal", {}).get("ticker", "N/A")
+            raw_reason = (
+                exit_evt.get("reason")
+                or exit_evt.get("metadata", {}).get("close_reason")
+                or exit_evt.get("journal", {}).get("reason")
+                or "Exit rule triggered"
+            )
+            friendly_reason = _friendly_exit_reason(raw_reason)
+            qty = int(exit_evt.get("quantity") or 1)
+            realized_pnl = exit_evt.get("realized_pnl")
+            lines.append(f"• {ticker} · {qty} contract(s)")
+            lines.append(f"  Exit Trigger:  {friendly_reason}")
+            if realized_pnl is not None:
+                pnl_val = float(realized_pnl)
+                pnl_str = f"+${pnl_val:,.2f}" if pnl_val >= 0 else f"-${abs(pnl_val):,.2f}"
+                lines.append(f"  Realized P&L:  {pnl_str}")
+            lines.append("")
+
+    # 5. ACTIVE POSITIONS IN BOOK
+    if positions:
+        active_pos = [p for p in positions if p.get("is_active") or not p.get("closed_at")]
+        if active_pos:
+            lines.extend([
+                f"ACTIVE POSITIONS IN BOOK ({len(active_pos)})",
+                "--------------------------------------------------",
+            ])
+            for pos in active_pos:
+                ticker = pos.get("ticker", "N/A")
+                qty = int(pos.get("quantity") or 1)
+                exp = str(pos.get("expiration", "N/A"))[:10]
+                s_strike = pos.get("short_strike")
+                l_strike = pos.get("long_strike")
+                entry_c = pos.get("entry_credit")
+                strike_str = f"Short ${float(s_strike):.2f} / Long ${float(l_strike):.2f}" if s_strike and l_strike else "Vertical Spread"
+                credit_str = f" · Entry Credit: ${float(entry_c):.2f}/sh" if entry_c else ""
+                lines.append(f"• {ticker} · {qty}x Put Credit Spread ({strike_str} · Exp: {exp}){credit_str}")
+            lines.append("")
+
+    # 6. WSJ COMMENTARY
+    lines.extend([
+        "WSJ DAILY COMMENTARY & MARKET NOTE",
+        "--------------------------------------------------",
+        f"{wsj}",
+        "",
+        "--------------------------------------------------",
+        f"Interactive Journal: https://extrapcap.pages.dev/journal/{as_of}",
+        "Strategy Scoreboard: https://extrapcap.pages.dev/scoreboard",
+        "Active Positions:    https://extrapcap.pages.dev/positions/active",
+        "Admin Console:       https://extrapcap.pages.dev/admin",
+        "--------------------------------------------------",
+        "Extrapolation Capital Automated Research System",
+        "",
+    ])
+
+    return "\n".join(lines)
 
 
 def _parse_occ_symbol(symbol: str) -> dict | None:

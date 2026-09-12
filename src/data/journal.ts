@@ -197,6 +197,8 @@ export type PositionEconomics = {
   longStrike: number;
   spreadWidth: number;
   expiration: string;
+  currentMark?: number | null;
+  unrealizedPnl?: number | null;
   entryCredit: number;
   upfrontPremium: number;
   grossMargin: number;
@@ -232,11 +234,12 @@ export async function getSessionPositions(db?: any, date?: string): Promise<Posi
       ? await db.prepare("SELECT * FROM events WHERE trading_day = ? AND (kind = 'position_management' OR category = 'positions')").bind(date).all()
       : await db.prepare("SELECT * FROM events WHERE kind = 'position_management' OR category = 'positions'").all();
 
-    const exitMap = new Map<number, { exitPrice: number; realizedPnl?: number; reason?: string }>();
+    const exitMap = new Map<number, { exitPrice: number; realizedPnl?: number; reason?: string; isClosed?: boolean }>();
     for (const evt of eventQuery.results || []) {
       const payload = parseJson(evt.payload);
       const posId = Number(payload.position_id ?? (typeof evt.event_id === 'string' ? evt.event_id.replace(/^pos-/, '') : 0));
       if (posId) {
+        const isExitEvt = String(evt.kind || '').includes('exit') || String(evt.kind || '').includes('close') || String(payload.status || '').toLowerCase() === 'closed';
         const exitP = typeof payload.exit_price === 'number'
           ? Math.abs(payload.exit_price)
           : typeof payload.current_debit === 'number'
@@ -247,6 +250,7 @@ export async function getSessionPositions(db?: any, date?: string): Promise<Posi
             exitPrice: exitP,
             realizedPnl: typeof payload.realized_pnl === 'number' ? payload.realized_pnl : undefined,
             reason: payload.reason,
+            isClosed: isExitEvt,
           });
         }
       }
@@ -267,17 +271,23 @@ export async function getSessionPositions(db?: any, date?: string): Promise<Posi
       const maxRocPct = maxRisk > 0 ? Math.round((upfrontPremium / maxRisk) * 1000) / 10 : 0;
 
       const exitInfo = exitMap.get(id);
-      const exitPrice = exitInfo?.exitPrice ?? null;
+      const isPositionClosed = Boolean(row.closed_at) || !row.is_active || (exitInfo?.isClosed ?? false);
+      const exitPrice = isPositionClosed ? (exitInfo?.exitPrice ?? null) : null;
+      const currentMark = !isPositionClosed ? (exitInfo?.exitPrice ?? null) : null;
       let costToClose: number | null = null;
       let realizedPnl: number | null = null;
+      let unrealizedPnl: number | null = null;
       let capitalPreserved: number | null = null;
 
-      if (exitPrice !== null && exitPrice !== undefined) {
+      if (isPositionClosed && exitPrice !== null && exitPrice !== undefined) {
         costToClose = Math.round(exitPrice * 100 * quantity * 100) / 100;
         realizedPnl = exitInfo?.realizedPnl ?? Math.round((entryCredit - exitPrice) * 100 * quantity * 100) / 100;
         if (realizedPnl < 0) {
           capitalPreserved = Math.max(0, Math.round((maxRisk - Math.abs(realizedPnl)) * 100) / 100);
         }
+      } else if (!isPositionClosed && currentMark !== null && currentMark !== undefined) {
+        costToClose = Math.round(currentMark * 100 * quantity * 100) / 100;
+        unrealizedPnl = Math.round((entryCredit - currentMark) * 100 * quantity * 100) / 100;
       }
 
       const metrics = parseJson(row.selection_metrics);
@@ -347,6 +357,8 @@ export async function getSessionPositions(db?: any, date?: string): Promise<Posi
         exitPrice,
         costToClose,
         realizedPnl,
+        unrealizedPnl,
+        currentMark,
         capitalPreserved,
         robustZ: typeof metrics.robust_z === 'number' ? metrics.robust_z : undefined,
         streakLength: typeof metrics.streak_length === 'number' ? metrics.streak_length : undefined,
@@ -530,7 +542,12 @@ export async function getExecutedTrades(dbOrJournal?: any) {
   const journal = Array.isArray(dbOrJournal) ? dbOrJournal : await getJournal(dbOrJournal);
   return journal
     .flatMap((entry) => entry.entries.map((item) => ({ date: entry.date, item, trade: tradeFor(item) })))
-    .filter(({ item }) => isExecutedTrade(item));
+    .filter(({ item }) => isExecutedTrade(item))
+    .sort((a, b) => {
+      const timeA = a.item?.timestamp || `${a.date}T00:00:00Z`;
+      const timeB = b.item?.timestamp || `${b.date}T00:00:00Z`;
+      return timeB.localeCompare(timeA);
+    });
 }
 
 function displayName(value: string) {

@@ -225,8 +225,9 @@ if (dailyReportEvent?.marketData?.wsj_summary) {
 
         <div style="display: grid; gap: 20px;">
           {sessionPositions.map((pos) => {
-            const pnlColor = pos.realizedPnl !== null ? (pos.realizedPnl >= 0 ? 'var(--green)' : 'var(--red)') : 'var(--ink)';
-            const pnlSign = pos.realizedPnl !== null && pos.realizedPnl > 0 ? '+' : '';
+            const pnlVal = pos.isActive ? pos.unrealizedPnl : pos.realizedPnl;
+            const pnlColor = pnlVal !== null && pnlVal !== undefined ? (pnlVal >= 0 ? 'var(--green)' : 'var(--red)') : 'var(--ink)';
+            const pnlSign = pnlVal !== null && pnlVal !== undefined && pnlVal > 0 ? '+' : '';
             return (
               <div style="background: #eeeee8; padding: 22px 24px; border-radius: 4px; border-left: 3px solid var(--green);">
                 {/* Header line */}
@@ -273,14 +274,16 @@ if (dailyReportEvent?.marketData?.wsj_summary) {
                     <div style="font-size: 13px; line-height: 1.5;">
                       <div>Premium: <strong style="color: var(--green);">+${pos.upfrontPremium.toLocaleString('en-US', { minimumFractionDigits: 2 })}</strong></div>
                       <div>Max Risk: <strong>${pos.maxRisk.toLocaleString('en-US', { minimumFractionDigits: 2 })}</strong></div>
-                      <div>Realized: <strong style={`color: ${pnlColor};`}>{pos.realizedPnl !== null ? `${pnlSign}$${pos.realizedPnl.toLocaleString('en-US', { minimumFractionDigits: 2 })}` : 'Active'}</strong></div>
+                      <div>{pos.isActive ? 'Unrealized:' : 'Realized:'} <strong style={`color: ${pnlColor};`}>{pnlVal !== null && pnlVal !== undefined ? `${pnlSign}$${pnlVal.toLocaleString('en-US', { minimumFractionDigits: 2 })}` : 'Active'}</strong></div>
                     </div>
                   </div>
                 </div>
 
                 {/* Feasibility & Capital Preservation Note */}
                 <div style="font-size: 11px; color: var(--muted); font-family: var(--mono); display: flex; justify-content: space-between; align-items: center; border-top: 1px solid rgba(32,33,31,0.06); padding-top: 8px; flex-wrap: wrap; gap: 8px;">
-                  {pos.exitPrice !== null && pos.exitPrice !== undefined ? (
+                  {pos.isActive ? (
+                    <span>Current Mark: {pos.currentMark !== null && pos.currentMark !== undefined ? `$${pos.currentMark.toFixed(2)} / sh` : '—'} ({pos.costToClose ? `$${pos.costToClose.toLocaleString('en-US', { minimumFractionDigits: 2 })} to close` : 'Active'})</span>
+                  ) : pos.exitPrice !== null && pos.exitPrice !== undefined ? (
                     <span>Exit Fill: ${pos.exitPrice?.toFixed(2)} / sh (${pos.costToClose?.toLocaleString('en-US', { minimumFractionDigits: 2 })} total)</span>
                   ) : (
                     <span>Status: Active Holding ({pos.shortStrike > pos.longStrike ? 'Bull Put' : 'Bear Call'})</span>

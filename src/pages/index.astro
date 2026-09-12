@@ -31,7 +31,7 @@ if (db) {
   }
 }
 
-const recentTrades = executedTrades.map(({ date, trade }) => ({ date, trade })).slice(-8).reverse();
+const recentTrades = executedTrades.map(({ date, trade }) => ({ date, trade })).slice(0, 8);
 const latestAccount = accountHistory.at(-1);
 const firstBalance = accountHistory[0]?.balance ?? 0;
 const currentBalance = latestAccount?.balance ?? firstBalance;

@@ -28,13 +28,20 @@ const spreadWidth = pos?.spreadWidth ?? 0;
 const maxRisk = pos?.maxRisk ?? Math.max(0, (spreadWidth - entryCredit) * 100 * quantity);
 const grossMargin = pos?.grossMargin ?? spreadWidth * 100 * quantity;
 const maxRocPct = pos?.maxRocPct ?? (maxRisk > 0 ? (upfrontPremium / maxRisk) * 100 : 0);
-const exitPrice = pos?.exitPrice;
-const costToClose = pos?.costToClose ?? (exitPrice !== null && exitPrice !== undefined ? exitPrice * 100 * quantity : null);
-const realizedPnl = pos?.realizedPnl ?? (exitPrice !== null && exitPrice !== undefined ? (entryCredit - exitPrice) * 100 * quantity : null);
+const isClosed = !pos?.isActive || Boolean(pos?.closedAt);
+const currentMark = pos?.currentMark ?? (pos?.isActive ? pos?.exitPrice : null);
+const exitPrice = isClosed ? pos?.exitPrice : null;
+const costToClose = pos?.costToClose ?? ((exitPrice ?? currentMark) !== null && (exitPrice ?? currentMark) !== undefined ? (exitPrice ?? currentMark)! * 100 * quantity : null);
+const realizedPnl = isClosed ? (pos?.realizedPnl ?? (exitPrice !== null && exitPrice !== undefined ? (entryCredit - exitPrice) * 100 * quantity : null)) : null;
+const unrealizedPnl = !isClosed ? (pos?.unrealizedPnl ?? (currentMark !== null && currentMark !== undefined ? (entryCredit - currentMark) * 100 * quantity : null)) : null;
 const capitalPreserved = pos?.capitalPreserved ?? (realizedPnl !== null && realizedPnl < 0 ? Math.max(0, maxRisk - Math.abs(realizedPnl)) : null);
 
-const pnlColor = realizedPnl !== null ? (realizedPnl >= 0 ? 'var(--green)' : 'var(--red)') : 'var(--ink)';
-const pnlSign = realizedPnl !== null && realizedPnl > 0 ? '+' : '';
+const pnlColor = isClosed
+  ? (realizedPnl !== null ? (realizedPnl >= 0 ? 'var(--green)' : 'var(--red)') : 'var(--ink)')
+  : (unrealizedPnl !== null ? (unrealizedPnl >= 0 ? 'var(--green)' : 'var(--red)') : 'var(--ink)');
+const pnlSign = isClosed
+  ? (realizedPnl !== null && realizedPnl > 0 ? '+' : '')
+  : (unrealizedPnl !== null && unrealizedPnl > 0 ? '+' : '');
 
 const breakevenPrice = pos?.breakevenPrice ?? (pos?.shortStrike && entryCredit ? pos.shortStrike - entryCredit : null);
 const requiredMovePct = pos?.requiredMovePct !== undefined ? pos.requiredMovePct : null;
@@ -252,53 +259,73 @@ const feasibilityStatusText = isFeasible ? 'Feasible (Recovery Projected)' : 'Im
     <section class="dashboard-section" style="padding-bottom: 32px;">
       <div class="section-heading">
         <div>
-          <h2>5. Realized Outcome & Capital Preservation</h2>
-          <p>Intraday management, stop-loss trigger, realized P&L, and downside capital shielded</p>
+          <h2>5. {isClosed ? 'Realized Outcome & Capital Preservation' : 'Real-Time Mark & Unrealized Economics'}</h2>
+          <p>{isClosed ? 'Intraday management, stop-loss trigger, realized P&L, and downside capital shielded' : 'Current spread mark-to-market, unrealized P&L, and risk rule monitoring'}</p>
         </div>
       </div>
 
       <div style="background: #eeeee8; padding: 22px 24px; border-radius: 4px; border-left: 3px solid var(--green);">
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 16px;">
           <div>
-            <span style="display: block; font-family: var(--mono); font-size: 10px; color: var(--muted); text-transform: uppercase;">Exit Fill Price</span>
+            <span style="display: block; font-family: var(--mono); font-size: 10px; color: var(--muted); text-transform: uppercase;">
+              {isClosed ? 'Exit Fill Price' : 'Current Spread Mark'}
+            </span>
             <strong style="font-size: 20px; font-family: var(--sans);">
-              {exitPrice !== null && exitPrice !== undefined ? `$${exitPrice.toFixed(2)} / sh` : 'Still Open'}
+              {isClosed
+                ? (exitPrice !== null && exitPrice !== undefined ? `$${exitPrice.toFixed(2)} / sh` : 'Closed')
+                : (currentMark !== null && currentMark !== undefined ? `$${currentMark.toFixed(2)} / sh` : 'Active')}
             </strong>
             <small style="display: block; font-family: var(--mono); font-size: 10px; color: var(--muted);">
               {costToClose ? `$${costToClose.toLocaleString('en-US', { minimumFractionDigits: 2 })} to close` : 'Active'}
             </small>
           </div>
           <div>
-            <span style="display: block; font-family: var(--mono); font-size: 10px; color: var(--muted); text-transform: uppercase;">Net Realized P&L</span>
+            <span style="display: block; font-family: var(--mono); font-size: 10px; color: var(--muted); text-transform: uppercase;">
+              {isClosed ? 'Net Realized P&L' : 'Net Unrealized P&L'}
+            </span>
             <strong style={`font-size: 20px; font-family: var(--sans); color: ${pnlColor};`}>
-              {realizedPnl !== null ? `${pnlSign}$${realizedPnl.toLocaleString('en-US', { minimumFractionDigits: 2 })}` : 'Unrealized'}
+              {isClosed
+                ? (realizedPnl !== null ? `${pnlSign}$${realizedPnl.toLocaleString('en-US', { minimumFractionDigits: 2 })}` : 'Closed')
+                : (unrealizedPnl !== null ? `${pnlSign}$${unrealizedPnl.toLocaleString('en-US', { minimumFractionDigits: 2 })}` : 'Active')}
             </strong>
             <small style="display: block; font-family: var(--mono); font-size: 10px; color: var(--muted);">
-              {realizedPnl !== null && upfrontPremium > 0 ? `${((realizedPnl / upfrontPremium) * 100).toFixed(1)}% of credit` : 'Active'}
+              {isClosed
+                ? (realizedPnl !== null && upfrontPremium > 0 ? `${((realizedPnl / upfrontPremium) * 100).toFixed(1)}% of credit` : 'Resolved')
+                : (unrealizedPnl !== null && upfrontPremium > 0 ? `${((unrealizedPnl / upfrontPremium) * 100).toFixed(1)}% of credit` : 'Active')}
             </small>
           </div>
           <div>
-            <span style="display: block; font-family: var(--mono); font-size: 10px; color: var(--muted); text-transform: uppercase;">Capital Preserved</span>
+            <span style="display: block; font-family: var(--mono); font-size: 10px; color: var(--muted); text-transform: uppercase;">
+              {isClosed ? 'Capital Preserved' : 'Downside Cushion'}
+            </span>
             <strong style="font-size: 20px; font-family: var(--sans); color: var(--green);">
-              {capitalPreserved !== null ? `+$${capitalPreserved.toLocaleString('en-US', { minimumFractionDigits: 2 })}` : '—'}
+              {isClosed
+                ? (capitalPreserved !== null ? `+$${capitalPreserved.toLocaleString('en-US', { minimumFractionDigits: 2 })}` : '—')
+                : (breakevenPrice && pos?.underlyingPrice ? `+$${(pos.underlyingPrice - breakevenPrice).toFixed(2)}` : '—')}
             </strong>
             <small style="display: block; font-family: var(--mono); font-size: 10px; color: var(--muted);">
-              Shielded vs full max loss
+              {isClosed ? 'Shielded vs full max loss' : 'Spot cushion above breakeven'}
             </small>
           </div>
           <div>
-            <span style="display: block; font-family: var(--mono); font-size: 10px; color: var(--muted); text-transform: uppercase;">Resolution Trigger</span>
+            <span style="display: block; font-family: var(--mono); font-size: 10px; color: var(--muted); text-transform: uppercase;">
+              {isClosed ? 'Resolution Trigger' : 'Current Status'}
+            </span>
             <strong style="font-size: 16px; font-family: var(--sans); text-transform: capitalize;">
-              {pos?.closeReason?.replaceAll('_', ' ') || (pos?.isActive ? 'Active' : 'Broker closed')}
+              {isClosed ? (pos?.closeReason?.replaceAll('_', ' ') || 'Broker closed') : 'Active Holding'}
             </strong>
             <small style="display: block; font-family: var(--mono); font-size: 10px; color: var(--muted);">
-              Automated risk rule
+              {isClosed ? 'Automated risk rule' : 'Risk rules satisfied'}
             </small>
           </div>
         </div>
 
         <p style="font-size: 13px; color: #4b4c48; line-height: 1.55; margin: 0; border-top: 1px solid rgba(32,33,31,0.08); padding-top: 12px;">
-          <strong>Risk Management Note:</strong> This trade collected <strong>{upfrontPremium ? `$${upfrontPremium.toLocaleString('en-US', { minimumFractionDigits: 2 })}` : '$0.00'}</strong> upfront. When the spread widened, the position management system executed the stop-loss discipline, closing the spread at {exitPrice ? `$${exitPrice.toFixed(2)}` : 'market'}. This successfully eliminated tail risk and preserved <strong>{capitalPreserved ? `$${capitalPreserved.toLocaleString('en-US', { minimumFractionDigits: 2 })}` : '$0.00'}</strong> that was otherwise exposed under the full spread width.
+          {isClosed ? (
+            <span><strong>Risk Management Note:</strong> This trade collected <strong>{upfrontPremium ? `$${upfrontPremium.toLocaleString('en-US', { minimumFractionDigits: 2 })}` : '$0.00'}</strong> upfront. When the spread widened, the position management system executed the stop-loss discipline, closing the spread at {exitPrice ? `$${exitPrice.toFixed(2)}` : 'market'}. This successfully eliminated tail risk and preserved <strong>{capitalPreserved ? `$${capitalPreserved.toLocaleString('en-US', { minimumFractionDigits: 2 })}` : '$0.00'}</strong> that was otherwise exposed under the full spread width.</span>
+          ) : (
+            <span><strong>Active Position Note:</strong> This trade collected <strong>{upfrontPremium ? `$${upfrontPremium.toLocaleString('en-US', { minimumFractionDigits: 2 })}` : '$0.00'}</strong> upfront and remains actively held. The underlying stock ({uppercaseTicker}) is trading at <strong>${pos?.underlyingPrice?.toFixed(2) ?? '—'}</strong>, safely above the breakeven barrier of <strong>${breakevenPrice?.toFixed(2) ?? '—'}</strong>. The current spread mark is <strong>${currentMark?.toFixed(2) ?? '—'}</strong>, yielding an unrealized gain of <strong>{unrealizedPnl !== null ? `${pnlSign}$${unrealizedPnl.toLocaleString('en-US', { minimumFractionDigits: 2 })}` : '$0.00'}</strong> ({unrealizedPnl !== null && upfrontPremium > 0 ? `${((unrealizedPnl / upfrontPremium) * 100).toFixed(1)}%` : '0%'} of max profit) as time decay (theta) works in our favor.</span>
+          )}
         </p>
       </div>
     </section>
