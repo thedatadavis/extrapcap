@@ -167,10 +167,14 @@ def _durable_position(expiration="2026-08-21"):
     }
 
 
-def test_position_manager_refuses_orphan_broker_legs():
+def test_position_manager_isolates_orphan_broker_legs_with_warning():
     client = PositionClient(_broker_positions())
-    with pytest.raises(RuntimeError, match="require D1 entry metadata"):
-        manage_live_positions(client, None, positions=[], as_of=date(2026, 8, 12))
+    records = manage_live_positions(client, None, positions=[], as_of=date(2026, 8, 12))
+    assert len(records) == 1
+    assert records[0]["kind"] == "position_management_warning"
+    assert records[0]["status"] == "untracked_broker_positions"
+    assert LONG in records[0]["untracked_symbols"]
+    assert SHORT in records[0]["untracked_symbols"]
 
 
 def test_position_manager_submits_deterministic_forced_exit():
@@ -354,6 +358,43 @@ def test_sync_reconciles_uncovered_broker_option_legs():
     assert created_pos["entry_debit"] == 1.75
     assert created_pos["metadata"]["entry_client_order_id"] == "xpc-nat"
     assert created_pos["metadata"]["entry_broker_order_id"] == "broker-nat-2"
+
+
+def test_sync_auto_adopts_untracked_broker_spread_pair():
+    # Scenario: Broker holds put spread on FIG without any orders or active positions in D1
+    fig_long = "FIG260925P00021500"
+    fig_short = "FIG260925P00022500"
+
+    class UntrackedPairClient:
+        def orders_after(self, _after):
+            return []
+
+        def positions(self):
+            return [
+                {"symbol": fig_long, "asset_class": "us_option", "qty": "1", "avg_entry_price": "0.30", "current_price": "0.25"},
+                {"symbol": fig_short, "asset_class": "us_option", "qty": "-1", "avg_entry_price": "1.10", "current_price": "0.85"},
+            ]
+
+        def open_orders(self):
+            return []
+
+    store = SyncStore()
+    store.get_orders = lambda: []
+    summary = synchronize_broker_state(UntrackedPairClient(), store, run_id="run-fig")
+    assert summary["positions_created"] == 1
+    assert len(store.created) == 1
+    pos, run_id = store.created[0]
+    assert run_id == "run-fig"
+    assert pos["ticker"] == "FIG"
+    assert pos["short_symbol"] == fig_short
+    assert pos["long_symbol"] == fig_long
+    assert pos["short_strike"] == 22.5
+    assert pos["long_strike"] == 21.5
+    assert pos["spread_width"] == 1.0
+    assert pos["entry_credit"] == 0.80  # 1.10 - 0.30
+    assert pos["quantity"] == 1
+    assert pos["metadata"]["source"] == "broker_auto_adopted"
+
 
 
 

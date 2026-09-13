@@ -58,27 +58,35 @@ def position_management():
 
         # Report events and closed positions to Cloudflare D1
         closed_count = 0
+        warning_count = 0
         events_to_post = []
         exit_events = []
 
         for record in records:
             events_to_post.append(record)
-            if record.get("legs") is not None or record.get("metadata") is not None:
+            pos_id = record.get("position_id")
+            if pos_id and (record.get("legs") is not None or record.get("metadata") is not None):
                 cf.update_position(
-                    record["position_id"], legs=record.get("legs"), metadata=record.get("metadata")
+                    pos_id, legs=record.get("legs"), metadata=record.get("metadata")
                 )
             if record.get("status") == "broker_closed":
-                pos_id = record.get("position_id")
                 reason = record.get("reason", "Exit rule triggered")
                 if pos_id:
                     cf.close_position(pos_id, reason, run_id=run_id)
                 closed_count += 1
                 exit_events.append(record)
+            elif record.get("status") in {"untracked_broker_positions", "missing_broker_legs"}:
+                warning_count += 1
 
         cf.append_events(events_to_post, run_id=run_id)
         cf.complete_run(
             run_id,
-            summary={"evaluated": len(records), "exits_triggered": closed_count, **sync},
+            summary={
+                "evaluated": len(records),
+                "exits_triggered": closed_count,
+                "warnings": warning_count,
+                **sync,
+            },
             start_time=start_time,
         )
 

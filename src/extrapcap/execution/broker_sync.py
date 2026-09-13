@@ -184,6 +184,114 @@ def synchronize_broker_state(
                     uncovered_legs -= bo_legs
                     created += 1
 
+    # Auto-adopt remaining uncovered broker legs into synthetic spreads.
+    # If the broker holds matching long and short option legs on the same underlying and expiration,
+    # auto-adopt them into D1 so position management can monitor profit-targets and stop-losses.
+    if uncovered_legs:
+        grouped: dict[tuple[str, str, str], list[dict]] = {}
+        for sym in list(uncovered_legs):
+            bp = broker_positions.get(sym)
+            if not bp:
+                continue
+            try:
+                parsed = parse_occ_option_symbol(sym)
+            except Exception:
+                continue
+            key = (parsed.underlying, parsed.expiration.isoformat(), parsed.option_type)
+            raw_qty = float(bp.get("qty") or 0)
+            if raw_qty == 0:
+                continue
+            grouped.setdefault(key, []).append(
+                {
+                    "symbol": sym,
+                    "parsed": parsed,
+                    "broker_pos": bp,
+                    "qty": raw_qty,
+                    "avg_entry_price": abs(float(bp.get("avg_entry_price") or 0)),
+                    "current_price": float(bp.get("current_price") or 0),
+                }
+            )
+
+        for (underlying, expiration, opt_type), candidate_legs in grouped.items():
+            short_candidates = [l for l in candidate_legs if l["qty"] < 0]
+            long_candidates = [l for l in candidate_legs if l["qty"] > 0]
+            while short_candidates and long_candidates:
+                s_leg = short_candidates.pop(0)
+                l_leg = long_candidates.pop(0)
+                qty = min(abs(s_leg["qty"]), abs(l_leg["qty"]))
+                if qty <= 0:
+                    continue
+
+                short_strike = s_leg["parsed"].strike
+                long_strike = l_leg["parsed"].strike
+                width = abs(short_strike - long_strike)
+
+                is_credit = (opt_type == "P" and short_strike > long_strike) or (
+                    opt_type == "C" and short_strike < long_strike
+                )
+
+                net_entry = (
+                    s_leg["avg_entry_price"] - l_leg["avg_entry_price"]
+                    if is_credit
+                    else l_leg["avg_entry_price"] - s_leg["avg_entry_price"]
+                )
+                net_price = max(0.01, round(abs(net_entry), 2))
+
+                pos_legs = [
+                    {
+                        "symbol": s_leg["symbol"],
+                        "side": "sell",
+                        "position_intent": "sell_to_open",
+                        "type": "put" if opt_type == "P" else "call",
+                        "strike": short_strike,
+                        "expiration": expiration,
+                        "qty": int(qty),
+                        "entry_price": s_leg["avg_entry_price"],
+                        "current_price": s_leg["current_price"],
+                    },
+                    {
+                        "symbol": l_leg["symbol"],
+                        "side": "buy",
+                        "position_intent": "buy_to_open",
+                        "type": "put" if opt_type == "P" else "call",
+                        "strike": long_strike,
+                        "expiration": expiration,
+                        "qty": int(qty),
+                        "entry_price": l_leg["avg_entry_price"],
+                        "current_price": l_leg["current_price"],
+                    },
+                ]
+
+                phase = os.getenv("TRADING_PHASE", os.getenv("EXTRAPCAP_PHASE", "testing")).lower()
+                synth_pos = {
+                    "ticker": underlying,
+                    "short_symbol": s_leg["symbol"],
+                    "long_symbol": l_leg["symbol"],
+                    "short_strike": short_strike,
+                    "long_strike": long_strike,
+                    "expiration": expiration,
+                    "spread_width": width,
+                    "entry_credit": net_price if is_credit else None,
+                    "entry_debit": net_price if not is_credit else None,
+                    "opened_at": observed_at.strftime("%Y-%m-%d"),
+                    "sleeve": "core",
+                    "strategy_variant": "auto_adopted",
+                    "quantity": int(qty),
+                    "legs": pos_legs,
+                    "selection_metrics": {},
+                    "metadata": {
+                        "phase": phase,
+                        "source": "broker_auto_adopted",
+                        "entry_client_order_id": f"auto-{s_leg['symbol'][:16]}",
+                    },
+                }
+                store.create_position(synth_pos, run_id=run_id)
+                uncovered_legs.discard(s_leg["symbol"])
+                uncovered_legs.discard(l_leg["symbol"])
+                covered_symbols.add(s_leg["symbol"])
+                covered_symbols.add(l_leg["symbol"])
+                created += 1
+
     return {
         "orders_observed": len(broker_orders),
         "orders_updated": updated,

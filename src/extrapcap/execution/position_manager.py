@@ -313,9 +313,15 @@ def manage_live_positions(
         and str(position.get("asset_class", "")).lower() == "us_option"
     }
     if broker_positions and not durable_positions:
-        raise RuntimeError(
-            "active paper option positions require D1 entry metadata before exits can be evaluated"
-        )
+        return [
+            {
+                "kind": "position_management_warning",
+                "category": "positions",
+                "status": "untracked_broker_positions",
+                "reason": f"broker option legs are absent from D1 metadata: {', '.join(sorted(broker_positions.keys()))}",
+                "untracked_symbols": sorted(broker_positions.keys()),
+            }
+        ]
     open_orders = client.open_orders()
     records = []
     durable_symbols = set()
@@ -368,9 +374,46 @@ def manage_live_positions(
             continue
         missing = symbols - broker_positions.keys()
         if missing:
-            raise RuntimeError(
-                f"D1 position {row.get('id')} is missing broker legs: {', '.join(sorted(missing))}"
+            exp_val = row.get("expiration")
+            exp_date = None
+            if exp_val:
+                try:
+                    exp_date = (
+                        datetime.fromisoformat(str(exp_val)).date()
+                        if isinstance(exp_val, str)
+                        else exp_val
+                    )
+                except Exception:
+                    pass
+            if exp_date and exp_date <= as_of:
+                records.append(
+                    {
+                        "kind": "position_management",
+                        "category": "positions",
+                        "position_id": row.get("id"),
+                        "ticker": row.get("ticker"),
+                        "status": "broker_closed",
+                        "reason": "expired_at_broker",
+                        "metadata": row_metadata,
+                        "legs": legs,
+                        "quantity": int(row.get("quantity") or 1),
+                        "entry_credit": row.get("entry_credit"),
+                        "entry_debit": row.get("entry_debit"),
+                    }
+                )
+                continue
+            records.append(
+                {
+                    "kind": "position_management_warning",
+                    "category": "positions",
+                    "position_id": row.get("id"),
+                    "ticker": row.get("ticker"),
+                    "status": "missing_broker_legs",
+                    "reason": f"D1 position {row.get('id')} is missing broker legs: {', '.join(sorted(missing))}",
+                    "missing_symbols": sorted(missing),
+                }
             )
+            continue
         refreshed_legs = []
         for leg in legs:
             broker_leg = broker_positions[str(leg["symbol"])]
@@ -573,7 +616,13 @@ def manage_live_positions(
         records.append(record)
     unknown = set(broker_positions) - durable_symbols
     if unknown:
-        raise RuntimeError(
-            f"broker option legs are absent from D1 metadata: {', '.join(sorted(unknown))}"
+        records.append(
+            {
+                "kind": "position_management_warning",
+                "category": "positions",
+                "status": "untracked_broker_positions",
+                "reason": f"broker option legs are absent from D1 metadata: {', '.join(sorted(unknown))}",
+                "untracked_symbols": sorted(unknown),
+            }
         )
     return records
