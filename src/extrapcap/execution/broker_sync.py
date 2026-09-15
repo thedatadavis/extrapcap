@@ -61,7 +61,24 @@ def _entry_position(
         )
     metadata = _json(order.get("metadata"), {})
     entry_price = abs(float(broker_order.get("filled_avg_price") or order.get("limit_price") or 0))
-    side = str(order.get("side") or "")
+    side = str(order.get("side") or "").lower()
+    is_put = str(sold.get("type") or "").lower() == "put"
+    if side in {"sell_to_open", "sell"}:
+        is_credit = True
+    elif side in {"buy_to_open", "buy"}:
+        is_credit = False
+    else:
+        # Infer credit vs debit from strike geometry if side was omitted by broker
+        is_credit = (is_put and float(sold["strike"]) > float(bought["strike"])) or (
+            not is_put and float(sold["strike"]) < float(bought["strike"])
+        )
+
+    # If entry_price was not captured at top-level order, calculate from leg entry prices
+    if entry_price <= 0:
+        s_entry = float(sold.get("entry_price") or 0)
+        b_entry = float(bought.get("entry_price") or 0)
+        entry_price = max(0.01, abs(round(s_entry - b_entry if is_credit else b_entry - s_entry, 2)))
+
     phase = str(metadata.get("phase") or os.getenv("TRADING_PHASE", os.getenv("EXTRAPCAP_PHASE", "testing"))).lower()
     return {
         "ticker": str(order["ticker"]).upper(),
@@ -71,8 +88,8 @@ def _entry_position(
         "long_strike": bought["strike"],
         "expiration": bought["expiration"],
         "spread_width": abs(float(bought["strike"]) - float(sold["strike"])),
-        "entry_credit": entry_price if side == "sell_to_open" else None,
-        "entry_debit": entry_price if side == "buy_to_open" else None,
+        "entry_credit": entry_price if is_credit else None,
+        "entry_debit": entry_price if not is_credit else None,
         "opened_at": str(broker_order.get("filled_at") or broker_order.get("submitted_at"))[:10],
         "sleeve": order.get("sleeve") or "core",
         "strategy_variant": order.get("strategy_variant") or "core_mean_reversion",
@@ -130,12 +147,15 @@ def synchronize_broker_state(
             continue
         position = _entry_position(order, broker_order, broker_positions)
         if position:
-            store.create_position(position, run_id=run_id)
-            active_entry_ids.add(client_order_id)
-            for leg in position.get("legs") or []:
-                if leg.get("symbol"):
-                    covered_symbols.add(str(leg["symbol"]))
-            created += 1
+            try:
+                store.create_position(position, run_id=run_id)
+                active_entry_ids.add(client_order_id)
+                for leg in position.get("legs") or []:
+                    if leg.get("symbol"):
+                        covered_symbols.add(str(leg["symbol"]))
+                created += 1
+            except Exception as exc:
+                print(f"Warning: could not create position for order {client_order_id}: {exc}")
 
     # Reconcile any open broker option legs not yet covered by active positions
     # (e.g. from orders submitted during price-walk fallbacks or out-of-band fills)
@@ -178,11 +198,26 @@ def synchronize_broker_state(
                         }
                         for l in bo.get("legs") or []
                     ]
+                if not order_to_use.get("side"):
+                    sold_leg = next((l for l in bo.get("legs") or [] if str(l.get("side")).lower() == "sell"), None)
+                    bought_leg = next((l for l in bo.get("legs") or [] if str(l.get("side")).lower() == "buy"), None)
+                    if sold_leg and bought_leg:
+                        try:
+                            s_parsed = parse_occ_option_symbol(str(sold_leg.get("symbol") or ""))
+                            b_parsed = parse_occ_option_symbol(str(bought_leg.get("symbol") or ""))
+                            is_put = s_parsed.option_type == "P"
+                            is_credit = (is_put and s_parsed.strike > b_parsed.strike) or (not is_put and s_parsed.strike < b_parsed.strike)
+                            order_to_use["side"] = "sell_to_open" if is_credit else "buy_to_open"
+                        except Exception:
+                            order_to_use["side"] = "sell_to_open"
                 pos = _entry_position(order_to_use, bo, broker_positions)
                 if pos:
-                    store.create_position(pos, run_id=run_id)
-                    uncovered_legs -= bo_legs
-                    created += 1
+                    try:
+                        store.create_position(pos, run_id=run_id)
+                        uncovered_legs -= bo_legs
+                        created += 1
+                    except Exception as exc:
+                        print(f"Warning: could not create position for reconciled order {order_to_use.get('client_order_id')}: {exc}")
 
     # Auto-adopt remaining uncovered broker legs into synthetic spreads.
     # If the broker holds matching long and short option legs on the same underlying and expiration,
@@ -285,12 +320,15 @@ def synchronize_broker_state(
                         "entry_client_order_id": f"auto-{s_leg['symbol'][:16]}",
                     },
                 }
-                store.create_position(synth_pos, run_id=run_id)
-                uncovered_legs.discard(s_leg["symbol"])
-                uncovered_legs.discard(l_leg["symbol"])
-                covered_symbols.add(s_leg["symbol"])
-                covered_symbols.add(l_leg["symbol"])
-                created += 1
+                try:
+                    store.create_position(synth_pos, run_id=run_id)
+                    uncovered_legs.discard(s_leg["symbol"])
+                    uncovered_legs.discard(l_leg["symbol"])
+                    covered_symbols.add(s_leg["symbol"])
+                    covered_symbols.add(l_leg["symbol"])
+                    created += 1
+                except Exception as exc:
+                    print(f"Warning: could not create auto-adopted position for {underlying}: {exc}")
 
     return {
         "orders_observed": len(broker_orders),

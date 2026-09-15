@@ -396,5 +396,55 @@ def test_sync_auto_adopts_untracked_broker_spread_pair():
     assert pos["metadata"]["source"] == "broker_auto_adopted"
 
 
+def test_sync_reconciles_broker_order_with_omitted_side():
+    # Scenario: BMY order with missing D1 record and omitted side in broker order
+    bmy_short = "BMY261002P00064000"
+    bmy_long = "BMY261002P00061000"
+
+    class OmittedSideClient:
+        def orders_after(self, _after):
+            return [
+                {
+                    "id": "bo-bmy-1",
+                    "client_order_id": "xpc-bmy-1",
+                    "status": "filled",
+                    "side": "",
+                    "filled_at": "2026-09-14T19:45:00Z",
+                    "filled_qty": "1",
+                    "filled_avg_price": None,
+                    "legs": [
+                        {"symbol": bmy_short, "side": "sell", "filled_avg_price": "1.51"},
+                        {"symbol": bmy_long, "side": "buy", "filled_avg_price": "0.58"},
+                    ],
+                }
+            ]
+
+        def positions(self):
+            return [
+                {"symbol": bmy_short, "asset_class": "us_option", "qty": "-1", "avg_entry_price": "1.51", "current_price": "1.91"},
+                {"symbol": bmy_long, "asset_class": "us_option", "qty": "1", "avg_entry_price": "0.58", "current_price": "0.57"},
+            ]
+
+        def open_orders(self):
+            return []
+
+    store = SyncStore()
+    store.get_orders = lambda: []
+    summary = synchronize_broker_state(OmittedSideClient(), store, run_id="run-bmy")
+    assert summary["positions_created"] == 1
+    assert len(store.created) == 1
+    pos, run_id = store.created[0]
+    assert run_id == "run-bmy"
+    assert pos["ticker"] == "BMY"
+    assert pos["short_symbol"] == bmy_short
+    assert pos["long_symbol"] == bmy_long
+    assert pos["short_strike"] == 64.0
+    assert pos["long_strike"] == 61.0
+    assert pos["spread_width"] == 3.0
+    assert pos["entry_credit"] == 0.93
+    assert pos["entry_debit"] is None
+
+
+
 
 
