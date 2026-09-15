@@ -443,6 +443,88 @@ def test_sync_reconciles_broker_order_with_omitted_side():
     assert pos["spread_width"] == 3.0
     assert pos["entry_credit"] == 0.93
     assert pos["entry_debit"] is None
+    assert pos["legs"][0]["asset_class"] == "us_option"
+    assert pos["legs"][1]["asset_class"] == "us_option"
+
+
+def test_manage_live_positions_handles_legs_missing_asset_class():
+    mrk_short = "MRK260918P00145000"
+    mrk_long = "MRK260918P00142000"
+
+    class MockClient:
+        def __init__(self):
+            self.submitted = []
+
+        def positions(self):
+            return [
+                {"symbol": mrk_short, "asset_class": "us_option", "qty": "-1", "current_price": "2.50"},
+                {"symbol": mrk_long, "asset_class": "us_option", "qty": "1", "current_price": "0.92"},
+            ]
+
+        def open_orders(self):
+            return []
+
+        def submit_order(self, payload):
+            self.submitted.append(payload)
+            return {"id": "close-mrk-1", "client_order_id": payload["client_order_id"]}
+
+    pos = {
+        "id": 20,
+        "ticker": "MRK",
+        "short_symbol": mrk_short,
+        "long_symbol": mrk_long,
+        "short_strike": 145,
+        "long_strike": 142,
+        "expiration": "2026-09-18",
+        "spread_width": 3,
+        "entry_credit": 1.24,
+        "entry_debit": None,
+        "opened_at": "2026-09-14",
+        "sleeve": "core",
+        "quantity": 1,
+        "legs": [
+            {"symbol": mrk_short, "side": "sell", "position_intent": "sell_to_open", "ratio_qty": 1, "type": "put", "strike": 145, "expiration": "2026-09-18"},
+            {"symbol": mrk_long, "side": "buy", "position_intent": "buy_to_open", "ratio_qty": 1, "type": "put", "strike": 142, "expiration": "2026-09-18"},
+        ],
+        "metadata": {},
+    }
+
+    client = MockClient()
+    records = manage_live_positions(client, None, positions=[pos], as_of=date(2026, 9, 15))
+    assert len(records) == 1
+    assert records[0]["status"] == "close_submitted"
+    assert len(client.submitted) == 1
+    payload = client.submitted[0]
+    assert payload["order_class"] == "mleg"
+    for leg in payload["legs"]:
+        assert leg["asset_class"] == "us_option"
+
+
+def test_manage_live_positions_isolates_close_failure():
+    class BrokenClient:
+        def positions(self):
+            return _broker_positions(long_price=2.0, short_price=0.2)
+
+        def open_orders(self):
+            return []
+
+        def submit_order(self, payload):
+            raise RuntimeError("Broker rejected order due to margin")
+
+    pos1 = _durable_position(expiration="2026-08-14")
+    pos1["id"] = 101
+    pos2 = _durable_position(expiration="2026-08-25")
+    pos2["id"] = 102
+
+    client = BrokenClient()
+    records = manage_live_positions(client, None, positions=[pos1, pos2], as_of=date(2026, 8, 12))
+    assert len(records) == 2
+    assert records[0]["position_id"] == 101
+    assert records[0]["status"] == "close_failed"
+    assert "margin" in records[0]["reason"]
+    assert records[1]["position_id"] == 102
+    assert records[1]["status"] in {"hold", "close_failed", "close_submitted"}
+
 
 
 

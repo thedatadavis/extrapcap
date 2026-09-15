@@ -44,6 +44,7 @@ def _entry_position(
         legs.append(
             {
                 **configured,
+                "asset_class": "us_option",
                 "type": "put" if parsed.option_type == "P" else "call",
                 "strike": parsed.strike,
                 "expiration": parsed.expiration.isoformat(),
@@ -189,6 +190,7 @@ def synchronize_broker_state(
                     order_to_use["legs"] = [
                         {
                             "symbol": str(l.get("symbol")),
+                            "asset_class": "us_option",
                             "side": str(l.get("side")),
                             "position_intent": str(
                                 l.get("position_intent")
@@ -275,6 +277,7 @@ def synchronize_broker_state(
                 pos_legs = [
                     {
                         "symbol": s_leg["symbol"],
+                        "asset_class": "us_option",
                         "side": "sell",
                         "position_intent": "sell_to_open",
                         "type": "put" if opt_type == "P" else "call",
@@ -286,6 +289,7 @@ def synchronize_broker_state(
                     },
                     {
                         "symbol": l_leg["symbol"],
+                        "asset_class": "us_option",
                         "side": "buy",
                         "position_intent": "buy_to_open",
                         "type": "put" if opt_type == "P" else "call",

@@ -66,19 +66,35 @@ def position_management():
             events_to_post.append(record)
             pos_id = record.get("position_id")
             if pos_id and (record.get("legs") is not None or record.get("metadata") is not None):
-                cf.update_position(
-                    pos_id, legs=record.get("legs"), metadata=record.get("metadata")
-                )
+                try:
+                    cf.update_position(
+                        pos_id, legs=record.get("legs"), metadata=record.get("metadata")
+                    )
+                except Exception as exc:
+                    print(f"Warning: failed to update D1 position {pos_id}: {exc}")
+
             if record.get("status") == "broker_closed":
                 reason = record.get("reason", "Exit rule triggered")
                 if pos_id:
-                    cf.close_position(pos_id, reason, run_id=run_id)
+                    try:
+                        cf.close_position(pos_id, reason, run_id=run_id)
+                    except Exception as exc:
+                        print(f"Warning: failed to close D1 position {pos_id}: {exc}")
                 closed_count += 1
                 exit_events.append(record)
-            elif record.get("status") in {"untracked_broker_positions", "missing_broker_legs"}:
+            elif record.get("status") in {
+                "untracked_broker_positions",
+                "missing_broker_legs",
+                "close_failed",
+                "evaluation_error",
+                "invalid_legs",
+            }:
                 warning_count += 1
 
-        cf.append_events(events_to_post, run_id=run_id)
+        try:
+            cf.append_events(events_to_post, run_id=run_id)
+        except Exception as exc:
+            print(f"Warning: failed to append events to D1: {exc}")
         cf.complete_run(
             run_id,
             summary={

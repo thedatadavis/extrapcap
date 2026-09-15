@@ -22,10 +22,31 @@ class OrderEnvelope:
 
     def alpaca_payload(self) -> dict:
         self.validate_for_submission()
-        return {"client_order_id": self.client_order_id, "qty": self.quantity, "order_class": "mleg", "type": "limit", "time_in_force": "day", "legs": list(self.legs), "limit_price": self.limit_price}
+        normalized_legs = [
+            {
+                **leg,
+                "asset_class": "us_option",
+            }
+            for leg in self.legs
+        ]
+        return {
+            "client_order_id": self.client_order_id,
+            "qty": self.quantity,
+            "order_class": "mleg",
+            "type": "limit",
+            "time_in_force": "day",
+            "legs": normalized_legs,
+            "limit_price": self.limit_price,
+        }
 
     def validate_for_submission(self) -> None:
         if self.quantity < 1 or self.limit_price is None or self.limit_price <= 0:
             raise ValueError("multi-leg order requires positive quantity and limit price")
-        if not self.legs or any(leg.get("asset_class") != "us_option" for leg in self.legs):
+        if not self.legs:
             raise ValueError("multi-leg order requires resolved us_option contract symbols")
+        for leg in self.legs:
+            if not leg.get("symbol"):
+                raise ValueError("multi-leg order requires resolved us_option contract symbols")
+            ac = str(leg.get("asset_class") or "us_option").lower()
+            if ac != "us_option":
+                raise ValueError("multi-leg order requires resolved us_option contract symbols")
