@@ -113,8 +113,10 @@ def daily_report():
             account_res = cf.client.get("/api/account")
             if account_res.status_code == 200:
                 acc_rows = account_res.json()
-                if acc_rows:
+                if isinstance(acc_rows, list) and acc_rows and isinstance(acc_rows[-1], dict):
                     account_snapshot = acc_rows[-1]
+                elif isinstance(acc_rows, dict):
+                    account_snapshot = acc_rows
         except Exception as err:
             print(f"Warning: Failed to fetch account snapshot: {err}")
 
@@ -134,7 +136,7 @@ def daily_report():
         try:
             reviewer = NebiusReviewer()
             judgment = reviewer.daily_note(summary_for_note)
-            if judgment.get("wsj_summary"):
+            if isinstance(judgment, dict) and judgment.get("wsj_summary"):
                 wsj_text = judgment["wsj_summary"]
         except Exception as err:
             print(f"Warning: Nebius daily note failed: {err}")

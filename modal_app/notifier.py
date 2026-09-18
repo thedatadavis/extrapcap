@@ -1,5 +1,18 @@
+import json
 import os
 import httpx
+
+
+def _json(value, default):
+    if isinstance(value, type(default)):
+        return value
+    if isinstance(value, str):
+        try:
+            parsed = json.loads(value)
+        except (TypeError, ValueError):
+            return default
+        return parsed if isinstance(parsed, type(default)) else default
+    return default
 
 
 def send_resend_email(subject: str, text: str) -> bool:
@@ -132,7 +145,8 @@ def format_daily_report_text(
                 "--------------------------------------------------",
             ])
             for order in filled_orders:
-                ticker = order.get("ticker") or order.get("journal", {}).get("ticker", "N/A")
+                order_journal = _json(order.get("journal"), {})
+                ticker = order.get("ticker") or order_journal.get("ticker", "N/A")
                 qty = int(order.get("quantity") or order.get("filled_qty") or 1)
 
                 matched_pos = None
@@ -149,17 +163,13 @@ def format_daily_report_text(
                     raw_price = order.get("limit_price", 0.0)
                 price = abs(float(raw_price or 0.0))
 
-                legs = order.get("legs") or (matched_pos.get("legs") if matched_pos else [])
-                if isinstance(legs, str):
-                    try:
-                        import json
-                        legs = json.loads(legs)
-                    except Exception:
-                        legs = []
+                legs = _json(order.get("legs") or (matched_pos.get("legs") if matched_pos else []), [])
                 short_leg = None
                 long_leg = None
                 exp_date = ""
                 for leg in legs:
+                    if not isinstance(leg, dict):
+                        continue
                     occ = _parse_occ_symbol(leg.get("symbol", ""))
                     leg_side = str(leg.get("side") or leg.get("position_intent") or "").lower()
                     if occ:
@@ -179,41 +189,26 @@ def format_daily_report_text(
                 max_risk = max(0.0, gross_margin - total_premium) if is_credit else total_premium
 
                 be_price = short_leg["strike"] - price if short_leg and is_credit else None
-                meta = order.get("metadata") or {}
-                if isinstance(meta, str):
-                    try:
-                        import json
-                        meta = json.loads(meta)
-                    except Exception:
-                        meta = {}
-                fc = order.get("feasibility_context") or meta.get("feasibility_context") or {}
-                spot = fc.get("underlying_price") or (order.get("selection_context") or {}).get("underlying_price") or meta.get("selection_context", {}).get("underlying_price")
+                meta = _json(order.get("metadata"), {})
+                fc = _json(order.get("feasibility_context"), {}) or _json(meta.get("feasibility_context"), {})
+                sel_ctx = _json(order.get("selection_context"), {}) or _json(meta.get("selection_context"), {})
+                spot = fc.get("underlying_price") or sel_ctx.get("underlying_price")
 
                 current_mark = None
                 if matched_pos:
-                    pos_meta = matched_pos.get("metadata") or {}
-                    if isinstance(pos_meta, str):
-                        try:
-                            import json
-                            pos_meta = json.loads(pos_meta)
-                        except Exception:
-                            pos_meta = {}
-                    pos_fc = matched_pos.get("feasibility_context") or pos_meta.get("feasibility_context") or {}
+                    pos_meta = _json(matched_pos.get("metadata"), {})
+                    pos_fc = _json(matched_pos.get("feasibility_context"), {}) or _json(pos_meta.get("feasibility_context"), {})
                     if pos_fc.get("underlying_price"):
                         spot = pos_fc.get("underlying_price")
                     if pos_fc.get("breakeven_price"):
                         be_price = pos_fc.get("breakeven_price")
 
-                    pos_legs = matched_pos.get("legs") or []
-                    if isinstance(pos_legs, str):
-                        try:
-                            import json
-                            pos_legs = json.loads(pos_legs)
-                        except Exception:
-                            pos_legs = []
+                    pos_legs = _json(matched_pos.get("legs"), [])
                     short_cur = None
                     long_cur = None
                     for pl in pos_legs:
+                        if not isinstance(pl, dict):
+                            continue
                         pl_side = str(pl.get("side") or pl.get("position_intent") or "").lower()
                         cur_p = pl.get("current_price")
                         if "sell" in pl_side and cur_p is not None:
@@ -250,14 +245,16 @@ def format_daily_report_text(
             "--------------------------------------------------",
         ])
         for exit_evt in exits:
-            ticker = exit_evt.get("ticker") or exit_evt.get("journal", {}).get("ticker", "N/A")
+            exit_journal = _json(exit_evt.get("journal"), {})
+            exit_meta = _json(exit_evt.get("metadata"), {})
+            ticker = exit_evt.get("ticker") or exit_journal.get("ticker", "N/A")
             raw_reason = (
                 exit_evt.get("reason")
-                or exit_evt.get("metadata", {}).get("close_reason")
-                or exit_evt.get("journal", {}).get("reason")
+                or exit_meta.get("close_reason")
+                or exit_journal.get("reason")
                 or "Exit rule triggered"
             )
-            friendly_reason = _friendly_exit_reason(raw_reason)
+            friendly_reason = _friendly_exit_reason(str(raw_reason))
             qty = int(exit_evt.get("quantity") or 1)
             realized_pnl = exit_evt.get("realized_pnl")
             lines.append(f"• {ticker} · {qty} contract(s)")
@@ -372,11 +369,13 @@ def format_candidate_orders_text(as_of: str, orders: list) -> str:
     ]
 
     for order in orders:
-        ticker = order.get("ticker") or order.get("journal", {}).get("ticker", "N/A")
+        order_journal = _json(order.get("journal"), {})
+        order_sel_ctx = _json(order.get("selection_context"), {})
+        ticker = order.get("ticker") or order_journal.get("ticker", "N/A")
         client_id = order.get("client_order_id", "N/A")
         prob = order.get("model_probability")
         if prob is None:
-            prob = order.get("selection_context", {}).get("model_probability")
+            prob = order_sel_ctx.get("model_probability")
         prob_str = f"{float(prob) * 100:.1f}%" if prob is not None else "N/A"
 
         quantity = int(order.get("filled_qty") or order.get("quantity") or 1)
@@ -389,13 +388,15 @@ def format_candidate_orders_text(as_of: str, orders: list) -> str:
         is_credit = "sell" in side or side == "sell_to_open"
 
         # Parse legs
-        legs = order.get("legs") or []
+        legs = _json(order.get("legs"), [])
         short_leg = None
         long_leg = None
         spread_type = "Credit Spread" if is_credit else "Debit Spread"
         exp_date = ""
 
         for leg in legs:
+            if not isinstance(leg, dict):
+                continue
             occ = _parse_occ_symbol(leg.get("symbol", ""))
             leg_side = str(leg.get("side") or leg.get("position_intent") or "").lower()
             if occ:
@@ -444,25 +445,29 @@ def format_position_exits_text(as_of: str, exits: list) -> str:
     ]
 
     for exit_evt in exits:
-        ticker = exit_evt.get("ticker") or exit_evt.get("journal", {}).get("ticker", "N/A")
+        exit_journal = _json(exit_evt.get("journal"), {})
+        exit_meta = _json(exit_evt.get("metadata"), {})
+        ticker = exit_evt.get("ticker") or exit_journal.get("ticker", "N/A")
         raw_reason = (
             exit_evt.get("reason")
-            or exit_evt.get("metadata", {}).get("close_reason")
-            or exit_evt.get("journal", {}).get("reason")
+            or exit_meta.get("close_reason")
+            or exit_journal.get("reason")
             or "Exit rule triggered"
         )
-        friendly_reason = _friendly_exit_reason(raw_reason)
+        friendly_reason = _friendly_exit_reason(str(raw_reason))
         qty = int(exit_evt.get("quantity") or 1)
 
         lines.append(f"• {ticker} · {qty} contract(s)")
         lines.append(f"  Exit Trigger:  {friendly_reason}")
 
         # Legs info
-        legs = exit_evt.get("legs") or []
+        legs = _json(exit_evt.get("legs"), [])
         short_leg = None
         long_leg = None
         exp_date = ""
         for leg in legs:
+            if not isinstance(leg, dict):
+                continue
             occ = _parse_occ_symbol(leg.get("symbol", ""))
             leg_side = str(leg.get("side") or leg.get("position_intent") or "").lower()
             if occ:
@@ -476,7 +481,7 @@ def format_position_exits_text(as_of: str, exits: list) -> str:
             l_strike = f"${long_leg['strike']:.2f}".rstrip("0").rstrip(".")
             lines.append(f"  Spread:        Short {s_strike} / Long {l_strike} (Exp: {exp_date})")
 
-        fc = exit_evt.get("feasibility_context") or exit_evt.get("metadata", {}).get("feasibility_context")
+        fc = _json(exit_evt.get("feasibility_context"), {}) or _json(exit_meta.get("feasibility_context"), {})
         if fc and isinstance(fc, dict):
             spot = fc.get("underlying_price")
             be = fc.get("breakeven_price")

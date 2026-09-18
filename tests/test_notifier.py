@@ -150,3 +150,71 @@ def test_format_daily_report_text():
     assert "https://extrapcap.pages.dev/journal/2026-09-11" in text
     assert "https://extrapcap.pages.dev/scoreboard" in text
 
+
+def test_format_daily_report_text_with_serialized_json_fields():
+    from modal_app.notifier import format_daily_report_text
+
+    summary = {
+        "evaluated": 750,
+        "passed_gate": 100,
+        "passed_prob": 50,
+        "submitted": 2,
+        "filled": 2,
+        "wsj_summary": "Test summary",
+    }
+    exits = [
+        {
+            "ticker": "MRK",
+            "quantity": 1,
+            "realized_pnl": 120.0,
+            "reason": None,
+            "metadata": '{"close_reason": "forced_exit_dte_3", "feasibility_context": "{\\"underlying_price\\": 140.0}"}',
+            "journal": '{"reason": "fallback_reason"}',
+            "legs": '[{"symbol": "MRK260918P00145000", "side": "sell"}, {"symbol": "MRK260918P00142000", "side": "buy"}]',
+        }
+    ]
+    orders = [
+        {
+            "ticker": "NVDA",
+            "quantity": 1,
+            "side": "sell_to_open",
+            "limit_price": 2.50,
+            "filled_avg_price": -2.40,
+            "execution_status": "filled",
+            "metadata": '{"feasibility_context": {"underlying_price": 120.0}}',
+            "legs": '[{"symbol": "NVDA260925P00120000", "side": "sell"}, {"symbol": "NVDA260925P00115000", "side": "buy"}]',
+        }
+    ]
+
+    text = format_daily_report_text(
+        as_of="2026-09-17",
+        summary=summary,
+        orders=orders,
+        exits=exits,
+    )
+    assert "POSITION EXITS TRIGGERED" in text
+    assert "• MRK · 1 contract(s)" in text
+    assert "Forced Expiration Exit (3 DTE remaining)" in text
+    assert "EXECUTED TRADES & TRADE ECONOMICS" in text
+    assert "• NVDA · 1x Put Credit Spread" in text
+
+
+def test_format_position_exits_text_with_serialized_json_fields():
+    from modal_app.notifier import format_position_exits_text
+
+    exits = [
+        {
+            "ticker": "BMY",
+            "quantity": 2,
+            "realized_pnl": -50.0,
+            "reason": None,
+            "metadata": '{"close_reason": "catastrophic_debit_cap", "feasibility_context": {"underlying_price": 62.5, "breakeven_price": 63.07, "required_move_pct": 0.01, "expected_move_pct": 0.05, "feasibility_ratio": 0.2, "dte": 2}}',
+            "legs": '[{"symbol": "BMY261002P00064000", "side": "sell"}, {"symbol": "BMY261002P00061000", "side": "buy"}]',
+        }
+    ]
+
+    text = format_position_exits_text("2026-09-17", exits)
+    assert "Catastrophic Debit Cap Hit" in text
+    assert "Spot $62.50 · Breakeven $63.07 · 2 DTE" in text
+
+
