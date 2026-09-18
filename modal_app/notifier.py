@@ -107,11 +107,12 @@ def format_daily_report_text(
     ]
 
     # 1. ACCOUNT & PORTFOLIO SNAPSHOT
-    if account:
-        equity = float(account.get("equity") or account.get("portfolio_value") or account.get("balance") or 0.0)
-        cash = float(account.get("cash") or 0.0)
-        bp = float(account.get("buying_power") or account.get("buyingPower") or 0.0)
-        pnl = float(account.get("daily_pnl") or 0.0)
+    account_dict = _json(account, {}) if account else {}
+    if isinstance(account_dict, dict) and account_dict:
+        equity = float(account_dict.get("equity") or account_dict.get("portfolio_value") or account_dict.get("balance") or 0.0)
+        cash = float(account_dict.get("cash") or 0.0)
+        bp = float(account_dict.get("buying_power") or account_dict.get("buyingPower") or 0.0)
+        pnl = float(account_dict.get("daily_pnl") or 0.0)
         pnl_str = f"+${pnl:,.2f}" if pnl >= 0 else f"-${abs(pnl):,.2f}"
 
         lines.extend([
