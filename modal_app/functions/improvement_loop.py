@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 import modal
 from modal_app.base import app, image, secrets, state_mount
 from modal_app.cf_client import CloudflareAPIClient
+from modal_app.notifier import notify_and_log_error
 
 
 @app.function(
@@ -45,5 +46,12 @@ def improvement_loop():
         return {"status": "success", "proposal": proposal}
 
     except Exception as e:
-        cf.fail_run(run_id, error=str(e), start_time=start_time)
+        notify_and_log_error(
+            workflow="improvement_loop",
+            error=e,
+            run_id=run_id,
+            cf=cf,
+            start_time=start_time,
+            subject="[Extrapcap] ⚠️ Improvement Loop Failure Alert",
+        )
         raise

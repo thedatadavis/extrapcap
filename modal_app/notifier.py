@@ -537,10 +537,11 @@ def format_position_exits_text(as_of: str, exits: list) -> str:
     return "\n".join(lines)
 
 
-def format_error_alert_text(workflow: str, error: str) -> str:
+def format_error_alert_text(workflow: str, error: str, run_id: str | None = None) -> str:
+    run_line = f"\nRun ID:   {run_id}" if run_id else ""
     return f"""==================================================
 ⚠️ EXTRAPOLATION CAPITAL · WORKFLOW FAILURE ALERT
-Workflow: {workflow}
+Workflow: {workflow}{run_line}
 ==================================================
 
 ERROR DETAILS
@@ -548,5 +549,53 @@ ERROR DETAILS
 {error}
 
 --------------------------------------------------
+Error Log:    https://extrapcap.pages.dev/api/errors?unresolved=true
 Inspect Logs: https://extrapcap.pages.dev/admin
 """
+
+
+def notify_and_log_error(
+    workflow: str,
+    error: str | Exception,
+    run_id: str | None = None,
+    cf: any = None,
+    start_time: float | None = None,
+    context: dict | None = None,
+    subject: str | None = None,
+) -> None:
+    """Record an error to Cloudflare D1 error_logs, fail the run, and send an email alert."""
+    import traceback
+
+    error_msg = str(error)
+    tb = traceback.format_exc() if isinstance(error, BaseException) else None
+
+    # 1. Log error to Cloudflare D1 error_logs table and mark run failed
+    if cf is not None:
+        try:
+            cf.log_error(
+                workflow=workflow,
+                error=error,
+                run_id=run_id,
+                stack_trace=tb,
+                context=context,
+            )
+        except Exception as log_err:
+            print(f"Warning: Failed to log error to D1: {log_err}")
+
+        if run_id:
+            try:
+                cf.fail_run(run_id=run_id, error=error_msg, start_time=start_time)
+            except Exception as fail_err:
+                print(f"Warning: Failed to mark run as failed in D1: {fail_err}")
+
+    # 2. Format error details and send alert email via Resend
+    email_subject = subject or f"[Extrapcap] ⚠️ {workflow} Failure Alert"
+    email_body = format_error_alert_text(
+        workflow=workflow,
+        error=tb or error_msg,
+        run_id=run_id,
+    )
+    try:
+        send_resend_email(subject=email_subject, text=email_body)
+    except Exception as email_err:
+        print(f"Warning: Failed to send failure alert email: {email_err}")

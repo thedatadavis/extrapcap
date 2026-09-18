@@ -9,6 +9,7 @@ from modal_app.notifier import (
     format_candidate_orders_text,
     format_error_alert_text,
     send_resend_email,
+    notify_and_log_error,
 )
 
 
@@ -139,9 +140,12 @@ def candidate_review():
             "sync": sync_result,
         }
     except Exception as exc:
-        cf.fail_run(run_id, error=str(exc), start_time=start_time)
-        send_resend_email(
+        notify_and_log_error(
+            workflow="candidate_review",
+            error=exc,
+            run_id=run_id,
+            cf=cf,
+            start_time=start_time,
             subject="[Extrapcap] Candidate Review Failure",
-            text=format_error_alert_text("Candidate Review", str(exc)),
         )
         raise

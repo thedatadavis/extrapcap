@@ -7,6 +7,7 @@ from modal_app.notifier import (
     format_error_alert_text,
     format_reconciliation_text,
     send_resend_email,
+    notify_and_log_error,
 )
 
 
@@ -61,9 +62,12 @@ def reconciliation():
         return {"status": "success", "snapshot": snapshot, "sync": sync}
 
     except Exception as e:
-        cf.fail_run(run_id, error=str(e), start_time=start_time)
-        send_resend_email(
+        notify_and_log_error(
+            workflow="reconciliation",
+            error=e,
+            run_id=run_id,
+            cf=cf,
+            start_time=start_time,
             subject="[Extrapcap] ⚠️ Reconciliation Workflow Failure",
-            text=format_error_alert_text("reconciliation", str(e)),
         )
         raise

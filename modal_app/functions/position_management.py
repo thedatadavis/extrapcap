@@ -7,6 +7,7 @@ from modal_app.notifier import (
     format_error_alert_text,
     format_position_exits_text,
     send_resend_email,
+    notify_and_log_error,
 )
 
 
@@ -116,9 +117,12 @@ def position_management():
         return {"status": "success", "evaluated": len(records), "closed": closed_count}
 
     except Exception as e:
-        cf.fail_run(run_id, error=str(e), start_time=start_time)
-        send_resend_email(
+        notify_and_log_error(
+            workflow="position_management",
+            error=e,
+            run_id=run_id,
+            cf=cf,
+            start_time=start_time,
             subject="[Extrapcap] ⚠️ Position Management Failure Alert",
-            text=format_error_alert_text("position_management", str(e)),
         )
         raise

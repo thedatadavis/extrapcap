@@ -218,3 +218,51 @@ def test_format_position_exits_text_with_serialized_json_fields():
     assert "Spot $62.50 · Breakeven $63.07 · 2 DTE" in text
 
 
+def test_notify_and_log_error(monkeypatch):
+    from modal_app.notifier import notify_and_log_error
+    logged_errors = []
+    failed_runs = []
+    sent_emails = []
+
+    class DummyCF:
+        def log_error(self, **kwargs):
+            logged_errors.append(kwargs)
+            return {"success": True}
+
+        def fail_run(self, **kwargs):
+            failed_runs.append(kwargs)
+
+    monkeypatch.setattr("modal_app.notifier.send_resend_email", lambda subject, text: sent_emails.append((subject, text)))
+
+    cf = DummyCF()
+    try:
+        raise ZeroDivisionError("division by zero simulation")
+    except Exception as exc:
+        notify_and_log_error(
+            workflow="candidate_review",
+            error=exc,
+            run_id="modal-run-999",
+            cf=cf,
+            start_time=123.45,
+            context={"candidate": "AAPL"},
+            subject="Custom Subject Alert",
+        )
+
+    assert len(logged_errors) == 1
+    assert logged_errors[0]["workflow"] == "candidate_review"
+    assert logged_errors[0]["run_id"] == "modal-run-999"
+    assert "ZeroDivisionError" in logged_errors[0]["stack_trace"]
+    assert logged_errors[0]["context"] == {"candidate": "AAPL"}
+
+    assert len(failed_runs) == 1
+    assert failed_runs[0]["run_id"] == "modal-run-999"
+    assert failed_runs[0]["start_time"] == 123.45
+
+    assert len(sent_emails) == 1
+    assert sent_emails[0][0] == "Custom Subject Alert"
+    assert "Workflow: candidate_review" in sent_emails[0][1]
+    assert "Run ID:   modal-run-999" in sent_emails[0][1]
+    assert "ZeroDivisionError" in sent_emails[0][1]
+    assert "api/errors?unresolved=true" in sent_emails[0][1]
+
+

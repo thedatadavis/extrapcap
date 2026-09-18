@@ -5,6 +5,7 @@ import modal
 
 from modal_app.base import app, image, secrets, state_mount
 from modal_app.cf_client import CloudflareAPIClient
+from modal_app.notifier import notify_and_log_error
 
 
 @app.function(image=image, secrets=secrets, volumes=state_mount, timeout=600)
@@ -24,5 +25,12 @@ def live_cycle(symbol: str = "SPY", expiration_gte: str | None = None, expiratio
         cf.complete_run(run_id, summary={"symbol": symbol, "status": result.get("status")}, start_time=start_time)
         return result
     except Exception as exc:
-        cf.fail_run(run_id, error=str(exc), start_time=start_time)
+        notify_and_log_error(
+            workflow=f"live_cycle_{symbol}",
+            error=exc,
+            run_id=run_id,
+            cf=cf,
+            start_time=start_time,
+            subject=f"[Extrapcap] ⚠️ Live Cycle Failure Alert ({symbol})",
+        )
         raise

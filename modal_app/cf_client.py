@@ -1,5 +1,6 @@
 import os
 import time
+import traceback
 import uuid
 import httpx
 
@@ -69,6 +70,88 @@ class CloudflareAPIClient:
             },
         )
         self._require_success(response, "run failure update")
+
+    def log_error(
+        self,
+        workflow: str,
+        error: str | Exception,
+        run_id: str | None = None,
+        stack_trace: str | None = None,
+        context: dict | None = None,
+        severity: str = "error",
+    ) -> dict:
+        """Record an error to Cloudflare D1 error_logs table."""
+        if isinstance(error, BaseException):
+            error_type = type(error).__name__
+            error_message = str(error) or repr(error)
+            if stack_trace is None:
+                stack_trace = traceback.format_exc()
+        else:
+            error_type = "Error"
+            error_message = str(error)
+
+        payload = {
+            "workflow": workflow,
+            "run_id": run_id,
+            "error_type": error_type,
+            "error_message": error_message,
+            "stack_trace": stack_trace,
+            "context": context,
+            "severity": severity,
+        }
+        try:
+            res = self.client.post("/api/errors", json=payload)
+            if 200 <= res.status_code < 300:
+                return res.json()
+            else:
+                print(f"Warning: Cloudflare error log record failed (HTTP {res.status_code}): {res.text}")
+        except Exception as log_err:
+            print(f"Warning: Cloudflare error log write exception: {log_err}")
+        return {"success": False}
+
+    def get_errors(
+        self,
+        unresolved: bool = True,
+        workflow: str | None = None,
+        run_id: str | None = None,
+        limit: int = 50,
+    ) -> list[dict]:
+        """Fetch error log records from D1 for audit or self-healing jobs."""
+        params = [f"limit={int(limit)}"]
+        if unresolved:
+            params.append("unresolved=true")
+        if workflow:
+            params.append(f"workflow={workflow}")
+        if run_id:
+            params.append(f"run_id={run_id}")
+        query_str = "&".join(params)
+        res = self._require_success(
+            self.client.get(self._fresh_url(f"/api/errors?{query_str}")),
+            "error logs read",
+        )
+        data = res.json()
+        if not isinstance(data, list):
+            raise RuntimeError("Cloudflare errors response was not a list")
+        return data
+
+    def resolve_error(
+        self,
+        error_id: int,
+        resolution_notes: str | None = None,
+        resolved_by: str = "antigravity-healer",
+    ) -> bool:
+        """Mark an error log in D1 as resolved."""
+        payload = {
+            "id": error_id,
+            "is_resolved": 1,
+            "resolution_notes": resolution_notes,
+            "resolved_by": resolved_by,
+        }
+        res = self._require_success(
+            self.client.patch("/api/errors", json=payload),
+            "error resolution update",
+        )
+        return bool(res.json().get("success"))
 
     def append_events(self, events: list[dict], run_id: str = None):
         if not events:

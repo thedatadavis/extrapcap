@@ -9,6 +9,8 @@ if (!cookie?.value || cookie.value !== 'authenticated') {
 const db = (Astro.locals as any).runtime?.env?.DB;
 let runs: any[] = [];
 let positions: any[] = [];
+let errorLogs: any[] = [];
+let unresolvedErrorsCount = 0;
 let eventsCount = 0;
 let barsCount = 0;
 
@@ -19,6 +21,12 @@ if (db) {
 
     const posRes = await db.prepare('SELECT * FROM positions ORDER BY opened_at DESC').all();
     positions = posRes.results || [];
+
+    const errRes = await db.prepare('SELECT * FROM error_logs ORDER BY created_at DESC LIMIT 25').all();
+    errorLogs = errRes.results || [];
+
+    const unresCountRes = await db.prepare('SELECT COUNT(*) as cnt FROM error_logs WHERE is_resolved = 0').first();
+    unresolvedErrorsCount = unresCountRes?.cnt || 0;
 
     const evtCountRes = await db.prepare('SELECT COUNT(*) as cnt FROM events').first();
     eventsCount = evtCountRes?.cnt || 0;
@@ -79,6 +87,11 @@ const coreWorkflows = [
         <span>Workflow Runs</span>
         <strong>{runs.length}</strong>
         <small>Modal crons tracked</small>
+      </div>
+      <div class="metric">
+        <span>Open Errors</span>
+        <strong style={unresolvedErrorsCount > 0 ? "color: #d9383a;" : ""}>{unresolvedErrorsCount}</strong>
+        <small>Self-healing queue</small>
       </div>
     </div>
   </section>
@@ -156,6 +169,54 @@ const coreWorkflows = [
       </div>
     ) : (
       <div class="empty-state">No workflow runs recorded in D1 yet. Modal functions will register here on first execution.</div>
+    )}
+  </section>
+
+  <!-- Error Log & Self-Healing Queue -->
+  <section class="trades-section" style="padding-top: 18px; padding-bottom: 36px;">
+    <div class="section-heading">
+      <div>
+        <h2>Error Log & Self-Healing Queue 🛠️</h2>
+        <p>Audit trail of execution exceptions in D1 for autonomous diagnosis & repair</p>
+      </div>
+    </div>
+    {errorLogs.length > 0 ? (
+      <div class="trade-table-wrap">
+        <table class="trade-table">
+          <thead>
+            <tr>
+              <th>Timestamp</th>
+              <th>Workflow</th>
+              <th>Type</th>
+              <th>Status</th>
+              <th>Error Message</th>
+              <th>Resolution</th>
+            </tr>
+          </thead>
+          <tbody>
+            {errorLogs.map((e) => (
+              <tr>
+                <td style="white-space: nowrap;">{e.created_at ? e.created_at.replace('T', ' ').slice(0, 19) : '—'}</td>
+                <td><strong>{e.workflow}</strong></td>
+                <td style="font-family: var(--mono); font-size: 11px;">{e.error_type || 'Error'}</td>
+                <td>
+                  <span class:list={['action-pill', e.is_resolved ? '' : 'exit']}>
+                    {e.is_resolved ? 'Resolved' : 'Open'}
+                  </span>
+                </td>
+                <td style="font-family: var(--mono); font-size: 11px; max-width: 320px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title={e.error_message}>
+                  {e.error_message}
+                </td>
+                <td style="font-size: 11px; color: var(--muted); max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                  {e.is_resolved ? `${e.resolved_by || 'healer'}: ${e.resolution_notes || 'fixed'}` : 'Pending triage'}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    ) : (
+      <div class="empty-state">No errors recorded in D1. All workflows running cleanly.</div>
     )}
   </section>
 

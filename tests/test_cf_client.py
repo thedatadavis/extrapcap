@@ -147,3 +147,68 @@ def test_cf_client_raises_when_event_persistence_fails(monkeypatch):
     monkeypatch.setattr(httpx, "Client", FakeClient)
     with pytest.raises(RuntimeError, match="event append failed"):
         CloudflareAPIClient().append_events([{"kind": "test"}])
+
+
+def test_cf_client_log_and_resolve_errors(monkeypatch):
+    posted = []
+    patched = []
+    got = []
+
+    class FakeResponse:
+        status_code = 200
+        def json(self):
+            return {"success": True, "id": 101}
+
+    class FakeListResponse:
+        status_code = 200
+        def json(self):
+            return [{"id": 101, "workflow": "daily_report", "error_message": "Test fail", "is_resolved": 0}]
+
+    class FakeClient:
+        def __init__(self, **kwargs):
+            pass
+
+        def post(self, url, json=None):
+            posted.append((url, json))
+            return FakeResponse()
+
+        def get(self, url):
+            got.append(url)
+            return FakeListResponse()
+
+        def patch(self, url, json=None):
+            patched.append((url, json))
+            return FakeResponse()
+
+    monkeypatch.setattr(httpx, "Client", FakeClient)
+    cf = CloudflareAPIClient()
+
+    # Test log_error with exception
+    try:
+        raise ValueError("synthetic boom")
+    except Exception as e:
+        res = cf.log_error(workflow="daily_report", error=e, run_id="modal-test-123", context={"key": "val"})
+        assert res["success"] is True
+
+    assert len(posted) == 1
+    assert posted[0][0] == "/api/errors"
+    assert posted[0][1]["workflow"] == "daily_report"
+    assert posted[0][1]["error_type"] == "ValueError"
+    assert "synthetic boom" in posted[0][1]["error_message"]
+    assert "Traceback" in posted[0][1]["stack_trace"]
+    assert posted[0][1]["context"] == {"key": "val"}
+
+    # Test get_errors
+    errors = cf.get_errors(unresolved=True, workflow="daily_report")
+    assert len(errors) == 1
+    assert errors[0]["id"] == 101
+    assert any("/api/errors?" in url and "unresolved=true" in url for url in got)
+
+    # Test resolve_error
+    ok = cf.resolve_error(error_id=101, resolution_notes="Auto-repaired by self-healing agent", resolved_by="antigravity-healer")
+    assert ok is True
+    assert len(patched) == 1
+    assert patched[0][0] == "/api/errors"
+    assert patched[0][1]["id"] == 101
+    assert patched[0][1]["is_resolved"] == 1
+    assert patched[0][1]["resolution_notes"] == "Auto-repaired by self-healing agent"

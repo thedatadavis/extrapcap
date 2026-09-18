@@ -6,6 +6,7 @@ import modal
 from modal_app.bar_store import write_bar_partitions
 from modal_app.base import app, image, secrets, state_mount, state_volume
 from modal_app.cf_client import CloudflareAPIClient
+from modal_app.notifier import notify_and_log_error
 
 
 @app.function(
@@ -147,5 +148,12 @@ def data_refresh():
         }
 
     except Exception as e:
-        cf.fail_run(run_id, error=str(e), start_time=start_time)
+        notify_and_log_error(
+            workflow="data_refresh",
+            error=e,
+            run_id=run_id,
+            cf=cf,
+            start_time=start_time,
+            subject="[Extrapcap] ⚠️ Data Refresh Failure Alert",
+        )
         raise

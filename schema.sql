@@ -157,3 +157,23 @@ CREATE TABLE IF NOT EXISTS risk_events (
     recorded_at TEXT DEFAULT (datetime('now'))
 );
 CREATE INDEX IF NOT EXISTS idx_risk_events_symbol ON risk_events(symbol, event_date);
+
+-- 10. Error log tracking for self-healing operations
+CREATE TABLE IF NOT EXISTS error_logs (
+    id               INTEGER PRIMARY KEY AUTOINCREMENT,
+    workflow         TEXT NOT NULL,
+    run_id           TEXT,
+    error_type       TEXT,
+    error_message    TEXT NOT NULL,
+    stack_trace      TEXT,
+    context          TEXT,
+    severity         TEXT DEFAULT 'error',
+    is_resolved      INTEGER DEFAULT 0,
+    resolved_at      TEXT,
+    resolution_notes TEXT,
+    resolved_by      TEXT,
+    created_at       TEXT DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_error_logs_unresolved ON error_logs(is_resolved, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_error_logs_workflow ON error_logs(workflow, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_error_logs_run ON error_logs(run_id);

@@ -4,7 +4,12 @@ from datetime import datetime, timezone
 import modal
 from modal_app.base import app, image, secrets, state_mount
 from modal_app.cf_client import CloudflareAPIClient
-from modal_app.notifier import format_daily_report_text, format_error_alert_text, send_resend_email
+from modal_app.notifier import (
+    format_daily_report_text,
+    format_error_alert_text,
+    send_resend_email,
+    notify_and_log_error,
+)
 from extrapcap.llm.nebius import NebiusReviewer
 from extrapcap.reporting.daily_note import deterministic_wsj_summary
 
@@ -211,9 +216,12 @@ def daily_report():
         return {"status": "success", "report_date": today_str}
 
     except Exception as e:
-        cf.fail_run(run_id, error=str(e), start_time=start_time)
-        send_resend_email(
+        notify_and_log_error(
+            workflow="daily_report",
+            error=e,
+            run_id=run_id,
+            cf=cf,
+            start_time=start_time,
             subject="[Extrapcap] ⚠️ Daily Report Failure Alert",
-            text=format_error_alert_text("daily_report", str(e)),
         )
         raise
