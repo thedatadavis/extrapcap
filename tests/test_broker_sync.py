@@ -156,7 +156,7 @@ def _durable_position(expiration="2026-08-21"):
         "long_strike": 50,
         "short_strike": 55,
         "spread_width": 5,
-        "entry_debit": 1.8,
+        "entry_debit": 1.20,
         "entry_credit": None,
         "opened_at": "2026-08-12",
         "expiration": expiration,

@@ -13,6 +13,7 @@ class CoreSelectionDecision:
     streak_length: int | None
     robust_z: float | None
     z_threshold: float
+    exhaustion_confirmed: bool = False
 
     def as_dict(self) -> dict:
         return asdict(self)
@@ -37,15 +38,26 @@ def _positive_int(value) -> int | None:
 def core_streak_gate(
     context: dict,
     z_threshold: float = -0.5,
+    require_exhaustion: bool | None = None,
 ) -> CoreSelectionDecision:
     """Gate completed streak evidence for bullish or 2-sided mean-reversion.
 
-    Both negative and positive relative streaks are tradeable reversal setups.
+    Supports both 'core_mean_reversion' credit spreads and 'debit_reversal' positive-skew debit spreads.
+    Optionally enforces two-stage momentum exhaustion confirmation (R_rel > 0 for oversold, R_rel < 0 for overbought).
     """
     direction = context.get("streak_direction")
     length = _positive_int(context.get("streak_length"))
     robust_z = _finite_float(context.get("robust_z"))
-    route = "core_mean_reversion" if direction == "negative" else "bearish_reversal_watch"
+    
+    route_pref = context.get("strategy_route") or context.get("route")
+    if route_pref in {"debit_reversal", "core_mean_reversion", "bearish_reversal_watch"}:
+        route = route_pref
+    elif context.get("enable_debit_reversal_route"):
+        route = "debit_reversal"
+    elif direction == "negative":
+        route = "core_mean_reversion"
+    else:
+        route = "bearish_reversal_watch"
 
     if direction not in {"negative", "positive"}:
         return CoreSelectionDecision(
@@ -56,6 +68,7 @@ def core_streak_gate(
             length,
             robust_z,
             z_threshold,
+            exhaustion_confirmed=False,
         )
 
     if length is None or not 1 <= length <= 8:
@@ -67,6 +80,7 @@ def core_streak_gate(
             length,
             robust_z,
             z_threshold,
+            exhaustion_confirmed=False,
         )
     if robust_z is None:
         return CoreSelectionDecision(
@@ -77,6 +91,7 @@ def core_streak_gate(
             length,
             robust_z,
             z_threshold,
+            exhaustion_confirmed=False,
         )
     threshold = abs(float(z_threshold))
     if direction == "negative" and robust_z > -threshold:
@@ -88,6 +103,7 @@ def core_streak_gate(
             length,
             robust_z,
             z_threshold,
+            exhaustion_confirmed=False,
         )
     if direction == "positive" and robust_z < threshold:
         return CoreSelectionDecision(
@@ -98,8 +114,65 @@ def core_streak_gate(
             length,
             robust_z,
             z_threshold,
+            exhaustion_confirmed=False,
         )
-    return CoreSelectionDecision(True, "approved", route, direction, length, robust_z, z_threshold)
+
+    rel_return = _finite_float(context.get("relative_return"))
+    if direction == "negative":
+        is_exhausted = bool(length >= 2 and robust_z <= -threshold and rel_return is not None and rel_return > 0)
+    else:
+        is_exhausted = bool(length >= 2 and robust_z >= threshold and rel_return is not None and rel_return < 0)
+
+    needs_exhaustion = (
+        require_exhaustion
+        if require_exhaustion is not None
+        else bool(context.get("require_exhaustion", context.get("require_exhaustion_bar", False)))
+    )
+    if needs_exhaustion:
+        if length < 2:
+            return CoreSelectionDecision(
+                False,
+                "streak_length_below_exhaustion_minimum",
+                route,
+                direction,
+                length,
+                robust_z,
+                z_threshold,
+                exhaustion_confirmed=False,
+            )
+        if direction == "negative" and (rel_return is None or rel_return <= 0):
+            return CoreSelectionDecision(
+                False,
+                "unconfirmed_negative_momentum",
+                route,
+                direction,
+                length,
+                robust_z,
+                z_threshold,
+                exhaustion_confirmed=False,
+            )
+        if direction == "positive" and (rel_return is None or rel_return >= 0):
+            return CoreSelectionDecision(
+                False,
+                "unconfirmed_positive_momentum",
+                route,
+                direction,
+                length,
+                robust_z,
+                z_threshold,
+                exhaustion_confirmed=False,
+            )
+
+    return CoreSelectionDecision(
+        True,
+        "approved",
+        route,
+        direction,
+        length,
+        robust_z,
+        z_threshold,
+        exhaustion_confirmed=is_exhausted,
+    )
 
 
 def completed_signal_alignment_reason(

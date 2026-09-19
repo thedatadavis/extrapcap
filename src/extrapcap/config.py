@@ -31,6 +31,8 @@ class RiskConfig(BaseModel):
     zero_dte_risk_fraction: float = Field(0.25, gt=0, le=1)
     one_dte_risk_fraction: float = Field(0.50, gt=0, le=1)
     max_contracts_per_order: int = Field(25, gt=0)
+    min_credit_pct_width: float = Field(0.40, gt=0, lt=1)
+    max_debit_pct_width: float = Field(0.25, gt=0, lt=1)
 
 
 class StrategyConfig(BaseModel):
@@ -39,7 +41,10 @@ class StrategyConfig(BaseModel):
     improved_delta_min: float = Field(0.10, gt=0, lt=1)
     improved_delta_max: float = Field(0.35, gt=0, lt=1)
     spread_width: float = Field(5.0, gt=0)
-    min_credit_pct_width: float = Field(0.05, gt=0, lt=1)
+    min_credit_pct_width: float = Field(0.40, gt=0, lt=1)
+    max_debit_pct_width: float = Field(0.25, gt=0, lt=1)
+    require_exhaustion_bar: bool = Field(True, description="Require contra-streak confirmation bar before entry")
+    enable_debit_reversal_route: bool = Field(True, description="Enable debit reversal route for streak trades")
     max_option_quote_age_seconds: int = Field(1800, gt=0)
     max_option_spread_pct: float = Field(0.40, gt=0, le=1)
     premium_funding_pct: float = Field(0.15, gt=0, le=0.20)

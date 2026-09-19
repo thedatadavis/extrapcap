@@ -43,7 +43,11 @@ def run_chain_backtest(observations: pd.DataFrame, assumptions: FillAssumptions 
         if credit <= 0:
             rejected += 1
             continue
-        spread = VerticalSpread(row.underlying, float(row.short_strike), float(row.long_strike), credit)
+        try:
+            spread = VerticalSpread(row.underlying, float(row.short_strike), float(row.long_strike), credit)
+        except ValueError:
+            rejected += 1
+            continue
         pnl = vertical_expiration_pnl(spread, float(row.expiry_underlying_close), assumptions.commission_per_contract * 2)
         trades += 1
         wins += int(pnl > 0)

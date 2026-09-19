@@ -62,10 +62,10 @@ def test_historical_trades_uses_provider_default_feed_contract(monkeypatch):
 
 
 def test_credit_fill_and_expiry_assignment_contracts():
-    spread = VerticalSpread("ABC", 100, 95, 1.0)
-    assert credit_fill(1.5, 0.4, 1, FillAssumptions(slippage_per_leg=0)) == pytest.approx(110)
-    assert vertical_expiration_pnl(spread, 102) == 100
-    assert vertical_expiration_pnl(spread, 94) == -400
+    spread = VerticalSpread("ABC", 100, 95, 2.0)
+    assert credit_fill(2.5, 0.4, 1, FillAssumptions(slippage_per_leg=0)) == pytest.approx(210)
+    assert vertical_expiration_pnl(spread, 102) == 200
+    assert vertical_expiration_pnl(spread, 94) == -300
     assert early_assignment_exposure(spread, 99, 5)
 
 

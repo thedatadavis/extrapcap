@@ -93,12 +93,18 @@ def candidate_from_solution(
     is_debit = isinstance(solution.spread, DebitSpread)
     price = _midpoint_spread(selected, quote_map, debit=is_debit)
 
-    # Calculate single-contract risk (unit loss)
+    # Calculate single-contract risk (unit loss) and enforce hard invariants
+    price_invalid_reason = None
     if is_debit:
+        spread_width = abs(selected.long.strike - selected.short.strike)
         unit_loss = max(1.0, price * 100.0)
+        if price > 0.30 * spread_width:
+            price_invalid_reason = f"natural midpoint debit {price:.2f} exceeds 30% of width {spread_width:.2f}; violates 1:3 reward-to-risk policy"
     else:
         spread_width = abs(selected.short.strike - selected.long.strike)
         unit_loss = max(1.0, (spread_width - price) * 100.0)
+        if price < 0.35 * spread_width:
+            price_invalid_reason = f"natural midpoint credit {price:.2f} is less than 35% of width {spread_width:.2f}; violates risk-to-reward policy"
 
     # Dynamic sizing by confidence level up to 70% available daily cash
     sleeve_cap = (
@@ -138,12 +144,20 @@ def candidate_from_solution(
     ):
         target_quantity -= 1
 
+    spread_price = price
+    if price_invalid_reason:
+        # Cap or floor price so dataclass validation does not raise when creating rejected candidate
+        if is_debit:
+            spread_price = min(price, round(0.30 * spread_width, 2))
+        else:
+            spread_price = max(price, round(0.35 * spread_width, 2))
+
     spread = (
         DebitSpread(
             underlying,
             selected.long.strike,
             selected.short.strike,
-            price,
+            spread_price,
             contracts=target_quantity,
             direction=solution.spread.direction,
         )
@@ -152,13 +166,15 @@ def candidate_from_solution(
             underlying,
             selected.short.strike,
             selected.long.strike,
-            price,
+            spread_price,
             contracts=target_quantity,
             direction=getattr(solution.spread, "direction", "bullish"),
         )
     )
     sector = str(context.get("sector") or "").strip()
-    if not sector or sector.upper() in {"N/A", "UNKNOWN"}:
+    if price_invalid_reason:
+        risk_decision = RiskDecision(False, price_invalid_reason)
+    elif not sector or sector.upper() in {"N/A", "UNKNOWN"}:
         risk_decision = RiskDecision(False, "sector metadata required")
     else:
         risk_decision = approve_dte_risk(
@@ -251,9 +267,13 @@ def build_candidates(
     if direction not in {"negative", "positive"}:
         raise ValueError("selection context requires streak direction")
     sleeve = str(context.get("sleeve") or "core").lower()
-    spread_types = context.get("spread_types") or (
-        ("credit",) if sleeve == "core" else ("debit", "credit")
-    )
+    strategy_route = str(context.get("strategy_route") or context.get("route") or "").lower()
+    if strategy_route == "debit_reversal":
+        spread_types = ("debit",)
+    else:
+        spread_types = context.get("spread_types") or (
+            ("credit",) if sleeve == "core" else ("debit", "credit")
+        )
     contracts = contracts_from_payload(contracts_payload)
     quotes = normalize_chain(snapshot_payload)
     solutions = select_candidate_verticals(
@@ -272,6 +292,8 @@ def build_candidates(
         min_width_pct=min_width_pct,
         max_width_pct=max_width_pct,
         spread_types=spread_types,
+        min_credit_pct_width=getattr(risk_config, "min_credit_pct_width", 0.40),
+        max_debit_pct_width=getattr(risk_config, "max_debit_pct_width", 0.30),
         limit=limit,
     )
     quote_map = {quote.symbol: quote for quote in quotes}

@@ -195,6 +195,8 @@ def select_candidate_verticals(
     min_width_pct: float = 0.005,
     max_width_pct: float = 0.05,
     spread_types: tuple[str, ...] = ("credit", "debit"),
+    min_credit_pct_width: float = 0.40,
+    max_debit_pct_width: float = 0.30,
     limit: int | None = None,
 ) -> list[ExpectedValueSolution]:
     """Scan directional vertical spreads in option chain and return viable ones sorted by EV descending."""
@@ -259,7 +261,7 @@ def select_candidate_verticals(
                                 and q2.bid > q1.ask
                             ):
                                 credit = round(q2.bid - q1.ask, 2)
-                                if 0.05 <= credit < width:
+                                if max(0.05, round(min_credit_pct_width * width, 2)) <= credit < width:
                                     max_profit = round(credit * 100, 2)
                                     max_risk = round((width - credit) * 100, 2)
                                     stop_risk = min(max_risk, round(2.0 * credit * 100, 2))
@@ -282,7 +284,7 @@ def select_candidate_verticals(
                                 and q1.bid > q2.ask
                             ):
                                 credit = round(q1.bid - q2.ask, 2)
-                                if 0.05 <= credit < width:
+                                if max(0.05, round(min_credit_pct_width * width, 2)) <= credit < width:
                                     max_profit = round(credit * 100, 2)
                                     max_risk = round((width - credit) * 100, 2)
                                     stop_risk = min(max_risk, round(2.0 * credit * 100, 2))
@@ -304,7 +306,7 @@ def select_candidate_verticals(
                             and q1.ask > q2.bid
                         ):
                             debit = round(q1.ask - q2.bid, 2)
-                            if 0.05 <= debit < width:
+                            if 0.05 <= debit <= round(max_debit_pct_width * width, 2):
                                 max_profit = round((width - debit) * 100, 2)
                                 max_risk = round(debit * 100, 2)
                                 ev = round((win_probability * max_profit) - ((1.0 - win_probability) * max_risk), 2)
@@ -329,7 +331,7 @@ def select_candidate_verticals(
                             and q2.ask > q1.bid
                         ):
                             debit = round(q2.ask - q1.bid, 2)
-                            if 0.05 <= debit < width:
+                            if 0.05 <= debit <= round(max_debit_pct_width * width, 2):
                                 max_profit = round((width - debit) * 100, 2)
                                 max_risk = round(debit * 100, 2)
                                 ev = round((win_probability * max_profit) - ((1.0 - win_probability) * max_risk), 2)
@@ -394,6 +396,8 @@ def select_highest_ev_vertical(
     min_width_pct: float = 0.005,
     max_width_pct: float = 0.05,
     spread_types: tuple[str, ...] = ("credit", "debit"),
+    min_credit_pct_width: float = 0.40,
+    max_debit_pct_width: float = 0.30,
 ) -> ExpectedValueSolution:
     """Scan directional vertical spreads in option chain and return the one with the highest EV >= min_ev."""
     candidates = select_candidate_verticals(
@@ -412,6 +416,8 @@ def select_highest_ev_vertical(
         min_width_pct=min_width_pct,
         max_width_pct=max_width_pct,
         spread_types=spread_types,
+        min_credit_pct_width=min_credit_pct_width,
+        max_debit_pct_width=max_debit_pct_width,
         limit=1,
     )
     if not candidates:

@@ -15,9 +15,9 @@ def test_constant_window_has_neutral_zscore():
 
 
 def test_defined_risk_spreads():
-    credit = VerticalSpread("ABC", 100, 95, 1.0)
-    assert credit.max_loss == 400
-    assert credit.max_profit == 100
+    credit = VerticalSpread("ABC", 100, 95, 2.0)
+    assert credit.max_loss == 300
+    assert credit.max_profit == 200
     debit = DebitSpread("ABC", 100, 90, 1.0, direction="bearish")
     assert debit_expiration_pnl(debit, 85) == pytest.approx(900)
 

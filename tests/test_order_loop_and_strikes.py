@@ -31,10 +31,10 @@ def _make_chain():
     }
     snapshot_payload = {
         "snapshots": {
-            "AAPL-P220": {"latestQuote": {"t": "2026-08-12T16:00:00Z", "bp": 3.80, "ap": 4.00}, "latestTrade": {"p": 3.90}, "greeks": {"delta": -0.22}},
-            "AAPL-P215": {"latestQuote": {"t": "2026-08-12T16:00:00Z", "bp": 1.00, "ap": 1.20}, "latestTrade": {"p": 1.10}, "greeks": {"delta": -0.15}},
-            "AAPL-P210": {"latestQuote": {"t": "2026-08-12T16:00:00Z", "bp": 0.40, "ap": 0.50}, "latestTrade": {"p": 0.45}, "greeks": {"delta": -0.09}},
-            "AAPL-P205": {"latestQuote": {"t": "2026-08-12T16:00:00Z", "bp": 0.10, "ap": 0.15}, "latestTrade": {"p": 0.12}, "greeks": {"delta": -0.04}},
+            "AAPL-P220": {"latestQuote": {"t": "2026-08-12T16:00:00Z", "bp": 5.00, "ap": 5.20}, "latestTrade": {"p": 5.10}, "greeks": {"delta": -0.45}},
+            "AAPL-P215": {"latestQuote": {"t": "2026-08-12T16:00:00Z", "bp": 2.80, "ap": 3.00}, "latestTrade": {"p": 2.90}, "greeks": {"delta": -0.30}},
+            "AAPL-P210": {"latestQuote": {"t": "2026-08-12T16:00:00Z", "bp": 0.80, "ap": 1.00}, "latestTrade": {"p": 0.90}, "greeks": {"delta": -0.15}},
+            "AAPL-P205": {"latestQuote": {"t": "2026-08-12T16:00:00Z", "bp": 0.10, "ap": 0.20}, "latestTrade": {"p": 0.15}, "greeks": {"delta": -0.05}},
         }
     }
     return contracts_payload, snapshot_payload
@@ -48,10 +48,10 @@ def test_select_candidate_verticals_ranks_viable_spreads_by_ev():
         OptionContract("AAPL-P205", "AAPL", "2026-08-21", 205, "put"),
     ]
     quotes = [
-        OptionQuote("AAPL-P220", "2026-08-12T16:00:00Z", 3.80, 4.00, 3.90, delta=-0.22),
-        OptionQuote("AAPL-P215", "2026-08-12T16:00:00Z", 1.00, 1.20, 1.10, delta=-0.15),
-        OptionQuote("AAPL-P210", "2026-08-12T16:00:00Z", 0.40, 0.50, 0.45, delta=-0.09),
-        OptionQuote("AAPL-P205", "2026-08-12T16:00:00Z", 0.10, 0.15, 0.12, delta=-0.04),
+        OptionQuote("AAPL-P220", "2026-08-12T16:00:00Z", 5.00, 5.20, 5.10, delta=-0.45),
+        OptionQuote("AAPL-P215", "2026-08-12T16:00:00Z", 2.80, 3.00, 2.90, delta=-0.30),
+        OptionQuote("AAPL-P210", "2026-08-12T16:00:00Z", 0.80, 1.00, 0.90, delta=-0.15),
+        OptionQuote("AAPL-P205", "2026-08-12T16:00:00Z", 0.10, 0.20, 0.15, delta=-0.05),
     ]
     solutions = select_candidate_verticals(
         underlying="AAPL",
@@ -243,8 +243,8 @@ def test_select_candidate_verticals_directional_credit_spreads():
         OptionContract("STK-P95", "STK", "2026-08-21", 95.0, "put"),
     ]
     put_quotes = [
-        OptionQuote("STK-P100", "now", 2.00, 2.20, 2.10, delta=-0.30),
-        OptionQuote("STK-P95", "now", 0.50, 0.60, 0.55, delta=-0.12),
+        OptionQuote("STK-P100", "now", 2.60, 2.80, 2.70, delta=-0.45),
+        OptionQuote("STK-P95", "now", 0.50, 0.60, 0.55, delta=-0.15),
     ]
     put_solutions = select_candidate_verticals(
         underlying="STK",
@@ -260,7 +260,7 @@ def test_select_candidate_verticals_directional_credit_spreads():
     assert isinstance(put_solutions[0].spread, VerticalSpread)
     assert put_solutions[0].spread.short_strike == 100.0
     assert put_solutions[0].spread.long_strike == 95.0
-    assert put_solutions[0].spread.credit == 1.40  # 2.00 - 0.60
+    assert put_solutions[0].spread.credit == 2.00  # 2.60 - 0.60
     assert put_solutions[0].expected_value > 0
 
     # Positive streak -> Call Credit Spread
@@ -269,8 +269,8 @@ def test_select_candidate_verticals_directional_credit_spreads():
         OptionContract("STK-C110", "STK", "2026-08-21", 110.0, "call"),
     ]
     call_quotes = [
-        OptionQuote("STK-C105", "now", 1.80, 2.00, 1.90, delta=0.28),
-        OptionQuote("STK-C110", "now", 0.40, 0.50, 0.45, delta=0.10),
+        OptionQuote("STK-C105", "now", 2.50, 2.70, 2.60, delta=0.45),
+        OptionQuote("STK-C110", "now", 0.40, 0.50, 0.45, delta=0.15),
     ]
     call_solutions = select_candidate_verticals(
         underlying="STK",
@@ -286,7 +286,7 @@ def test_select_candidate_verticals_directional_credit_spreads():
     assert isinstance(call_solutions[0].spread, VerticalSpread)
     assert call_solutions[0].spread.short_strike == 105.0
     assert call_solutions[0].spread.long_strike == 110.0
-    assert call_solutions[0].spread.credit == 1.30  # 1.80 - 0.50
+    assert call_solutions[0].spread.credit == 2.00  # 2.50 - 0.50
     assert call_solutions[0].expected_value > 0
 
 

@@ -13,7 +13,11 @@
     "improved_delta_max": 0.35,
     "premium_funding_pct": 0.15,
     "trap_low": 0.50,
-    "trap_high": 0.80
+    "trap_high": 0.80,
+    "min_credit_pct_width": 0.40,
+    "max_debit_pct_width": 0.25,
+    "require_exhaustion_bar": true,
+    "enable_debit_reversal_route": true
   },
   "risk": {
     "max_core_open_risk_pct": 0.70,

@@ -92,8 +92,8 @@ def test_select_highest_ev_vertical_dynamic_percentage_widths():
         OptionContract("BIGCO-C200", underlying, "2026-08-21", 200.0, "call"),
     ]
     quotes = [
-        OptionQuote("BIGCO-C190", "now", 12.0, 12.5, 12.25, delta=0.60),
-        OptionQuote("BIGCO-C200", "now", 5.0, 5.5, 5.25, delta=0.45),
+        OptionQuote("BIGCO-C190", "now", 6.0, 6.5, 6.25, delta=0.50),
+        OptionQuote("BIGCO-C200", "now", 4.0, 4.5, 4.25, delta=0.35),
     ]
     # Without passing explicit widths, percentage-based bounds (0.5% to 5.0%) accept width=10.0
     sol = select_highest_ev_vertical(

@@ -58,6 +58,7 @@ def main() -> None:
     parser.add_argument("--max-length", type=int, default=8)
     parser.add_argument("--directions", default="negative,positive")
     parser.add_argument("--require-coverage", action="store_true", help="fail unless every Greenlist ticker has completed bars")
+    parser.add_argument("--require-exhaustion", action="store_true", help="require momentum exhaustion confirmation bar before trade entry")
     args = parser.parse_args()
     bars = pd.read_csv(args.bars, parse_dates=["date"])
     bars = completed_daily_bars(bars)
@@ -68,7 +69,12 @@ def main() -> None:
     benchmark = bars.loc[bars["symbol"].str.upper().eq("SPY")].set_index("date")["close"]
     if benchmark.empty:
         raise RuntimeError("streak screen requires benchmark bars for SPY")
-    policy = StreakPolicy(args.min_length, args.max_length, tuple(args.directions.split(",")))
+    policy = StreakPolicy(
+        args.min_length,
+        args.max_length,
+        tuple(args.directions.split(",")),
+        require_exhaustion=args.require_exhaustion,
+    )
     selected, decisions = screen_streaks(bars, benchmark, symbols, policy)
     sector_lookup = {
         str(row.ticker).upper(): str(row.sector)

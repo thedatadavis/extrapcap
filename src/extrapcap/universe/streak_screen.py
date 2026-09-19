@@ -16,6 +16,7 @@ class StreakPolicy:
     min_length: int = 1
     max_length: int = 8
     directions: tuple[str, ...] = ("negative", "positive")
+    require_exhaustion: bool = False
 
     def __post_init__(self) -> None:
         if self.min_length < 1 or self.max_length < self.min_length:
@@ -40,30 +41,81 @@ def screen_streaks(
     if candidate_symbols is not None:
         allowed = {symbol.upper() for symbol in candidate_symbols}
         frame = frame[frame["symbol"].str.upper().isin(allowed | {"SPY"})]
+    frame["prev_streak_length"] = frame.groupby("symbol")["streak_length"].shift(1)
+    frame["prev_streak_direction"] = frame.groupby("symbol")["streak_direction"].shift(1)
+    frame["prev_signed_streak"] = frame.groupby("symbol")["signed_streak"].shift(1)
+    frame["prev_robust_z"] = frame.groupby("symbol")["robust_z"].shift(1)
+
     latest = frame.sort_values(["symbol", "date"]).groupby("symbol", as_index=False).tail(1)
     latest = latest[latest["symbol"].ne("SPY")].copy()
-    latest["streak_eligible"] = latest["streak_length"].between(
-        policy.min_length, policy.max_length
-    ) & latest["streak_direction"].isin(policy.directions)
+
+    def _is_exhausted(row) -> bool:
+        prev_dir = row["prev_streak_direction"] if pd.notna(row["prev_streak_direction"]) else None
+        prev_len = row["prev_streak_length"] if pd.notna(row["prev_streak_length"]) else 0
+        rel_ret = row["relative_return"] if pd.notna(row["relative_return"]) else None
+        if prev_dir == "negative" and prev_len >= 2 and rel_ret is not None and rel_ret > 0:
+            return True
+        if prev_dir == "positive" and prev_len >= 2 and rel_ret is not None and rel_ret < 0:
+            return True
+        curr_len = row["streak_length"] if pd.notna(row["streak_length"]) else 0
+        curr_dir = row["streak_direction"] if pd.notna(row["streak_direction"]) else None
+        if curr_len >= 2 and rel_ret is not None:
+            if curr_dir == "negative" and rel_ret > 0:
+                return True
+            if curr_dir == "positive" and rel_ret < 0:
+                return True
+        return False
+
+    latest["exhaustion_confirmed"] = latest.apply(_is_exhausted, axis=1)
+
+    if policy.require_exhaustion:
+        def _is_eligible_exhausted(row) -> bool:
+            if not row["exhaustion_confirmed"]:
+                return False
+            prev_dir = row["prev_streak_direction"] if pd.notna(row["prev_streak_direction"]) else None
+            prev_len = row["prev_streak_length"] if pd.notna(row["prev_streak_length"]) else 0
+            if prev_dir in policy.directions and policy.min_length <= prev_len <= policy.max_length:
+                return True
+            curr_dir = row["streak_direction"]
+            curr_len = row["streak_length"]
+            if curr_dir in policy.directions and policy.min_length <= curr_len <= policy.max_length:
+                return True
+            return False
+
+        latest["streak_eligible"] = latest.apply(_is_eligible_exhausted, axis=1)
+    else:
+        latest["streak_eligible"] = latest["streak_length"].between(
+            policy.min_length, policy.max_length
+        ) & latest["streak_direction"].isin(policy.directions)
+
     decisions = []
     for row in latest.itertuples():
         reasons = []
-        if row.streak_length < policy.min_length:
+        eff_len = row.streak_length
+        eff_dir = row.streak_direction
+        if policy.require_exhaustion and row.exhaustion_confirmed:
+            if pd.notna(row.prev_streak_direction) and row.prev_streak_direction in policy.directions:
+                eff_len = int(row.prev_streak_length)
+                eff_dir = str(row.prev_streak_direction)
+        if eff_len < policy.min_length:
             reasons.append("streak_too_short")
-        if row.streak_length > policy.max_length:
+        if eff_len > policy.max_length:
             reasons.append("streak_too_long")
-        if row.streak_direction not in policy.directions:
+        if eff_dir not in policy.directions:
             reasons.append("streak_direction_excluded")
+        if policy.require_exhaustion and not row.exhaustion_confirmed:
+            reasons.append("unconfirmed_momentum_no_exhaustion")
         decisions.append(
             {
                 "ticker": row.symbol,
                 "as_of": pd.Timestamp(row.date).isoformat(),
                 "signed_streak": int(row.signed_streak),
-                "streak_length": int(row.streak_length),
-                "streak_direction": row.streak_direction,
+                "streak_length": int(eff_len),
+                "streak_direction": eff_dir,
                 "relative_return": float(row.relative_return)
                 if pd.notna(row.relative_return)
                 else None,
+                "exhaustion_confirmed": bool(row.exhaustion_confirmed),
                 "accepted": bool(row.streak_eligible),
                 "reasons": reasons,
             }
@@ -159,6 +211,7 @@ def filter_tradable_basket(
             "relative_return": float(row.relative_return)
             if pd.notna(row.relative_return)
             else None,
+            "exhaustion_confirmed": bool(getattr(row, "exhaustion_confirmed", False)),
             "underlying_price": float(row.close) if pd.notna(row.close) else None,
         }
         rows.append(record)
