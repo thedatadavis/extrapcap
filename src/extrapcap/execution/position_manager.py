@@ -35,6 +35,7 @@ class ManagedPosition:
     volatility: float | None = None
     rolling_mean: float | None = None
     option_type: str = "put"
+    peak_profit_pct: float = 0.0
 
     @property
     def return_on_capital(self) -> float:
@@ -186,8 +187,13 @@ def evaluate_credit_exit(
     if position.underlying_price is not None and position.feasibility_ratio > cfg.feasibility_em_threshold:
         return ExitDecision("close", f"feasibility_stop_exceeded_{position.feasibility_ratio:.2f}x")
 
-    # 3. Catastrophic spread-width debit backstop:
-    # If debit reaches 85% of spread width (nearing theoretical max loss), cut to preserve capital.
+    # 3. Trailing Breakeven Protection:
+    # If the trade previously captured >= 20% profit, but current debit has retraced back to/above entry credit,
+    # exit at breakeven to eliminate large givebacks of winning positions.
+    if position.peak_profit_pct >= 0.20 and position.current_debit >= position.entry_price:
+        return ExitDecision("close", "trailing_breakeven_protection")
+
+    # 4. Catastrophic spread-width debit backstop:
     catastrophic_cap = position.spread_width * cfg.catastrophic_debit_pct
     if position.current_debit >= catastrophic_cap:
         return ExitDecision("close", "catastrophic_debit_cap")
@@ -576,6 +582,13 @@ def _evaluate_single_position(
         entry_price,
         int(row.get("quantity") or 1),
     )
+    current_profit_ratio = (entry_price - current_debit) / entry_price if entry_price > 0 else 0.0
+    prev_peak = float(metadata.get("peak_profit_pct") or 0.0)
+    peak_profit = max(prev_peak, current_profit_ratio)
+    metadata["peak_profit_pct"] = round(peak_profit, 4)
+    min_obs = min(float(metadata.get("min_observed_debit") or current_debit), current_debit)
+    metadata["min_observed_debit"] = round(min_obs, 2)
+
     managed = ManagedPosition(
         envelope,
         entry_price,
@@ -590,6 +603,7 @@ def _evaluate_single_position(
         volatility=volatility,
         rolling_mean=rolling_mean,
         option_type=opt_type,
+        peak_profit_pct=peak_profit,
     )
     if entry_debit is not None:
         spread = DebitSpread(

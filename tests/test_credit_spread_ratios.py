@@ -14,14 +14,14 @@ from extrapcap.risk import PortfolioRiskState
 
 
 def test_vertical_spread_credit_ratio_invariant():
-    # Width 5.0, credit 1.50 -> 30% of width (< 35%) -> raises ValueError
+    # Width 5.0, credit 0.30 -> 6% of width (< 8%) -> raises ValueError
     with pytest.raises(ValueError, match="violates safety policy"):
-        VerticalSpread("AAPL", 220, 215, 1.50)
+        VerticalSpread("AAPL", 220, 215, 0.30)
 
-    # Width 5.0, credit 1.75 -> 35% of width -> succeeds
-    spread_35 = VerticalSpread("AAPL", 220, 215, 1.75)
-    assert spread_35.credit == 1.75
-    assert spread_35.width == 5.0
+    # Width 5.0, credit 0.50 -> 10% of width (>= 8%) -> succeeds
+    spread_10 = VerticalSpread("AAPL", 220, 215, 0.50)
+    assert spread_10.credit == 0.50
+    assert spread_10.width == 5.0
 
     # Width 5.0, credit 2.00 -> 40% of width -> succeeds
     spread_40 = VerticalSpread("AAPL", 220, 215, 2.00)
@@ -32,8 +32,8 @@ def test_vertical_spread_credit_ratio_invariant():
 def test_build_credit_spread_collects_40_pct_minimum():
     spread = build_credit_spread("AAPL", 225.0, width=5.0)
     assert spread.width == 5.0
-    assert spread.credit >= 2.00  # >= 40% of 5.0
-    assert spread.credit / spread.width >= 0.40
+    assert spread.credit >= 0.60  # >= 12% of 5.0
+    assert spread.credit / spread.width >= 0.12
 
 
 def test_select_candidate_verticals_filters_by_ratios():

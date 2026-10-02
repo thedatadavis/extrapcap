@@ -195,8 +195,11 @@ def select_candidate_verticals(
     min_width_pct: float = 0.005,
     max_width_pct: float = 0.05,
     spread_types: tuple[str, ...] = ("credit", "debit"),
-    min_credit_pct_width: float = 0.40,
+    min_credit_pct_width: float = 0.12,
     max_debit_pct_width: float = 0.30,
+    min_delta: float = 0.05,
+    max_delta: float = 0.60,
+    otm_buffer_pct: float = 0.015,
     limit: int | None = None,
 ) -> list[ExpectedValueSolution]:
     """Scan directional vertical spreads in option chain and return viable ones sorted by EV descending."""
@@ -249,9 +252,9 @@ def select_candidate_verticals(
                 if "credit" in spread_types:
                     if target_direction == "bullish" and opt_type == "put":
                         # Put Credit Spread: c2 is short (higher strike), c1 is long (lower strike)
-                        # Short strike must be OTM or ATM: c2.strike <= underlying_price * 1.01
-                        if c2.strike <= underlying_price * 1.01:
-                            delta_ok = q2.delta is None or (0.05 <= abs(q2.delta) <= 0.60)
+                        # Short strike must be strictly OTM: c2.strike <= underlying_price * (1 - otm_buffer_pct)
+                        if c2.strike <= underlying_price * (1.0 - otm_buffer_pct):
+                            delta_ok = q2.delta is None or (min_delta <= abs(q2.delta) <= max_delta)
                             if (
                                 delta_ok
                                 and q2.bid is not None
@@ -264,7 +267,7 @@ def select_candidate_verticals(
                                 if max(0.05, round(min_credit_pct_width * width, 2)) <= credit < width:
                                     max_profit = round(credit * 100, 2)
                                     max_risk = round((width - credit) * 100, 2)
-                                    stop_risk = min(max_risk, round(2.0 * credit * 100, 2))
+                                    stop_risk = round(min(max_risk, 0.75 * width * 100), 2)
                                     ev = round((win_probability * max_profit) - ((1.0 - win_probability) * stop_risk), 2)
                                     if ev >= min_ev:
                                         selected_credit = SelectedVertical(underlying, c2, c1, credit, q2.delta)
@@ -272,9 +275,9 @@ def select_candidate_verticals(
                                         solutions.append((ev, max_profit, max_risk, spread_credit, selected_credit))
                     elif target_direction == "bearish" and opt_type == "call":
                         # Call Credit Spread: c1 is short (lower strike), c2 is long (higher strike)
-                        # Short strike must be OTM or ATM: c1.strike >= underlying_price * 0.99
-                        if c1.strike >= underlying_price * 0.99:
-                            delta_ok = q1.delta is None or (0.05 <= abs(q1.delta) <= 0.60)
+                        # Short strike must be strictly OTM: c1.strike >= underlying_price * (1 + otm_buffer_pct)
+                        if c1.strike >= underlying_price * (1.0 + otm_buffer_pct):
+                            delta_ok = q1.delta is None or (min_delta <= abs(q1.delta) <= max_delta)
                             if (
                                 delta_ok
                                 and q1.bid is not None
@@ -287,7 +290,7 @@ def select_candidate_verticals(
                                 if max(0.05, round(min_credit_pct_width * width, 2)) <= credit < width:
                                     max_profit = round(credit * 100, 2)
                                     max_risk = round((width - credit) * 100, 2)
-                                    stop_risk = min(max_risk, round(2.0 * credit * 100, 2))
+                                    stop_risk = round(min(max_risk, 0.75 * width * 100), 2)
                                     ev = round((win_probability * max_profit) - ((1.0 - win_probability) * stop_risk), 2)
                                     if ev >= min_ev:
                                         selected_credit = SelectedVertical(underlying, c1, c2, credit, q1.delta)

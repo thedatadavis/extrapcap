@@ -69,7 +69,7 @@ def run_basket(
     audit: AuditLedger | None = None,
     runner=run_live_cycle,
     trading_day: date | None = None,
-    dte_min: int = 0,
+    dte_min: int = 5,
     dte_max: int = 21,
     preferred_dte: int = 10,
     max_submissions: int = 8,
@@ -77,6 +77,7 @@ def run_basket(
     throttle_seconds: float = 0.0,
     max_quote_spread_pct: float = 0.40,
     max_absolute_spread: float = 0.15,
+    require_exhaustion: bool | None = None,
 ) -> list[dict]:
     """Evaluate every viable candidate until the submission limit is reached."""
     if max_submissions < 1:
@@ -89,7 +90,7 @@ def run_basket(
     deferred = 0
     submissions = 0
     for rank, selection in enumerate(rows, start=1):
-        decision = core_streak_gate(selection)
+        decision = core_streak_gate(selection, require_exhaustion=require_exhaustion)
         probability = selection.get("reversion_probability")
         if probability is None:
             raise ValueError(

@@ -81,12 +81,13 @@ def candidate_review():
         results = run_basket(
             basket,
             trading_day=today,
-            dte_min=0,
+            dte_min=5,
             dte_max=21,
             preferred_dte=10,
             max_submissions=8,
             max_candidates=25,
             throttle_seconds=0.15,
+            require_exhaustion=True,
         )
         events = [_event_record(result) for result in results if isinstance(result, dict)]
         for event in events:

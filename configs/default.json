@@ -9,15 +9,16 @@
   },
   "strategy": {
     "z_threshold": -2.0,
-    "improved_delta_min": 0.10,
-    "improved_delta_max": 0.35,
+    "improved_delta_min": 0.08,
+    "improved_delta_max": 0.20,
     "premium_funding_pct": 0.15,
     "trap_low": 0.50,
     "trap_high": 0.80,
-    "min_credit_pct_width": 0.40,
+    "min_credit_pct_width": 0.12,
     "max_debit_pct_width": 0.25,
     "require_exhaustion_bar": true,
-    "enable_debit_reversal_route": true
+    "enable_debit_reversal_route": true,
+    "enable_bear_call_spread": true
   },
   "risk": {
     "max_core_open_risk_pct": 0.70,

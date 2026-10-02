@@ -103,8 +103,9 @@ def candidate_from_solution(
     else:
         spread_width = abs(selected.short.strike - selected.long.strike)
         unit_loss = max(1.0, (spread_width - price) * 100.0)
-        if price < 0.35 * spread_width:
-            price_invalid_reason = f"natural midpoint credit {price:.2f} is less than 35% of width {spread_width:.2f}; violates risk-to-reward policy"
+        min_credit_ratio = getattr(risk_config, "min_credit_pct_width", 0.12)
+        if price < min_credit_ratio * spread_width:
+            price_invalid_reason = f"natural midpoint credit {price:.2f} is less than {min_credit_ratio*100:.0f}% of width {spread_width:.2f}; violates risk-to-reward policy"
 
     # Dynamic sizing by confidence level up to 70% available daily cash
     sleeve_cap = (
@@ -292,8 +293,11 @@ def build_candidates(
         min_width_pct=min_width_pct,
         max_width_pct=max_width_pct,
         spread_types=spread_types,
-        min_credit_pct_width=getattr(risk_config, "min_credit_pct_width", 0.40),
+        min_credit_pct_width=getattr(risk_config, "min_credit_pct_width", 0.12),
         max_debit_pct_width=getattr(risk_config, "max_debit_pct_width", 0.30),
+        min_delta=getattr(risk_config, "improved_delta_min", 0.05),
+        max_delta=getattr(risk_config, "improved_delta_max", 0.35),
+        otm_buffer_pct=0.015,
         limit=limit,
     )
     quote_map = {quote.symbol: quote for quote in quotes}

@@ -19,9 +19,9 @@ class VerticalSpread:
             raise ValueError("vertical spread strikes must differ")
         if self.credit <= 0 or self.credit >= self.width:
             raise ValueError("credit must be positive and less than spread width")
-        if self.credit < 0.35 * self.width:
+        if self.credit < 0.08 * self.width:
             raise ValueError(
-                f"Credit {self.credit} is too low for width {self.width}; risk ratio violates safety policy (< 0.35)"
+                f"Credit {self.credit} is too low for width {self.width}; risk ratio violates safety policy (< 0.08)"
             )
         if self.contracts < 1:
             raise ValueError("contracts must be positive")
@@ -125,12 +125,12 @@ class BrokenWingButterfly:
 def build_credit_spread(
     symbol: str, price: float, variant: str = "baseline", width: float = 5.0
 ) -> VerticalSpread:
-    """Construct a compressed ATM/NTM credit spread collecting >= 40% of width.
+    """Construct a high-probability OTM credit spread collecting 12-15% of width.
 
-    Eliminates far-OTM strikes (0.15 - 0.25 delta), targeting ATM/NTM strikes (Delta 0.40 - 0.50).
+    Targets conservative OTM strikes (Delta 0.10 - 0.18), avoiding ATM/ITM hazards.
     """
-    short = round(price / 5.0) * 5.0
-    credit = round(width * (0.42 if variant == "baseline" else 0.40), 2)
+    short = round((price * 0.95) / 5.0) * 5.0
+    credit = round(width * (0.15 if variant == "baseline" else 0.12), 2)
     return VerticalSpread(
         symbol=symbol,
         short_strike=short,

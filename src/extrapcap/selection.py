@@ -37,7 +37,7 @@ def _positive_int(value) -> int | None:
 
 def core_streak_gate(
     context: dict,
-    z_threshold: float = -0.5,
+    z_threshold: float = -1.25,
     require_exhaustion: bool | None = None,
 ) -> CoreSelectionDecision:
     """Gate completed streak evidence for bullish or 2-sided mean-reversion.
@@ -50,11 +50,13 @@ def core_streak_gate(
     robust_z = _finite_float(context.get("robust_z"))
     
     route_pref = context.get("strategy_route") or context.get("route")
-    if route_pref in {"debit_reversal", "core_mean_reversion", "bearish_reversal_watch"}:
+    if route_pref in {"debit_reversal", "core_mean_reversion", "bearish_reversal_watch", "bear_call_spread"}:
         route = route_pref
     elif context.get("enable_debit_reversal_route"):
         route = "debit_reversal"
     elif direction == "negative":
+        route = "core_mean_reversion"
+    elif context.get("enable_bear_call_spread"):
         route = "core_mean_reversion"
     else:
         route = "bearish_reversal_watch"
